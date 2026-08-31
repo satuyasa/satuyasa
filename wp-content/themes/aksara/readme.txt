@@ -31,10 +31,15 @@ Tema marketplace font, Canva Template & Canva Element untuk Aksara. Full-custom 
 
 Daftar "Font pilihan" di Home tetap sengaja menampilkan nama produk dalam font UI tema (Fraunces), BUKAN dalam font asli yang dijual — beda dengan halaman single product yang sudah punya typing tool aman (lewat subset terbatas). Merender font asli langsung di listing lewat `@font-face` publik akan membocorkannya tanpa perlu lewat mekanisme subsetting sama sekali.
 
+== Cakupan Fase 3 (ditambahkan di atas Fase 1 & 2) ==
+
+* 3 tab My Account baru (Unduhan Saya, Sertifikat Lisensi, Wishlist) otomatis tampil di sidebar navigasi My Account bawaan WooCommerce — implementasinya di plugin (`class-account-endpoints.php`), tema tidak perlu perubahan template karena `woocommerce.php` sudah membungkus seluruh halaman My Account.
+* Tombol wishlist (ikon hati, `aksara_wishlist_button()`) tampil di kartu produk (`template-parts/asset-card.php`), baris spesimen font (`template-parts/font-specimen-row.php`), dan ringkasan single product (hook `woocommerce_single_product_summary`) — hanya untuk user yang sudah login.
+* `.asset-card` diubah dari `<a>` menjadi `<div>` berisi `<a>` di dalamnya (bukan lagi seluruh kartu jadi link) supaya tombol wishlist (elemen interaktif) tidak bersarang di dalam link lain — nesting interactive content di dalam `<a>` tidak valid HTML dan bikin klik ambigu.
+
 ## Yang BELUM ada (menyusul di fase lanjut)
 
-* Halaman Cart/Checkout/My Account TERSTYLE lewat CSS bawaan `woocommerce.php`, belum ada template override kustom per halaman (cukup untuk saat ini; polish lebih lanjut menyusul Fase 4).
-* My Account > Downloads & License Certificates, Wishlist (Fase 3).
+* Halaman Cart/Checkout TERSTYLE lewat CSS bawaan `woocommerce.php`, belum ada template override kustom per halaman (cukup untuk saat ini; polish lebih lanjut menyusul Fase 4).
 * Customizer UI untuk hero (saat ini teks hero memakai default dari mockup lewat `get_theme_mod()` — sudah bisa diubah lewat kode/nanti Customizer, belum ada panel UI).
 * Typing tool butuh `services/font-preview-service/` berjalan (lihat readme-nya) — tanpa itu, area pratinjau akan menampilkan pesan "pratinjau tidak tersedia" tapi kalkulator harga & tambah-ke-keranjang tetap berfungsi (keduanya tidak bergantung pada microservice).
 

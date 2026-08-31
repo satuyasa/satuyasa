@@ -160,7 +160,7 @@ input[type="submit"],
 .section-head a { font-size: 14px; font-weight: 600; color: var(--indigo); }
 
 .specimen-list { border-left: 2px solid var(--ink); padding-left: 26px; }
-.specimen-row { display: grid; grid-template-columns: 1fr 130px 90px; align-items: center; gap: 20px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.specimen-row { display: grid; grid-template-columns: 1fr 130px 90px 40px; align-items: center; gap: 20px; padding: 22px 0; border-bottom: 1px solid var(--line); }
 .specimen-row:last-child { border-bottom: none; }
 .specimen-row .sp-name { font-size: 22px; font-weight: 500; font-family: 'Fraunces', serif; }
 .specimen-row .sp-meta { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }

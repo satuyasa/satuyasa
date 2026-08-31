@@ -99,6 +99,49 @@ class Aksara_Rest_Controller {
 				),
 			)
 		);
+
+		register_rest_route(
+			self::NAMESPACE_,
+			'/download/(?P<token>[a-f0-9]{48})',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'handle_download' ),
+				'permission_callback' => '__return_true', // Token itu sendiri adalah kredensialnya.
+				'args'                => array(
+					'token' => array( 'required' => true, 'type' => 'string' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_,
+			'/certificate/(?P<order_id>\d+)',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'handle_certificate_download' ),
+				'permission_callback' => function () {
+					return is_user_logged_in();
+				},
+				'args'                => array(
+					'order_id' => array( 'required' => true, 'type' => 'integer' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_,
+			'/wishlist/toggle',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'handle_wishlist_toggle' ),
+				'permission_callback' => function () {
+					return is_user_logged_in();
+				},
+				'args'                => array(
+					'product_id' => array( 'required' => true, 'type' => 'integer' ),
+				),
+			)
+		);
 	}
 
 	/**
@@ -285,6 +328,100 @@ class Aksara_Rest_Controller {
 			'cart_count'      => WC()->cart->get_cart_contents_count(),
 			'cart_total_html' => WC()->cart->get_cart_subtotal(),
 			'cart_url'        => wc_get_cart_url(),
+		) );
+	}
+
+	/**
+	 * GET /aksara/v1/download/{token} — validasi token lalu stream file font
+	 * asli atau redirect ke tautan Canva.
+	 *
+	 * CATATAN TEKNIS: untuk kasus 'stream', handler ini mengirim header +
+	 * isi berkas langsung lalu memanggil exit() — BUKAN mengembalikan
+	 * WP_REST_Response seperti endpoint lain. Ini disengaja: WP REST API
+	 * selalu wp_json_encode() body respons (lihat catatan di
+	 * handle_font_preview()), yang tidak cocok untuk mengirim berkas biner
+	 * berukuran besar sebagai unduhan asli (Content-Disposition: attachment)
+	 * dengan Save-As dialog browser yang benar. Pola "keluar dari siklus
+	 * REST normal untuk endpoint file" ini umum dipakai plugin WordPress lain.
+	 *
+	 * @param WP_REST_Request $request Request REST.
+	 * @return WP_Error Hanya kalau token TIDAK valid (kasus valid tidak pernah return).
+	 */
+	public static function handle_download( WP_REST_Request $request ) {
+		$result = Aksara_Download_Manager::resolve( $request->get_param( 'token' ) );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( 'redirect' === $result['type'] ) {
+			wp_safe_redirect( $result['url'] );
+			exit;
+		}
+
+		nocache_headers();
+		header( 'Content-Type: application/octet-stream' );
+		header( 'Content-Disposition: attachment; filename="' . sanitize_file_name( $result['filename'] ) . '"' );
+		header( 'Content-Length: ' . filesize( $result['path'] ) );
+		header( 'X-Content-Type-Options: nosniff' );
+		readfile( $result['path'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_readfile
+		exit;
+	}
+
+	/**
+	 * GET /aksara/v1/certificate/{order_id} — unduh ulang PDF sertifikat lisensi.
+	 *
+	 * Beda dari /download/{token}: akses di sini digerbangi oleh status
+	 * login (harus pemilik order atau admin), bukan token bearer — karena
+	 * halaman ini memang hanya dipakai dari dalam My Account yang sudah
+	 * mengharuskan login.
+	 *
+	 * @param WP_REST_Request $request Request REST.
+	 * @return WP_Error Hanya kalau gagal (kasus sukses langsung stream & exit).
+	 */
+	public static function handle_certificate_download( WP_REST_Request $request ) {
+		$order_id = absint( $request->get_param( 'order_id' ) );
+		$order    = wc_get_order( $order_id );
+
+		if ( ! $order ) {
+			return new WP_Error( 'aksara_invalid_order', __( 'Order tidak ditemukan.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+		}
+
+		$is_owner = get_current_user_id() && (int) $order->get_customer_id() === get_current_user_id();
+		if ( ! $is_owner && ! current_user_can( 'manage_woocommerce' ) ) {
+			return new WP_Error( 'aksara_forbidden', __( 'Anda tidak berhak mengakses sertifikat ini.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+		}
+
+		$certificate = Aksara_License_Certificates_Repository::get_by_order( $order_id );
+		if ( ! $certificate ) {
+			return new WP_Error( 'aksara_no_certificate', __( 'Order ini tidak memiliki sertifikat lisensi.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+		}
+
+		$path = Aksara_File_Storage::get_absolute_path( $certificate->file_path );
+		if ( ! file_exists( $path ) ) {
+			return new WP_Error( 'aksara_missing_resource', __( 'Berkas sertifikat tidak ditemukan di server.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+		}
+
+		nocache_headers();
+		header( 'Content-Type: application/pdf' );
+		header( 'Content-Disposition: attachment; filename="sertifikat-order-' . $order_id . '.pdf"' );
+		header( 'Content-Length: ' . filesize( $path ) );
+		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_readfile
+		exit;
+	}
+
+	/**
+	 * POST /aksara/v1/wishlist/toggle — tambah/hapus produk dari wishlist user yang login.
+	 *
+	 * @param WP_REST_Request $request Request REST.
+	 * @return WP_REST_Response
+	 */
+	public static function handle_wishlist_toggle( WP_REST_Request $request ) {
+		$in_wishlist = Aksara_Wishlist_Repository::toggle( get_current_user_id(), absint( $request->get_param( 'product_id' ) ) );
+
+		return new WP_REST_Response( array(
+			'success'     => true,
+			'in_wishlist' => $in_wishlist,
 		) );
 	}
 }

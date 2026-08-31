@@ -5,11 +5,11 @@ Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 Requires Plugins: woocommerce
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Status saat ini: **Fase 2 — preview engine & kalkulator lisensi** (lihat Breakdown Task Development Aksara).
+Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Status saat ini: **Fase 3 — download aman, sertifikat lisensi, wishlist** (lihat Breakdown Task Development Aksara).
 
 Butuh `services/font-preview-service/` (microservice Python) berjalan di server yang sama untuk fitur typing tool — lihat readme di folder tersebut untuk cara menjalankannya bersama plugin ini.
 
@@ -35,23 +35,38 @@ Butuh `services/font-preview-service/` (microservice Python) berjalan di server 
 * **Typing tool interaktif** (`assets/js/font-typing-tool.js` + `templates/single-product/add-to-cart/font.php`, dirender lewat hook `woocommerce_font_add_to_cart`): pilih weight/italic/ukuran, ketik teks sendiri (debounce ~1 detik), lihat live preview tiap style dalam font aslinya (lewat FontFace API dari subset yang diterima, bukan file lengkap), pilih beberapa style, pilih lisensi, lihat total harga real-time, tombol "Pilih Semua (Paket Lengkap)", tambah ke keranjang tanpa reload halaman.
 * Harga yang tampil di kalkulator SELALU dihitung ulang & divalidasi di server (`validate_combo()`) saat add-to-cart — nilai dari klien tidak pernah dipercaya langsung.
 
+== Cakupan Fase 3 (ditambahkan di atas Fase 1 & 2) ==
+
+* **Token unduh aman** (`aksara_download_tokens`, `class-download-manager.php`): dibuat otomatis saat order berstatus *completed*/*processing* — satu token per style font yang dibeli, satu token per produk Canva. Token adalah kredensial pembawa acak (48 karakter hex, pola sama seperti `download_permissions` bawaan WooCommerce), dicabut otomatis kalau order di-refund/dibatalkan.
+* **`GET /aksara/v1/download/{token}`**: stream berkas font ASLI (bukan subset pratinjau) untuk token font, atau redirect ke tautan Canva untuk token Canva. Endpoint ini sengaja TIDAK mengembalikan `WP_REST_Response` biasa untuk kasus stream — langsung kirim header + `readfile()` lalu `exit`, supaya browser dapat Save-As dialog yang benar (lihat komentar di kode kenapa pola JSON-envelope REST biasa tidak cocok untuk ini).
+* **Sertifikat lisensi PDF** (`class-pdf-writer.php` + `class-invoice-generator.php`): satu PDF per order (bukan per item), berisi seluruh style+lisensi font yang dibeli di order itu. PDF ditulis manual tanpa dependency eksternal (bukan dompdf/mpdf) — cukup untuk kebutuhan 1 halaman teks, memakai font standar Helvetica yang wajib didukung semua pembaca PDF. Divalidasi dengan pypdf saat development (lihat riwayat commit).
+* **My Account, 3 tab baru** (`class-account-endpoints.php`, lewat rewrite endpoint resmi WooCommerce): **Unduhan Saya** (daftar token + sisa kuota), **Sertifikat Lisensi** (unduh ulang PDF), **Wishlist**.
+* **Wishlist**: `POST /aksara/v1/wishlist/toggle` (perlu login) + tombol hati (`aksara_wishlist_button()`, template tag global untuk tema) di kartu produk & single product.
+* **Email order otomatis**: tautan unduh disisipkan ke email *customer completed/processing order* lewat `woocommerce_email_after_order_table` (bukan override template), sertifikat PDF dilampirkan lewat `woocommerce_email_attachments` — tidak perlu login untuk menerima akses, cocok untuk guest checkout.
+* **Dashboard admin**: widget WP Dashboard "Font Terlaris (30 Hari)", dihitung dari order item lewat `wc_get_orders()` (aman untuk HPOS, tidak query tabel order langsung), di-cache 12 jam.
+* Cron kedua `aksara_cleanup_download_tokens` (bersama `aksara_cleanup_preview_cache` yang sudah ada) — saat ini biasanya no-op karena token tidak diberi kedaluwarsa otomatis (lisensi yang sudah dibeli tidak semestinya berhenti bisa diunduh), tapi siap dipakai begitu ada kebijakan retensi.
+
 ## Yang BELUM ada (menyusul di fase lanjut sesuai Breakdown Task)
 
-* Sistem download aman bertoken & invoice/sertifikat lisensi PDF (Fase 3).
-* Wishlist, dashboard admin ringkas (Fase 3).
+* SEO (schema markup, sitemap), blog, polish UI/UX menyeluruh, testing end-to-end (Fase 4).
+* Multi-vendor, integrasi Canva API resmi, multi-bahasa (Fase 5, opsional sesuai keputusan produk).
 * Deployment produksi microservice (systemd/WSGI server) — lihat readme di `services/font-preview-service/`.
 
 == Instalasi ==
 
 1. Pastikan WooCommerce aktif terlebih dahulu.
 2. Unggah folder `aksara-marketplace` ke `/wp-content/plugins/`.
-3. Aktifkan plugin — tabel database & folder privat dibuat otomatis saat aktivasi.
+3. Aktifkan plugin — tabel database & folder privat (termasuk `certificates/`) dibuat otomatis saat aktivasi.
 4. Jalankan `services/font-preview-service/` (lihat readme-nya) dengan `AKSARA_FONT_STORAGE_DIR` mengarah ke `wp-content/uploads/aksara-private` situs ini — tanpa ini, typing tool akan menampilkan pesan "pratinjau tidak tersedia".
 5. Buka **WooCommerce > Lisensi Font** untuk memeriksa/menyunting 5 jenis lisensi default yang sudah diisi otomatis (Desktop, Web, Aplikasi, E-book, Komersial Lanjutan).
 6. Tambah produk baru → set **Product type** ke "Font (Aksara)" → isi style lewat metabox **Font Styles** → atur harga per lisensi → (opsional) atur diskon paket lengkap.
 7. Untuk Canva Template/Element: set **Product type** sesuai, isi harga seperti simple product biasa, lalu lengkapi metabox **Info Canva**.
+8. Setelah plugin diperbarui dari versi sebelumnya (bukan instalasi baru), buka **Pengaturan > Permalink** sekali dan klik Simpan supaya tab My Account baru (Unduhan Saya, dst.) langsung bisa diakses tanpa 404 — plugin sudah mencoba melakukan ini otomatis, langkah ini cuma jaring pengaman.
 
 == Changelog ==
+
+= 0.3.0 =
+* Fase 3: token unduh aman, sertifikat lisensi PDF (penulis PDF sendiri, tanpa dependency), 3 tab My Account baru, wishlist, tautan unduh & lampiran PDF di email order, widget dashboard admin, cron cleanup token.
 
 = 0.2.0 =
 * Fase 2: REST API preview & cart, typing tool interaktif, kalkulator multi-style + diskon paket lengkap, rate limiting persisten, cron cleanup cache.

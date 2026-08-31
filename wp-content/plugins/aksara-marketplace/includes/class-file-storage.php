@@ -110,6 +110,29 @@ class Aksara_File_Storage {
 	}
 
 	/**
+	 * Simpan konten yang di-generate server (mis. PDF sertifikat lisensi)
+	 * ke folder privat — beda dari store_uploaded_font() yang menangani
+	 * $_FILES upload, ini cuma menulis string biner apa adanya.
+	 *
+	 * @param string $subdir   Sub-folder di dalam direktori privat (mis. 'certificates').
+	 * @param string $filename Nama file (harus sudah aman/unik, dipanggil sudah lewat sanitize_file_name()).
+	 * @param string $content  Konten biner.
+	 * @return string|WP_Error Path RELATIF terhadap base dir privat, atau WP_Error.
+	 */
+	public static function store_generated_file( $subdir, $filename, $content ) {
+		$dir         = self::ensure_protected_dir( $subdir );
+		$filename    = sanitize_file_name( $filename );
+		$destination = trailingslashit( $dir ) . $filename;
+
+		$written = file_put_contents( $destination, $content ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		if ( false === $written ) {
+			return new WP_Error( 'aksara_write_failed', __( 'Gagal menyimpan berkas yang dihasilkan.', 'aksara-marketplace' ) );
+		}
+
+		return trim( $subdir, '/' ) . '/' . $filename;
+	}
+
+	/**
 	 * Ubah path relatif (tersimpan di DB) menjadi path absolut di disk.
 	 *
 	 * @param string $relative_path Path relatif hasil dari store_uploaded_font().

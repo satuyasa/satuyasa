@@ -181,3 +181,30 @@
 .aksara-ft-cta-note { font-size: 12px; text-align: center; margin-top: 10px; min-height: 1.2em; color: var(--ink-soft, #5b6472); }
 .aksara-ft-cta-note.is-error { color: #b42318; }
 .aksara-ft-cta-note.is-success { color: var(--teal, #1F5C52); }
+
+/* Tombol wishlist (ikon hati) — dipasang di pojok kartu produk & single product. */
+.aksara-wishlist-toggle {
+	background: var(--paper-raised, #fff);
+	border: 1px solid var(--line, #D7D2C4);
+	border-radius: 50%;
+	width: 34px;
+	height: 34px;
+	line-height: 1;
+	font-size: 16px;
+	color: var(--ink-soft, #5b6472);
+	cursor: pointer;
+}
+
+.aksara-wishlist-toggle.is-active {
+	color: #d1345b;
+	border-color: #d1345b;
+}
+
+.aksara-wishlist-toggle:disabled { opacity: .6; cursor: wait; }
+
+/* Kartu produk (.asset-card) dari tema Aksara punya position:static secara
+ * default — beri position:relative supaya tombol hati bisa absolute di pojoknya. */
+.asset-card { position: relative; }
+.asset-card .aksara-wishlist-toggle { position: absolute; top: 10px; right: 10px; z-index: 2; }
+
+.aksara-product-summary .aksara-wishlist-toggle { margin-top: 10px; }

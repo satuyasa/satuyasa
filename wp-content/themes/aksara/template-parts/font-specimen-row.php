@@ -47,4 +47,7 @@ $categories = wc_get_product_category_list( $product->get_id() );
 	</div>
 	<div class="sp-price"><?php echo wp_kses_post( $product->get_price_html() ); ?></div>
 	<a class="sp-view" href="<?php the_permalink(); ?>"><?php esc_html_e( 'Lihat →', 'aksara' ); ?></a>
+	<?php if ( function_exists( 'aksara_wishlist_button' ) ) : ?>
+		<?php aksara_wishlist_button( $product->get_id() ); ?>
+	<?php endif; ?>
 </div>

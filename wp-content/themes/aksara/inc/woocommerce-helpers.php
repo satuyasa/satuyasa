@@ -54,8 +54,9 @@ function aksara_count_products_by_type( $type ) {
  *
  * Tautan Canva (`_aksara_canva_link`) SENGAJA TIDAK ditampilkan di sini —
  * itu adalah aset berbayar yang baru boleh diberikan setelah pembelian
- * lunas. Sistem pengiriman aman (My Account > Downloads) menyusul di
- * Fase 3; menampilkannya di halaman publik sekarang akan membocorkannya.
+ * lunas. Pengiriman aman ditangani lewat token unduh (Fase 3, lihat
+ * My Account > Unduhan Saya) setelah order selesai dibayar; menampilkannya
+ * di halaman publik akan membocorkannya sebelum dibeli.
  */
 function aksara_render_product_meta() {
 	global $product;
@@ -95,6 +96,20 @@ function aksara_render_product_meta() {
 	echo '</div>';
 }
 add_action( 'woocommerce_single_product_summary', 'aksara_render_product_meta', 6 );
+
+/**
+ * Tombol wishlist di ringkasan single product (setelah tombol beli).
+ */
+function aksara_render_wishlist_button() {
+	global $product;
+
+	if ( ! $product instanceof WC_Product || ! function_exists( 'aksara_wishlist_button' ) ) {
+		return;
+	}
+
+	aksara_wishlist_button( $product->get_id() );
+}
+add_action( 'woocommerce_single_product_summary', 'aksara_render_wishlist_button', 35 );
 
 /**
  * Wrapper aman untuk cek apakah sebuah produk bertipe 'font'.

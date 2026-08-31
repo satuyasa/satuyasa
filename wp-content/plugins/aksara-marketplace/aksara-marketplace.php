@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
- * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, typing tool pratinjau interaktif, dan kalkulator lisensi.
- * Version: 0.2.0 (Fase 2 — preview engine & kalkulator lisensi)
+ * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, typing tool pratinjau interaktif, kalkulator lisensi, unduhan aman, sertifikat lisensi PDF, dan wishlist.
+ * Version: 0.3.0 (Fase 3 — download aman, sertifikat lisensi, wishlist)
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.2.0' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.3.0' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );
@@ -59,6 +59,15 @@ function aksara_marketplace_load_includes() {
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-cart-handler.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-rest-controller.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-cleanup-jobs.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/db/class-download-tokens-repository.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/db/class-license-certificates-repository.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/db/class-wishlist-repository.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-pdf-writer.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-invoice-generator.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-download-manager.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-account-endpoints.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-order-emails.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-dashboard-widget.php';
 }
 
 /**
@@ -80,6 +89,10 @@ function aksara_marketplace_init() {
 	Aksara_Cart_Handler::init();
 	Aksara_Rest_Controller::init();
 	Aksara_Cleanup_Jobs::init();
+	Aksara_Download_Manager::init();
+	Aksara_Account_Endpoints::init();
+	Aksara_Order_Emails::init();
+	Aksara_Dashboard_Widget::init();
 
 	Aksara_DB_Installer::maybe_upgrade();
 }
@@ -122,8 +135,50 @@ function aksara_marketplace_enqueue_assets() {
 		AKSARA_MARKETPLACE_VERSION,
 		true
 	);
+
+	// Wishlist adalah fitur khusus akun (lihat class-account-endpoints.php) —
+	// tombolnya cuma dirender untuk user yang login (lihat aksara_wishlist_button()),
+	// jadi script-nya juga cukup dimuat untuk mereka saja.
+	if ( is_user_logged_in() ) {
+		wp_enqueue_script(
+			'aksara-wishlist',
+			AKSARA_MARKETPLACE_URL . 'assets/js/wishlist.js',
+			array(),
+			AKSARA_MARKETPLACE_VERSION,
+			true
+		);
+		wp_localize_script( 'aksara-wishlist', 'aksaraWishlist', array(
+			'restUrl' => esc_url_raw( rest_url( 'aksara/v1' ) ),
+			'nonce'   => wp_create_nonce( 'wp_rest' ),
+			'i18n'    => array(
+				'add'    => __( 'Tambah ke wishlist', 'aksara-marketplace' ),
+				'remove' => __( 'Hapus dari wishlist', 'aksara-marketplace' ),
+			),
+		) );
+	}
 }
 add_action( 'wp_enqueue_scripts', 'aksara_marketplace_enqueue_assets' );
+
+/**
+ * Template tag untuk tema: cetak tombol wishlist (ikon hati) untuk sebuah produk.
+ * Tidak menampilkan apa pun kalau user belum login (wishlist butuh akun).
+ *
+ * @param int $product_id ID produk.
+ */
+function aksara_wishlist_button( $product_id ) {
+	if ( ! is_user_logged_in() || ! class_exists( 'Aksara_Wishlist_Repository' ) ) {
+		return;
+	}
+
+	$is_active = Aksara_Wishlist_Repository::has( get_current_user_id(), $product_id );
+
+	printf(
+		'<button type="button" class="aksara-wishlist-toggle%s" data-product-id="%d" aria-label="%s">&hearts;</button>',
+		$is_active ? ' is-active' : '',
+		(int) $product_id,
+		$is_active ? esc_attr__( 'Hapus dari wishlist', 'aksara-marketplace' ) : esc_attr__( 'Tambah ke wishlist', 'aksara-marketplace' )
+	);
+}
 
 /**
  * Saat aktivasi: pastikan WooCommerce aktif, buat tabel, siapkan folder privat.
@@ -135,6 +190,7 @@ function aksara_marketplace_activate() {
 	Aksara_DB_Installer::install();
 	Aksara_File_Storage::ensure_protected_dir( 'fonts' );
 	Aksara_File_Storage::ensure_protected_dir( 'templates' );
+	Aksara_File_Storage::ensure_protected_dir( 'certificates' );
 
 	flush_rewrite_rules();
 }

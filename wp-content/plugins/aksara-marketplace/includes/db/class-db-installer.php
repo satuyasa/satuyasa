@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Aksara_DB_Installer {
 
 	const DB_VERSION_OPTION = 'aksara_marketplace_db_version';
-	const DB_VERSION        = '1.0.0';
+	const DB_VERSION        = '1.1.0';
 
 	/**
 	 * Jalankan/perbarui migrasi jika versi skema berubah.
@@ -42,10 +42,13 @@ class Aksara_DB_Installer {
 
 		$charset_collate = $wpdb->get_charset_collate();
 
-		$styles_table   = $wpdb->prefix . 'aksara_font_styles';
-		$licenses_table = $wpdb->prefix . 'aksara_font_licenses';
-		$tiers_table    = $wpdb->prefix . 'aksara_license_tiers';
-		$prices_table   = $wpdb->prefix . 'aksara_style_prices';
+		$styles_table       = $wpdb->prefix . 'aksara_font_styles';
+		$licenses_table     = $wpdb->prefix . 'aksara_font_licenses';
+		$tiers_table        = $wpdb->prefix . 'aksara_license_tiers';
+		$prices_table       = $wpdb->prefix . 'aksara_style_prices';
+		$tokens_table       = $wpdb->prefix . 'aksara_download_tokens';
+		$certificates_table = $wpdb->prefix . 'aksara_license_certificates';
+		$wishlist_table     = $wpdb->prefix . 'aksara_wishlist_items';
 
 		$sql = "CREATE TABLE {$styles_table} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -92,6 +95,43 @@ class Aksara_DB_Installer {
 			UNIQUE KEY style_license (style_id, license_id),
 			KEY style_id (style_id),
 			KEY license_id (license_id)
+		) {$charset_collate};
+
+		CREATE TABLE {$tokens_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			token VARCHAR(64) NOT NULL,
+			order_id BIGINT UNSIGNED NOT NULL,
+			order_item_id BIGINT UNSIGNED NOT NULL,
+			user_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			resource_type VARCHAR(20) NOT NULL,
+			resource_id BIGINT UNSIGNED NOT NULL,
+			download_count INT UNSIGNED NOT NULL DEFAULT 0,
+			download_limit INT UNSIGNED NOT NULL DEFAULT 50,
+			expires_at DATETIME NULL,
+			is_revoked TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY token (token),
+			KEY order_id (order_id),
+			KEY user_id (user_id)
+		) {$charset_collate};
+
+		CREATE TABLE {$certificates_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			order_id BIGINT UNSIGNED NOT NULL,
+			file_path VARCHAR(255) NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY order_id (order_id)
+		) {$charset_collate};
+
+		CREATE TABLE {$wishlist_table} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			user_id BIGINT UNSIGNED NOT NULL,
+			product_id BIGINT UNSIGNED NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY user_product (user_id, product_id)
 		) {$charset_collate};";
 
 		dbDelta( $sql );
