@@ -69,6 +69,8 @@ function aksara_marketplace_load_includes() {
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-order-emails.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-dashboard-widget.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-error-logger.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-specimen-image.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-service-health.php';
 }
 
 /**
@@ -95,6 +97,7 @@ function aksara_marketplace_init() {
 	Aksara_Order_Emails::init();
 	Aksara_Dashboard_Widget::init();
 	Aksara_Error_Logger::init();
+	Aksara_Service_Health::init();
 
 	Aksara_DB_Installer::maybe_upgrade();
 }
@@ -180,6 +183,39 @@ function aksara_wishlist_button( $product_id ) {
 		(int) $product_id,
 		$is_active ? esc_attr__( 'Hapus dari wishlist', 'aksara-marketplace' ) : esc_attr__( 'Tambah ke wishlist', 'aksara-marketplace' )
 	);
+}
+
+/**
+ * Template tag untuk tema: cetak specimen sebuah produk font sebagai
+ * GAMBAR hasil render server (bukan memuat file font ke browser).
+ *
+ * Aman dipakai di listing publik: yang dikirim ke pengunjung cuma piksel,
+ * file fontnya tidak pernah meninggalkan server (lihat penjelasan lengkap
+ * di class-specimen-image.php). Kalau specimen tidak bisa dibuat — style
+ * diunggah dalam format .woff2 yang tidak dibaca FreeType, GD tidak
+ * tersedia, atau produk belum punya style — fungsi ini mengembalikan
+ * string kosong supaya pemanggil bisa mundur ke teks biasa.
+ *
+ * @param int         $product_id ID produk font.
+ * @param string|null $text       Teks yang dirender (default: judul produk).
+ * @param int         $size       Tinggi tampilan dalam piksel.
+ * @return string HTML <img>, atau string kosong.
+ */
+function aksara_font_specimen( $product_id, $text = null, $size = 40 ) {
+	if ( ! class_exists( 'Aksara_Specimen_Image' ) || ! class_exists( 'Aksara_Font_Styles_Repository' ) ) {
+		return '';
+	}
+
+	$style = Aksara_Font_Styles_Repository::get_representative( $product_id );
+	if ( ! $style ) {
+		return '';
+	}
+
+	if ( null === $text ) {
+		$text = get_the_title( $product_id );
+	}
+
+	return Aksara_Specimen_Image::get_img_tag( $style, $text, $size );
 }
 
 /**

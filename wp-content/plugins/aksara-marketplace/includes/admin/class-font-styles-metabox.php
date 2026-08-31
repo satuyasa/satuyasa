@@ -229,6 +229,9 @@ class Aksara_Font_Styles_Metabox {
 				$style = Aksara_Font_Styles_Repository::get( (int) $style_id );
 				if ( $style && (int) $style->product_id === $post_id ) {
 					Aksara_File_Storage::delete( $style->file_path );
+					if ( class_exists( 'Aksara_Specimen_Image' ) ) {
+						Aksara_Specimen_Image::purge_for_style( $style->id );
+					}
 					Aksara_Font_Styles_Repository::delete( $style->id );
 				}
 			}
@@ -278,7 +281,7 @@ class Aksara_Font_Styles_Metabox {
 				$name_without_ext = pathinfo( $original_name, PATHINFO_FILENAME );
 				$guessed          = self::guess_weight_and_italic( $name_without_ext );
 
-				Aksara_Font_Styles_Repository::insert(
+				$new_style_id = Aksara_Font_Styles_Repository::insert(
 					array(
 						'product_id'  => $post_id,
 						'style_name'  => self::guess_style_name( $name_without_ext ),
@@ -288,6 +291,19 @@ class Aksara_Font_Styles_Metabox {
 						'sort_order'  => $existing_count + $index,
 					)
 				);
+
+				// Buat specimen sekarang, saat admin mengunggah — bukan nanti
+				// saat pengunjung pertama membuka halaman produk. Render GD
+				// perlu puluhan milidetik per style; untuk family berisi
+				// belasan style, membiarkannya terjadi saat page load berarti
+				// satu pengunjung yang apes menanggung seluruh biayanya.
+				if ( $new_style_id && class_exists( 'Aksara_Specimen_Image' ) ) {
+					$new_style = Aksara_Font_Styles_Repository::get( $new_style_id );
+					if ( $new_style ) {
+						Aksara_Specimen_Image::get_url( $new_style, Aksara_Specimen_Image::get_default_preview_text(), 40 );
+						Aksara_Specimen_Image::get_url( $new_style, get_the_title( $post_id ), 34 );
+					}
+				}
 			}
 		}
 	}

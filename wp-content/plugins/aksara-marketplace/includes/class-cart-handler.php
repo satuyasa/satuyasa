@@ -77,6 +77,10 @@ class Aksara_Cart_Handler {
 	 * @return array
 	 */
 	private static function build_js_config( $product, $styles, $licenses, $matrix ) {
+		$preview_text = class_exists( 'Aksara_Specimen_Image' )
+			? Aksara_Specimen_Image::get_default_preview_text()
+			: __( 'Kopi pagi, ide baru, karya berani', 'aksara-marketplace' );
+
 		$styles_payload = array();
 		foreach ( $styles as $style ) {
 			$styles_payload[] = array(
@@ -84,6 +88,13 @@ class Aksara_Cart_Handler {
 				'name'     => $style->style_name,
 				'weight'   => (int) $style->font_weight,
 				'italic'   => (bool) $style->is_italic,
+				// Gambar specimen statis: dipakai JS sebagai fallback kalau
+				// microservice pratinjau sedang tidak bisa dihubungi, supaya
+				// pengunjung tetap melihat wujud font aslinya alih-alih cuma
+				// pesan error. Kosong kalau style tidak bisa dirender (.woff2).
+				'specimen' => class_exists( 'Aksara_Specimen_Image' )
+					? Aksara_Specimen_Image::get_url( $style, $preview_text, 40 )
+					: '',
 			);
 		}
 
@@ -123,7 +134,7 @@ class Aksara_Cart_Handler {
 			'cartUrl'            => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : '',
 			'debounceMs'         => 1000, // Keputusan produk: debounce ~1 detik, bukan real-time per-karakter.
 			'maxPreviewChars'    => 100,
-			'defaultPreviewText' => __( 'Kopi pagi, ide baru, karya berani', 'aksara-marketplace' ),
+			'defaultPreviewText' => $preview_text,
 			'i18n'               => array(
 				'selectStyle'    => __( 'Pilih minimal 1 style.', 'aksara-marketplace' ),
 				'selectLicense'  => __( 'Pilih jenis lisensi.', 'aksara-marketplace' ),
@@ -132,6 +143,7 @@ class Aksara_Cart_Handler {
 				'error'          => __( 'Terjadi kesalahan, coba lagi.', 'aksara-marketplace' ),
 				'selectAll'      => __( 'Pilih Semua (Paket Lengkap)', 'aksara-marketplace' ),
 				'previewUnavailable' => __( 'Pratinjau tidak tersedia', 'aksara-marketplace' ),
+				'previewFallback'    => __( 'Menampilkan contoh statis — pratinjau ketik langsung sedang tidak tersedia.', 'aksara-marketplace' ),
 				'loading'        => __( 'Memuat pratinjau…', 'aksara-marketplace' ),
 			),
 		);

@@ -4,14 +4,49 @@ Microservice kecil (Python + fontTools) yang menerima **1 file font + teks**, da
 
 Dibangun berdiri sendiri (tanpa dependency ke WordPress/plugin) sebagai POC Fase 0, dan sejak Fase 2 **sudah terintegrasi** ke plugin `aksara-marketplace` lewat `includes/class-preview-service-client.php` (dipanggil dari `includes/class-rest-controller.php`, endpoint `POST /wp-json/aksara/v1/font-preview` & `/font-preview-batch`).
 
-## Menjalankan bersama WordPress (Fase 2)
+## Seberapa penting service ini? (baca dulu sebelum panik)
 
-Agar `font_path` yang dikirim plugin (path relatif seperti `fonts/xxxx.otf`, hasil upload lewat metabox Font Styles) bisa ditemukan, jalankan service ini dengan `AKSARA_FONT_STORAGE_DIR` mengarah ke folder privat WordPress yang sama — **bukan** `./fixtures` (itu cuma buat testing berdiri sendiri):
+Sejak optimasi pasca-Fase 4, service ini **tidak lagi menjadi titik kegagalan tunggal**. Pembagian tugasnya:
+
+| Kebutuhan | Ditangani oleh | Butuh service ini? |
+|---|---|---|
+| Nama & contoh font di listing/Home | PHP GD (`class-specimen-image.php`) | **Tidak** |
+| Pratinjau saat typing tool tidak bisa menghubungi service | Gambar specimen statis (fallback otomatis) | **Tidak** |
+| Ketik teks sendiri & lihat langsung di halaman produk | Service ini (subset `.woff2`) | **Ya** |
+| Harga, keranjang, checkout, unduhan, sertifikat lisensi | WordPress/WooCommerce | **Tidak** |
+
+Jadi kalau service mati: pengunjung tetap melihat wujud font aslinya (sebagai gambar), toko tetap bisa menerima pesanan — yang hilang hanya kemampuan mengetik teks sendiri untuk dipratinjau. Admin juga langsung diberi tahu lewat notice di wp-admin dan halaman **WooCommerce > Status Layanan Aksara**.
+
+## Pemasangan yang disarankan: systemd (sekali jalan)
+
+```bash
+cd services/font-preview-service
+sudo ./deploy/install.sh /path/ke/wp-content/uploads/aksara-private
+```
+
+Skrip ini membuat virtualenv, memasang dependency, menulis unit systemd (`deploy/aksara-font-preview.service`), mengaktifkannya supaya jalan otomatis saat boot & restart sendiri kalau crash, lalu memverifikasi endpoint `/health` merespons. Jumlah worker default mengikuti jumlah core CPU (minimal 2) sesuai temuan load test di bawah.
+
+Opsional: `PORT=5055 WORKERS=4 RUN_USER=www-data sudo -E ./deploy/install.sh <dir>`
+
+Perintah harian setelah terpasang:
+
+```bash
+sudo systemctl status aksara-font-preview
+sudo systemctl restart aksara-font-preview
+sudo journalctl -u aksara-font-preview -f
+```
+
+## Menjalankan manual (development / tanpa systemd)
+
+`AKSARA_FONT_STORAGE_DIR` harus mengarah ke folder privat WordPress supaya `font_path` relatif yang dikirim plugin (mis. `fonts/xxxx.otf`) ketemu — **bukan** `./fixtures`, itu cuma untuk testing berdiri sendiri:
 
 ```bash
 export AKSARA_FONT_STORAGE_DIR=/path/ke/wp-content/uploads/aksara-private
-python3 app.py
+python3 app.py                                    # dev saja, single process
+gunicorn -w 4 -b 127.0.0.1:5055 app:app           # mendekati produksi
 ```
+
+Di dalam container (systemd tidak tersedia), jalankan perintah `gunicorn` di atas sebagai service tersendiri di `docker-compose.yml`.
 
 Plugin memanggil `http://127.0.0.1:5055` secara default; override lewat konstanta `AKSARA_PREVIEW_SERVICE_URL` di `wp-config.php` kalau portnya beda atau (di luar rekomendasi Starter Brief) service dipindah ke server lain.
 
@@ -95,9 +130,15 @@ Breakdown Task Fase 4 secara eksplisit meminta load test endpoint `/font-preview
 - **Style hanya bisa dipratinjau kalau produknya sudah publish** — dicek di `Aksara_Rest_Controller::validate_preview_request()`, mencegah endpoint dipakai mengintip font dari produk draft/privat.
 - **Cache hasil subset (10 menit, transient WordPress)** — mengurangi beban berulang ke service ini untuk kombinasi style+teks yang sama, dibersihkan proaktif lewat cron `aksara_cleanup_preview_cache` (`Aksara_Cleanup_Jobs`).
 
-## Yang sengaja belum ada (menyusul di fase lanjut)
+## Struktur folder deploy
 
-- Deployment sebagai service produksi yang benar-benar otomatis (systemd unit supaya restart sendiri kalau crash/reboot server). Perintah WSGI server-nya sendiri sudah diverifikasi lewat load test di atas (`gunicorn -w 4 -b 127.0.0.1:5055 app:app`) — dev server Flask bawaan **tidak boleh** dipakai di production, sudah otomatis diperingatkan oleh Flask sendiri saat dijalankan.
+```
+deploy/
+├── install.sh                     # pemasang systemd satu perintah
+└── aksara-font-preview.service     # template unit (placeholder diisi install.sh)
+```
+
+Unit systemd-nya sudah memakai pengetatan dasar: `NoNewPrivileges`, `ProtectSystem=strict`, `ProtectHome=read-only`, dan folder font dipasang `ReadOnlyPaths` — service ini memang cuma perlu MEMBACA berkas font dan mendengarkan di loopback.
 - Signed/expiring URL bergaya file statis — sengaja tidak dipakai; endpoint WordPress mengembalikan data langsung (base64 dalam JSON) tanpa pernah menulis file ke direktori publik, yang secara desain lebih aman daripada URL yang bisa disalin-ulang (lihat komentar di `class-rest-controller.php`).
 
 ## Struktur

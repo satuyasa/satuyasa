@@ -55,19 +55,24 @@ docs/
 ## Menjalankan di lokal
 
 1. **WordPress + WooCommerce**: salin `wp-content/themes/aksara` dan `wp-content/plugins/aksara-marketplace` ke instalasi WordPress, aktifkan WooCommerce lalu plugin lalu tema. Detail lengkap ada di `readme.txt` masing-masing folder.
-2. **Font preview service** (dibutuhkan sejak Fase 2 untuk typing tool interaktif di halaman produk font):
+2. **Font preview service** — dibutuhkan **hanya** untuk typing tool interaktif (ketik teks sendiri) di halaman produk font. Pasang sekali sebagai layanan systemd:
    ```bash
    cd services/font-preview-service
-   pip install -r requirements.txt
-   python3 test_subsetter.py   # validasi POC
-   export AKSARA_FONT_STORAGE_DIR=/path/ke/wp-content/uploads/aksara-private
-   python3 app.py              # jalankan service di localhost:5055
+   sudo ./deploy/install.sh /path/ke/wp-content/uploads/aksara-private
    ```
-   Tanpa service ini berjalan, situs tetap berfungsi (kalkulator harga & checkout tidak bergantung padanya) — hanya area pratinjau tulisan yang menampilkan pesan tidak tersedia.
+   Skrip ini menyiapkan virtualenv, memasang unit systemd (auto-restart & jalan saat boot, gunicorn multi-worker sesuai jumlah core), lalu memverifikasi `/health`. Untuk development, `python3 app.py` masih bisa dipakai.
+
+   **Tanpa service ini situs tetap berjalan normal**: nama & contoh font di listing dirender PHP sendiri lewat GD sebagai gambar, typing tool otomatis mundur ke gambar specimen statis, dan harga/keranjang/checkout/unduhan sama sekali tidak bergantung padanya. Statusnya bisa dipantau di **WooCommerce > Status Layanan Aksara**.
 
 ## Catatan keamanan penting
 
-File font/template asli **tidak pernah** diekspos lewat URL publik — baik di halaman Home (yang sengaja tidak merender font asli produk, lihat `readme.txt` tema), di microservice preview (yang hanya mengirim subset glyph terbatas, bukan file lengkap), maupun di sistem unduhan pasca-pembelian (Fase 3): akses ke file font asli & tautan Canva selalu lewat token bearer acak yang dicabut otomatis kalau order di-refund/dibatalkan, tidak pernah ditulis ke path publik yang bisa ditebak. Detail lengkap ada di PRD Bagian 8 (Keamanan) dan `services/font-preview-service/README.md`.
+File font/template asli **tidak pernah** diekspos lewat URL publik. Tiga cara font ditampilkan, semuanya tanpa mengirim berkas fontnya:
+
+1. **Listing/Home** — gambar PNG hasil render server (PHP GD). Yang dikirim cuma piksel; gambar raster tidak bisa dipasang balik jadi font.
+2. **Typing tool** — subset `.woff2` berisi hanya glyph yang diketik, dibatasi 100 karakter/permintaan, dengan rate limit per-IP.
+3. **Setelah dibeli** — berkas asli lewat token bearer acak yang dicabut otomatis kalau order di-refund/dibatalkan, tidak pernah ditulis ke path publik yang bisa ditebak.
+
+Detail lengkap ada di PRD Bagian 8 (Keamanan), `services/font-preview-service/README.md`, dan komentar di `class-specimen-image.php`.
 
 ## Yang belum diuji end-to-end
 

@@ -1,15 +1,18 @@
 <?php
 /**
- * Satu baris di daftar "Font pilihan" pada Home.
+ * Satu baris di daftar font (Home & halaman Fonts).
  *
- * CATATAN KEAMANAN: baris ini SENGAJA menampilkan nama produk dalam font
- * UI tema (Fraunces), BUKAN dalam font asli yang dijual. Merender teks
- * memakai file font produk lewat @font-face publik di sini akan
- * mengekspos file yang justru coba dilindungi seluruh sistem preview di
- * PRD Bagian 4.3. Pratinjau interaktif memakai font asli (typing tool)
- * baru masuk di Fase 2, lewat microservice subsetting
- * (services/font-preview-service/) yang hanya mengirim glyph terbatas
- * dengan token kedaluwarsa — bukan file font utuh seperti di sini.
+ * CATATAN KEAMANAN: nama font di sini ditampilkan dalam font ASLINYA,
+ * tapi sebagai GAMBAR hasil render server (PHP GD), bukan dengan memuat
+ * berkas font ke browser lewat @font-face. Yang sampai ke pengunjung
+ * hanya piksel — berkas fontnya tidak pernah meninggalkan server. Ini
+ * persis pendekatan yang diminta PRD Bagian 4.3 poin 3 untuk mode
+ * display/listing, dan berbeda dari typing tool di halaman produk yang
+ * memang butuh subset .woff2 sungguhan lewat microservice.
+ *
+ * Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang
+ * tidak terbaca FreeType, GD tidak tersedia, atau plugin nonaktif),
+ * baris ini otomatis mundur ke teks biasa dalam font tema.
  *
  * @package Aksara
  */
@@ -28,10 +31,20 @@ $style_count = class_exists( 'Aksara_Font_Styles_Repository' )
 	: 0;
 
 $categories = wc_get_product_category_list( $product->get_id() );
+
+$specimen = function_exists( 'aksara_font_specimen' )
+	? aksara_font_specimen( $product->get_id(), get_the_title(), 34 )
+	: '';
 ?>
 <div class="specimen-row">
 	<div>
-		<div class="sp-name"><?php the_title(); ?></div>
+		<div class="sp-name">
+			<?php if ( $specimen ) : ?>
+				<?php echo wp_kses_post( $specimen ); ?>
+			<?php else : ?>
+				<?php the_title(); ?>
+			<?php endif; ?>
+		</div>
 		<div class="sp-meta">
 			<?php
 			printf(

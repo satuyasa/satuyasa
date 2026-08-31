@@ -105,6 +105,33 @@ class Aksara_Font_Styles_Repository {
 	}
 
 	/**
+	 * Ambil style yang paling mewakili sebuah font family untuk ditampilkan
+	 * sebagai specimen: prioritas Regular tegak (weight 400, non-italic),
+	 * lalu weight terdekat ke 400, baru style pertama apa pun.
+	 *
+	 * @param int $product_id ID produk font.
+	 * @return object|null
+	 */
+	public static function get_representative( $product_id ) {
+		$styles = self::get_by_product( $product_id );
+		if ( empty( $styles ) ) {
+			return null;
+		}
+
+		$upright = array_values( array_filter( $styles, function ( $style ) {
+			return empty( $style->is_italic );
+		} ) );
+
+		$candidates = ! empty( $upright ) ? $upright : $styles;
+
+		usort( $candidates, function ( $a, $b ) {
+			return abs( (int) $a->font_weight - 400 ) <=> abs( (int) $b->font_weight - 400 );
+		} );
+
+		return $candidates[0];
+	}
+
+	/**
 	 * Hitung jumlah style pada sebuah produk.
 	 *
 	 * @param int $product_id ID produk.

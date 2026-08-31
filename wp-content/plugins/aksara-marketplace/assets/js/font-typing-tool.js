@@ -379,8 +379,52 @@
 			} )
 			.catch( function () {
 				el.previewText.classList.remove( 'is-loading' );
-				el.previewStatus.textContent = config.i18n.previewUnavailable;
+				applySpecimenFallback( config, state, el );
 			} );
+	}
+
+	/**
+	 * Saat microservice pratinjau tidak bisa dihubungi, jangan cuma
+	 * menampilkan pesan error: pakai gambar specimen statis (dirender PHP
+	 * di server, lihat class-specimen-image.php) supaya pengunjung tetap
+	 * melihat wujud font aslinya. Yang hilang hanya kemampuan mengetik teks
+	 * sendiri — itu yang dijelaskan lewat pesan status.
+	 */
+	function applySpecimenFallback( config, state, el ) {
+		var anySpecimen = false;
+
+		config.styles.forEach( function ( style ) {
+			if ( ! style.specimen ) {
+				return;
+			}
+			anySpecimen = true;
+
+			var sampleEl = el.styleList.querySelector( '.aksara-ft-style-sample[data-style-id="' + style.id + '"]' );
+			if ( sampleEl && ! sampleEl.querySelector( 'img' ) ) {
+				sampleEl.textContent = '';
+				sampleEl.appendChild( buildSpecimenImg( style, 24 ) );
+			}
+		} );
+
+		var active = findStyleFor( config, state.weight, state.italic );
+		if ( active && active.specimen ) {
+			el.previewText.textContent = '';
+			el.previewText.appendChild( buildSpecimenImg( active, 52 ) );
+			el.previewText.setAttribute( 'contenteditable', 'false' );
+		}
+
+		el.previewStatus.textContent = anySpecimen
+			? config.i18n.previewFallback
+			: config.i18n.previewUnavailable;
+	}
+
+	function buildSpecimenImg( style, height ) {
+		var img = document.createElement( 'img' );
+		img.src = style.specimen;
+		img.alt = style.name;
+		img.style.height = height + 'px';
+		img.style.width = 'auto';
+		return img;
 	}
 
 	function loadFontFace( state, styleId, dataUri ) {

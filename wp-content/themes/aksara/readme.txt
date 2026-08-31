@@ -27,9 +27,13 @@ Tema marketplace font, Canva Template & Canva Element untuk Aksara. Full-custom 
 * Single product **Font** kini menampilkan typing tool interaktif penuh (weight tabs, italic toggle, slider ukuran, grid style dengan pratinjau live per baris, sidebar lisensi + kalkulator harga real-time, tombol "Pilih Semua/Paket Lengkap") — implementasinya ada di plugin (`aksara-marketplace/templates/single-product/add-to-cart/font.php` + `assets/js/font-typing-tool.js`), tema hanya menyediakan hook & styling dasar (`.aksara-product-summary`).
 * CSS widget typing tool memakai custom property yang sama dengan tema (`var(--indigo, ...)` dst.) supaya otomatis mengikuti palet tema tanpa dependency langsung ke class PHP tema.
 
-## Catatan keamanan penting: kenapa Home TIDAK merender font asli
+## Catatan keamanan: bagaimana Home menampilkan font asli dengan aman
 
-Daftar "Font pilihan" di Home tetap sengaja menampilkan nama produk dalam font UI tema (Fraunces), BUKAN dalam font asli yang dijual — beda dengan halaman single product yang sudah punya typing tool aman (lewat subset terbatas). Merender font asli langsung di listing lewat `@font-face` publik akan membocorkannya tanpa perlu lewat mekanisme subsetting sama sekali.
+Daftar "Font pilihan" di Home & halaman Fonts kini menampilkan nama font dalam font ASLINYA — tapi sebagai **gambar hasil render server** (PHP GD, lihat `aksara_font_specimen()` dari plugin), bukan dengan memuat berkas font ke browser lewat `@font-face`. Yang sampai ke pengunjung cuma piksel; berkas fontnya tidak pernah meninggalkan server.
+
+Ini berbeda dari versi awal tema yang sengaja memakai font tema (Fraunces) karena saat itu belum ada mekanisme render gambar yang aman. Yang tetap TIDAK boleh dilakukan: memasang berkas font produk lewat `@font-face` publik di listing — itu membocorkannya utuh tanpa melewati mekanisme perlindungan apa pun.
+
+Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang tidak terbaca FreeType, atau GD tidak tersedia di server), baris listing otomatis mundur ke teks biasa dalam font tema.
 
 == Cakupan Fase 3 (ditambahkan di atas Fase 1 & 2) ==
 

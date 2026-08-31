@@ -11,7 +11,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Status saat ini: **Fase 4 — SEO, performa, aksesibilitas, monitoring** (lihat Breakdown Task Development Aksara).
 
-Butuh `services/font-preview-service/` (microservice Python) berjalan di server yang sama untuk fitur typing tool — lihat readme di folder tersebut untuk cara menjalankannya bersama plugin ini.
+Microservice Python (`services/font-preview-service/`) **hanya** dibutuhkan untuk typing tool interaktif di halaman produk font. Sisanya — termasuk gambar contoh font di listing — dirender PHP sendiri lewat GD, jadi kalau microservice mati, situs tetap menampilkan wujud font aslinya dan tetap bisa menerima pesanan. Status layanan bisa dipantau di **WooCommerce > Status Layanan Aksara**.
 
 == Cakupan Fase 1 (fondasi produk) ==
 
@@ -62,6 +62,17 @@ Butuh `services/font-preview-service/` (microservice Python) berjalan di server 
 * Testing end-to-end sungguhan di browser (lihat `docs/QA-TEST-PLAN.md` — perlu staging WordPress+WooCommerce+PayPal aktif).
 * Multi-vendor, integrasi Canva API resmi, multi-bahasa (Fase 5, opsional sesuai keputusan produk).
 * Deployment produksi microservice sebagai systemd unit — lihat readme di `services/font-preview-service/` (perintah gunicorn-nya sudah diverifikasi lewat load test).
+
+== Optimasi ketergantungan microservice (pasca Fase 4) ==
+
+Sebelumnya seluruh tampilan font bergantung pada microservice Python; kalau mati, halaman produk cuma menampilkan pesan "pratinjau tidak tersedia". Sekarang:
+
+* **`class-specimen-image.php`** merender teks memakai berkas font asli jadi PNG lewat PHP GD + FreeType — **tanpa Python sama sekali**. Aman ditaruh di folder publik karena gambar raster tidak mengandung data font (ini yang diminta PRD Bagian 4.3 poin 3 untuk mode display, dan sebelumnya terlewat).
+* **Listing & Home kini menampilkan nama font dalam font aslinya** sebagai gambar — sesuai maksud mockup, tanpa pernah mengirim berkas font ke browser.
+* **Typing tool punya fallback**: kalau microservice tidak bisa dihubungi, pengunjung melihat gambar specimen statis + keterangan, bukan pesan error kosong.
+* **Specimen dibuat saat admin mengunggah style**, bukan saat pengunjung pertama membuka halaman (render GD makan puluhan milidetik per style — untuk family belasan style, itu tidak pantas ditanggung satu pengunjung).
+* **Halaman WooCommerce > Status Layanan Aksara** + notice admin memakai `is_healthy()` yang sejak Fase 2 didefinisikan tapi tidak pernah dipanggil dari mana pun.
+* Berkas .woff2/.woff tidak bisa dirender FreeType — style yang diunggah dalam format itu otomatis mundur ke teks biasa (bukan error).
 
 == Instalasi ==
 
