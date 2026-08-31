@@ -381,8 +381,36 @@
 					updateActivePreview( config, state, el );
 				} );
 			} )
-			.catch( function () {
+			.catch( function ( err ) {
 				el.previewText.classList.remove( 'is-loading' );
+
+				// Kuota codepoint (HTTP 429 dengan kode khusus) BUKAN
+				// kegagalan layanan, dan harus ditangani berbeda:
+				//  - jangan tampilkan pesan "layanan tidak tersedia", itu
+				//    menyesatkan — servicenya sehat;
+				//  - jangan ganti isi kotak ketik dengan gambar & jangan
+				//    kunci contenteditable. Kuota memakai gabungan himpunan,
+				//    jadi teks yang SUDAH pernah dipakai tetap bisa dirender;
+				//    yang ditolak hanya karakter baru. Mengunci kotaknya akan
+				//    mengambil kemampuan yang sebenarnya masih ada.
+				// Promise.reject(res) di atas mengirim objek Response;
+				// kegagalan jaringan mengirim Error — hanya yang pertama
+				// punya .json().
+				if ( err && 429 === err.status && 'function' === typeof err.json ) {
+					err.json()
+						.then( function ( body ) {
+							if ( body && 'aksara_preview_budget_reached' === body.code ) {
+								el.previewStatus.textContent = body.message || config.i18n.previewBudget;
+								return;
+							}
+							applySpecimenFallback( config, state, el );
+						} )
+						.catch( function () {
+							applySpecimenFallback( config, state, el );
+						} );
+					return;
+				}
+
 				applySpecimenFallback( config, state, el );
 			} );
 	}

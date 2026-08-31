@@ -145,3 +145,46 @@ Yang diperbaiki di sini fungsinya, bukan gayanya.
   `admin_notices`, jadi notice yang diantrekan akan tertunda satu halaman).
 * **Seluruh style inline dipindah** ke `assets/css/admin.css` (bisa di-cache
   browser, tidak lagi dikirim ulang di tiap pemuatan layar editor).
+
+== v0.5.1 — kuota codepoint per style (menutup serangan gabung-subset) ==
+
+Rate limit per menit ternyata tidak cukup melindungi berkas font. Setiap
+respons pratinjau adalah subset berisi glyph yang diketik; masing-masing tidak
+berguna, tapi beberapa subset bisa DIGABUNG kembali jadi font yang makin
+lengkap. Diukur dengan font contoh di repo (Bricolage Grotesque, 527
+codepoint): pada batas 100 karakter/request, seluruh charset bisa dipanen
+hanya dengan 6 request — sekitar 9 detik di bawah rate limit 40/menit.
+
+`Aksara_Rest_Controller::check_codepoint_budget()` sekarang membatasi jumlah
+codepoint BERBEDA yang boleh diterima satu klien untuk satu style dalam 24
+jam (default 120). Angkanya dipilih dari pengukuran, bukan tebakan:
+
+  kalimat pendek biasa ........ 13 codepoint unik
+  pangram Inggris ............. 28
+  pangram + KAPITAL + angka ... 50
+  seluruh ASCII tercetak ...... 95
+  ------------------------------------
+  batas .......................120
+  seluruh charset font ........527  <- ini yang dilindungi
+
+Detail perilaku:
+
+* Disimpan sebagai gabungan himpunan, bukan penghitung — mengetik ulang teks
+  yang sama tidak menambah kuota sama sekali (diuji: 20x ketik ulang, kuota
+  tetap 55/120). Yang dihitung hanya karakter yang benar-benar baru.
+* Kuota terpisah per style DAN per klien.
+* Diperiksa sebelum cache subset, karena cache bersifat global lintas
+  pengunjung — klien yang kena cache hit tetap baru pertama kali menerima
+  glyph tersebut.
+* Endpoint batch mengembalikan error kuota hanya kalau TIDAK ADA satu pun
+  style yang bisa dilayani. Kalau ikut dilewati `continue` seperti error lain,
+  responsnya jadi 200 dengan hasil kosong dan typing tool diam tanpa
+  penjelasan — terlihat seperti kerusakan.
+* Typing tool TIDAK dikunci saat kuota habis: karakter yang sudah pernah
+  dipakai tetap bisa dirender, jadi mengunci `contenteditable` akan mengambil
+  kemampuan yang sebenarnya masih ada. Yang tampil hanya pesan penjelas.
+* Bisa disetel/dimatikan lewat filter `aksara_preview_codepoint_budget`.
+
+Hasil: pemanen hanya mendapat ~19% charset per IP per hari (dari sebelumnya
+100% dalam 9 detik), dan 432 codepoint di luar ASCII — aksen, simbol, mata
+uang, yang justru jadi nilai jual font — tetap di luar jangkauan.

@@ -66,3 +66,32 @@ Siapkan 1 produk font dengan minimal 4 style (mis. Regular, Bold, Italic, SemiBo
 - [ ] Screen reader dasar (VoiceOver/NVDA): kotak pratinjau punya label "Teks pratinjau font", tombol wishlist mengumumkan status (tambah/hapus dari wishlist).
 - [ ] `<title>` dan meta description berubah sesuai halaman (cek "View Page Source", bukan DevTools Elements, supaya lihat HTML asli bukan hasil render JS).
 - [ ] Google Rich Results Test pada 1 URL produk font & 1 produk Canva Template yang sudah publish — pastikan structured data Product (harga, ketersediaan) terbaca tanpa error.
+
+## Kuota codepoint pratinjau (plugin v0.5.1)
+
+Butuh staging dengan WordPress + plugin aktif + minimal satu produk font
+berisi style .ttf/.otf, dan `font-preview-service` berjalan.
+
+| # | Langkah | Hasil yang diharapkan |
+|---|---|---|
+| 1 | Buka halaman produk font, ketik kalimat biasa di typing tool (mis. "Kopi pagi, ide baru") | Pratinjau tampil normal. Kuota terpakai ~13 dari 120. |
+| 2 | Ganti-ganti teks wajar 5-10 kali (kalimat berbeda, huruf besar, angka) | Selalu normal — pemakaian wajar tidak boleh pernah kena batas. Ini yang paling penting diuji. |
+| 3 | Ketik ulang teks yang PERSIS SAMA berkali-kali | Kuota tidak bertambah sama sekali (disimpan sebagai gabungan himpunan, bukan penghitung). |
+| 4 | Tempel teks berisi banyak karakter unik (100 karakter berbeda-beda) berulang kali sampai tembus 120 | Muncul pesan "Batas pratinjau untuk style ini sudah tercapai…". |
+| 5 | Setelah kena batas: kotak ketik | **Masih bisa diketik** — jangan terkunci. Ini disengaja. |
+| 6 | Setelah kena batas: ketik ulang teks dari langkah 1 | Pratinjau tetap dirender — karakter yang sudah pernah dipakai masih boleh. |
+| 7 | Setelah kena batas: buka style LAIN dari produk yang sama | Normal — kuota terpisah per style. |
+| 8 | Setelah kena batas: buka dari perangkat/IP lain | Normal — kuota terpisah per klien. |
+| 9 | Periksa pesan yang tampil saat batas tercapai | Harus menjelaskan batas, **bukan** "layanan tidak tersedia". Kalau muncul pesan layanan mati, berarti jalur 429 tidak tertangani. |
+| 10 | Matikan `font-preview-service`, lalu ketik | Barulah pesan fallback layanan + gambar specimen statis muncul. Dua kondisi ini tidak boleh tertukar. |
+
+Untuk mempercepat pengujian, batasnya bisa diturunkan sementara di
+`functions.php` staging:
+
+```php
+add_filter( 'aksara_preview_codepoint_budget', function () { return 30; } );
+```
+
+Kuota tersimpan di transient `aksara_cpb_*` dengan masa berlaku 24 jam.
+Untuk mereset saat menguji, hapus transient tersebut (mis. lewat WP-CLI:
+`wp transient delete --all`) atau tunggu kedaluwarsa.

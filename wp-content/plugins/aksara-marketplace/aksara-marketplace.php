@@ -3,7 +3,7 @@
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
  * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, typing tool pratinjau interaktif, kalkulator lisensi, unduhan aman, sertifikat lisensi PDF, wishlist, dan logging untuk monitoring.
- * Version: 0.4.0 (Fase 4 — SEO, performa, aksesibilitas, monitoring)
+ * Version: 0.5.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.5.0' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.5.1' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );

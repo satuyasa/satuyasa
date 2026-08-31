@@ -165,6 +165,51 @@ Breakdown Task Fase 4 secara eksplisit meminta load test endpoint `/font-preview
 - **Style hanya bisa dipratinjau kalau produknya sudah publish** — dicek di `Aksara_Rest_Controller::validate_preview_request()`, mencegah endpoint dipakai mengintip font dari produk draft/privat.
 - **Cache hasil subset (10 menit, transient WordPress)** — mengurangi beban berulang ke service ini untuk kombinasi style+teks yang sama, dibersihkan proaktif lewat cron `aksara_cleanup_preview_cache` (`Aksara_Cleanup_Jobs`).
 
+## Kenapa TIDAK memakai glyph remapping (obfuscation)
+
+Teknik yang dipakai MyFonts: acak `cmap` font pratinjau sehingga glyph tidak
+lagi berada di codepoint Unicode aslinya. Font tetap tampil benar di browser
+(karena JS tahu mappingnya) tapi jadi karakter acak kalau dipasang di
+Photoshop/Word. Sudah diprototipekan terhadap font asli di `fixtures/`, dan
+hasil pengukurannya:
+
+| Yang diukur | Hasil |
+|---|---|
+| Biaya ukuran berkas | +56 byte (2.112 → 2.168 byte, ~2,7%) |
+| Codepoint asli yang tersisa di font hasil | 0 dari 13 — benar-benar rusak di software lain |
+| Usaha untuk membatalkan remapping | **2 baris kode**, 13/13 karakter pulih 100% |
+
+Baris terakhir itu yang menentukan. Browser harus tahu mappingnya untuk bisa
+merender, jadi mapping-nya **wajib** ada di sisi klien. Penyerang tahu teks
+yang dia ketik sendiri dan menerima teks tersandi — menyandingkan keduanya
+memulihkan mapping seluruhnya. Ini obfuscation, bukan proteksi.
+
+Dua alasan tambahan kenapa nilainya lebih kecil di sini dibanding di MyFonts:
+
+1. **MyFonts menyajikan font pratinjau yang nyaris lengkap; kita menyajikan
+   subset ≤100 karakter.** Berkas yang diekstrak dari sini sudah tidak berguna
+   sebagai produk bahkan tanpa remapping — isinya cuma glyph yang diketik.
+2. **Biayanya jatuh ke tempat yang mahal.** Kotak pratinjau kita
+   `contenteditable`: pengguna mengetik langsung di dalamnya. Kalau isinya
+   diganti codepoint Private Use, maka buffer ketik, posisi kursor, seleksi,
+   salin-tempel, dan pembacaan screen reader ikut jadi karakter sampah.
+   Memperbaikinya berarti memecah input dan tampilan jadi dua lapisan —
+   restrukturisasi besar demi hambatan yang bisa dibatalkan dalam 2 baris.
+
+Yang justru menutup lubang nyata adalah **kuota codepoint per style**
+(`Aksara_Rest_Controller::PREVIEW_CODEPOINT_BUDGET`, sejak plugin v0.5.1):
+tanpa itu, seluruh charset 527 codepoint bisa dipanen dalam 6 request / ~9
+detik; dengan itu, satu klien cuma dapat ~19% charset per hari. Glyph
+remapping tidak akan menutup lubang itu — penyerang tinggal membatalkan
+remapping per request sebelum menggabungkannya.
+
+Remapping tetap masuk akal untuk ditambahkan **nanti** sebagai lapisan
+tambahan (menghentikan ekstraksi iseng: buka devtools, simpan .woff2, pasang),
+tapi hanya kalau restrukturisasi input/tampilan itu memang dikerjakan — dan
+harus diperlakukan sebagai polisi tidur, bukan kunci. Jangan sampai
+keberadaannya dipakai untuk melonggarkan batas 100 karakter, rate limit, atau
+kuota codepoint, karena ketiganya yang benar-benar mengikat.
+
 ## Struktur folder deploy
 
 ```

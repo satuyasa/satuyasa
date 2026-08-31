@@ -27,6 +27,46 @@ class Aksara_Rest_Controller {
 	const PREVIEW_RATE_LIMIT = 40;
 
 	/**
+	 * Batas jumlah codepoint BERBEDA yang boleh diterima satu klien untuk
+	 * satu style, dalam satu jendela waktu (lihat PREVIEW_BUDGET_WINDOW).
+	 *
+	 * Kenapa ini ada — rate limit per menit saja TIDAK cukup. Setiap
+	 * respons pratinjau adalah subset berisi glyph yang diketik. Masing-
+	 * masing tidak berguna, tapi beberapa subset bisa digabung kembali
+	 * jadi font yang makin lengkap. Diukur dengan font contoh di repo ini
+	 * (Bricolage Grotesque, 527 codepoint): pada batas 100 karakter per
+	 * request, seluruh charset bisa dipanen hanya dengan 6 request —
+	 * sekitar 9 detik di bawah rate limit 40/menit. Jadi tanpa batas ini,
+	 * rate limit hanya memperlambat pengunduhan font utuh selama 9 detik.
+	 *
+	 * Kenapa 120 — ini angka yang memisahkan pemakaian wajar dari pemanenan,
+	 * diukur bukan ditebak:
+	 *
+	 *   kalimat pendek biasa .................. 13 codepoint unik
+	 *   pangram Inggris ....................... 28
+	 *   pangram + KAPITAL + angka ............. 50
+	 *   seluruh ASCII yang bisa dicetak ....... 95
+	 *   ---------------------------------------------
+	 *   batas di sini ......................... 120  (ruang lega untuk (4))
+	 *   seluruh charset font contoh ........... 527  (ini yang dilindungi)
+	 *
+	 * Jadi pengunjung yang mengetik sewajarnya tidak akan pernah
+	 * menyentuhnya, sementara pemanen hanya mendapat ~23% charset per IP
+	 * per hari — dan bagian yang justru bernilai (432 codepoint aksen,
+	 * simbol, mata uang di luar ASCII) tetap tidak terjangkau.
+	 *
+	 * Bisa disetel lewat filter 'aksara_preview_codepoint_budget'; set 0
+	 * untuk mematikan sepenuhnya.
+	 */
+	const PREVIEW_CODEPOINT_BUDGET = 120;
+
+	/**
+	 * Jendela waktu untuk PREVIEW_CODEPOINT_BUDGET. Transient-nya kedaluwarsa
+	 * sendiri, jadi kuota pengunjung pulih otomatis keesokan harinya.
+	 */
+	const PREVIEW_BUDGET_WINDOW = DAY_IN_SECONDS;
+
+	/**
 	 * Pasang hook.
 	 */
 	public static function init() {
@@ -210,10 +250,89 @@ class Aksara_Rest_Controller {
 			return new WP_Error( 'aksara_product_not_published', __( 'Produk belum dipublikasikan.', 'aksara-marketplace' ), array( 'status' => 403 ) );
 		}
 
+		// Dicek PALING AKHIR, setelah style dipastikan valid: kuota
+		// dihitung per style, jadi tidak masuk akal membebaninya untuk
+		// request yang memang akan ditolak karena alasan lain.
+		$budget = self::check_codepoint_budget( $style->id, $text );
+		if ( is_wp_error( $budget ) ) {
+			return $budget;
+		}
+
 		return array(
 			'style' => $style,
 			'text'  => $text,
 		);
+	}
+
+	/**
+	 * Pecah teks jadi daftar codepoint unik.
+	 *
+	 * Memakai preg_split('//u') dan menyimpan KARAKTERNYA, bukan nilai
+	 * numerik lewat mb_ord(): hasilnya identik untuk keperluan di sini
+	 * (satu potongan //u = satu codepoint) tapi tidak menambah
+	 * ketergantungan pada ekstensi mbstring, yang tidak selalu ada di
+	 * hosting murah.
+	 *
+	 * @param string $text Teks pratinjau.
+	 * @return string[]
+	 */
+	private static function unique_codepoints( $text ) {
+		$chars = preg_split( '//u', $text, -1, PREG_SPLIT_NO_EMPTY );
+		if ( ! is_array( $chars ) ) {
+			// preg_split mengembalikan false kalau teksnya bukan UTF-8 valid.
+			// Perlakukan sebagai byte tunggal supaya kuota tetap terhitung
+			// alih-alih diam-diam terlewat.
+			$chars = str_split( (string) $text );
+		}
+
+		return array_values( array_unique( $chars ) );
+	}
+
+	/**
+	 * Batasi berapa banyak codepoint BERBEDA yang boleh dikumpulkan satu
+	 * klien untuk satu style. Lihat PREVIEW_CODEPOINT_BUDGET untuk angka &
+	 * alasannya.
+	 *
+	 * Disimpan sebagai gabungan himpunan (union), bukan penghitung: mengetik
+	 * ulang teks yang sama tidak menambah kuota sama sekali, sehingga
+	 * pengunjung yang memperbaiki salah ketik atau menekan ulang tidak
+	 * dihukum. Yang dihitung hanya karakter yang benar-benar BARU.
+	 *
+	 * Cache subset (transient 10 menit) sengaja TIDAK melewati pemeriksaan
+	 * ini: cache itu global lintas pengunjung, jadi klien yang kena cache
+	 * hit tetap baru pertama kali menerima glyph tersebut.
+	 *
+	 * @param int    $style_id ID style.
+	 * @param string $text     Teks pratinjau yang sudah divalidasi.
+	 * @return true|WP_Error
+	 */
+	private static function check_codepoint_budget( $style_id, $text ) {
+		$budget = (int) apply_filters( 'aksara_preview_codepoint_budget', self::PREVIEW_CODEPOINT_BUDGET, $style_id );
+		if ( $budget <= 0 ) {
+			return true;
+		}
+
+		$key  = 'aksara_cpb_' . md5( self::get_client_ip() . '|' . $style_id );
+		$seen = get_transient( $key );
+		if ( ! is_array( $seen ) ) {
+			$seen = array();
+		}
+
+		$union = array_values( array_unique( array_merge( $seen, self::unique_codepoints( $text ) ) ) );
+
+		if ( count( $union ) > $budget ) {
+			return new WP_Error(
+				'aksara_preview_budget_reached',
+				__( 'Kamu sudah mencoba banyak karakter berbeda untuk style ini. Pratinjau ketik dibatasi untuk melindungi berkas font — coba lagi besok, atau beli style-nya untuk memakai seluruh karakter.', 'aksara-marketplace' ),
+				array( 'status' => 429 )
+			);
+		}
+
+		// Ditulis ulang setiap kali (bukan cuma saat bertambah) supaya
+		// jendela waktunya bergulir mengikuti aktivitas terakhir.
+		set_transient( $key, $union, self::PREVIEW_BUDGET_WINDOW );
+
+		return true;
 	}
 
 	/**
@@ -261,10 +380,21 @@ class Aksara_Rest_Controller {
 			return new WP_Error( 'aksara_empty_style_ids', __( 'style_ids tidak boleh kosong.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
-		$results = array();
+		$results       = array();
+		$budget_error  = null;
+
 		foreach ( $style_ids as $style_id ) {
 			$validated = self::validate_preview_request( $style_id, $request->get_param( 'text' ) );
 			if ( is_wp_error( $validated ) ) {
+				// Kuota codepoint diingat, tidak sekadar dilewati. Style yang
+				// tidak valid (draft, id salah) memang pantas dilewati diam-
+				// diam, tapi kuota adalah keputusan yang HARUS sampai ke
+				// pengunjung: kalau ikut dilewati, respons jadi 200 dengan
+				// hasil kosong dan typing tool tidak menampilkan apa-apa —
+				// terlihat seperti kerusakan tanpa penjelasan.
+				if ( 'aksara_preview_budget_reached' === $validated->get_error_code() ) {
+					$budget_error = $validated;
+				}
 				continue; // Lewati style yang tidak valid, jangan gagalkan seluruh batch.
 			}
 
@@ -274,6 +404,14 @@ class Aksara_Rest_Controller {
 			}
 
 			$results[ $style_id ] = 'data:font/woff2;base64,' . base64_encode( $woff2 ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+		}
+
+		// Hanya kalau TIDAK ADA satu pun style yang bisa dilayani. Selama
+		// masih ada yang berhasil, batch tetap 200 — pengunjung melihat
+		// pratinjau untuk style yang kuotanya masih ada, dan style yang
+		// kehabisan cukup tidak ikut diperbarui.
+		if ( empty( $results ) && $budget_error ) {
+			return $budget_error;
 		}
 
 		return new WP_REST_Response( $results );

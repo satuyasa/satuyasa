@@ -96,6 +96,15 @@ File font/template asli **tidak pernah** diekspos lewat URL publik. Tiga cara fo
 2. **Typing tool** — subset `.woff2` berisi hanya glyph yang diketik, dibatasi 100 karakter/permintaan, dengan rate limit per-IP.
 3. **Setelah dibeli** — berkas asli lewat token bearer acak yang dicabut otomatis kalau order di-refund/dibatalkan, tidak pernah ditulis ke path publik yang bisa ditebak.
 
+Khusus untuk typing tool, membatasi panjang teks & rate per menit saja **tidak
+cukup**: tiap respons adalah subset, dan beberapa subset bisa digabung kembali
+jadi font yang makin lengkap. Terukur: seluruh charset font contoh (527
+codepoint) bisa dipanen dengan 6 request, ~9 detik. Karena itu ada **kuota
+codepoint per style per klien** (default 120 codepoint unik/24 jam) — angka
+yang jauh di atas pemakaian wajar (kalimat biasa 13, pangram 28, pangram +
+kapital + angka 50) tapi memotong pemanenan jadi ~19% charset per IP per hari.
+Lihat `Aksara_Rest_Controller::PREVIEW_CODEPOINT_BUDGET`.
+
 Detail lengkap ada di PRD Bagian 8 (Keamanan), `services/font-preview-service/README.md`, dan komentar di `class-specimen-image.php`.
 
 ## Yang belum diuji end-to-end

@@ -144,6 +144,10 @@ class Aksara_Cart_Handler {
 				'selectAll'      => __( 'Pilih Semua (Paket Lengkap)', 'aksara-marketplace' ),
 				'previewUnavailable' => __( 'Pratinjau tidak tersedia', 'aksara-marketplace' ),
 				'previewFallback'    => __( 'Menampilkan contoh statis — pratinjau ketik langsung sedang tidak tersedia.', 'aksara-marketplace' ),
+				// Cadangan sisi klien untuk kuota codepoint. Normalnya pesan
+				// dari server (yang lebih spesifik) yang dipakai; ini hanya
+				// terpakai kalau body respons gagal diurai.
+				'previewBudget'      => __( 'Batas pratinjau untuk style ini sudah tercapai. Coba lagi besok, atau beli style-nya untuk memakai seluruh karakter.', 'aksara-marketplace' ),
 				'loading'        => __( 'Memuat pratinjau…', 'aksara-marketplace' ),
 			),
 		);
