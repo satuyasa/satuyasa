@@ -40,6 +40,17 @@ Contoh: sudo ./deploy/install.sh /var/www/situs/wp-content/uploads/aksara-privat
 Folder ini dibuat otomatis saat plugin Aksara Marketplace diaktifkan — aktifkan dulu pluginnya."
 id "$RUN_USER" >/dev/null 2>&1 || die "user '$RUN_USER' tidak ada. Set RUN_USER ke user yang menjalankan web server Anda."
 
+# Versi Python dicek SEBELUM virtualenv dibuat. fonttools 4.63 dan
+# gunicorn 26 sama-sama menetapkan Requires-Python >=3.10; tanpa cek ini
+# pip baru gagal belakangan dengan pesan "no matching distribution found"
+# yang menyesatkan (terbaca seperti masalah jaringan, padahal versi Python).
+command -v python3 >/dev/null 2>&1 || die "python3 tidak ditemukan di server ini."
+PY_VERSION="$(python3 -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])')"
+python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \
+  || die "butuh Python 3.10 atau lebih baru, terdeteksi $PY_VERSION.
+Pasang versi yang lebih baru lalu tunjuk lewat virtualenv sendiri, misalnya:
+  python3.12 -m venv $SERVICE_DIR/.venv && VENV_DIR=$SERVICE_DIR/.venv sudo -E ./deploy/install.sh <dir>"
+
 # Mengecek keberadaan binary systemctl saja TIDAK cukup: di container
 # (Docker dkk.) binary-nya sering ada padahal systemd tidak berjalan
 # sebagai PID 1, sehingga daemon-reload baru gagal belakangan setelah

@@ -17,10 +17,45 @@ Sejak optimasi pasca-Fase 4, service ini **tidak lagi menjadi titik kegagalan tu
 
 Jadi kalau service mati: pengunjung tetap melihat wujud font aslinya (sebagai gambar), toko tetap bisa menerima pesanan — yang hilang hanya kemampuan mengetik teks sendiri untuk dipratinjau. Admin juga langsung diberi tahu lewat notice di wp-admin dan halaman **WooCommerce > Status Layanan Aksara**.
 
+## Di mana service ini dipasang?
+
+**Bukan di dalam WordPress.** Ini proses Python yang berdiri sendiri, bukan plugin — jadi jangan taruh di `wp-content/`, `public_html/`, atau folder apa pun yang bisa diakses browser. Yang benar: folder biasa di **server yang sama**, di luar web-root.
+
+Rekomendasi: **`/opt/aksara-font-preview/`**
+
+```bash
+sudo mkdir -p /opt/aksara-font-preview
+sudo cp -r services/font-preview-service/. /opt/aksara-font-preview/
+cd /opt/aksara-font-preview
+sudo ./deploy/install.sh /var/www/situs/wp-content/uploads/aksara-private
+```
+
+Hubungannya dengan WordPress hanya dua, keduanya tidak lewat web:
+
+1. **Filesystem yang sama** — service membaca berkas font langsung dari folder privat WordPress (`wp-content/uploads/aksara-private/`), read-only. Karena itu harus satu server: ia butuh akses baca ke folder itu.
+2. **Loopback `127.0.0.1:5055`** — PHP memanggilnya lewat localhost. Port ini tidak boleh dibuka ke internet.
+
+### Syarat server
+
+| Butuh | Kenapa |
+|---|---|
+| Akses root/sudo (VPS, cloud server, atau dedicated) | Memasang unit systemd & user layanan |
+| **Python 3.10+** | Ditentukan oleh dependency: `fonttools 4.63` & `gunicorn 26` sama-sama `Requires-Python >=3.10` |
+| Paket `python3-venv` | `install.sh` membuat virtualenv sendiri, tidak mengotori Python sistem |
+| Satu server dengan WordPress | Berbagi folder `uploads/aksara-private` |
+
+### Kalau situsnya di shared hosting
+
+Shared hosting (cPanel, hosting murah kebanyakan) **tidak bisa** menjalankan proses Python yang hidup terus-menerus dan tidak memberi akses systemd. Di kasus ini: **lewati saja service ini** — jangan cari cara memaksakannya.
+
+Konsekuensinya cuma satu: pengunjung tidak bisa mengetik teksnya sendiri untuk dipratinjau. Selebihnya jalan normal — nama & contoh font di listing tetap tampil dalam font aslinya (dirender PHP GD), typing tool otomatis menampilkan gambar specimen statis, dan harga/keranjang/checkout/unduhan tidak pernah menyentuh service ini sama sekali (lihat tabel di atas).
+
+Kalau typing tool interaktif itu penting, pindahkan situs ke VPS — bukan menaruh service ini di server terpisah, karena ia butuh akses baca ke folder font WordPress.
+
 ## Pemasangan yang disarankan: systemd (sekali jalan)
 
 ```bash
-cd services/font-preview-service
+cd /opt/aksara-font-preview          # folder tujuan, lihat bagian di atas
 sudo ./deploy/install.sh /path/ke/wp-content/uploads/aksara-private
 ```
 

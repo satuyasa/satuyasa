@@ -55,9 +55,11 @@ docs/
 ## Menjalankan di lokal
 
 1. **WordPress + WooCommerce**: salin `wp-content/themes/aksara` dan `wp-content/plugins/aksara-marketplace` ke instalasi WordPress, aktifkan WooCommerce lalu plugin lalu tema. Detail lengkap ada di `readme.txt` masing-masing folder.
-2. **Font preview service** — dibutuhkan **hanya** untuk typing tool interaktif (ketik teks sendiri) di halaman produk font. Pasang sekali sebagai layanan systemd:
+2. **Font preview service** — dibutuhkan **hanya** untuk typing tool interaktif (ketik teks sendiri) di halaman produk font. Ini proses Python berdiri sendiri, **bukan** plugin: salin foldernya ke luar web-root di server yang sama (mis. `/opt/aksara-font-preview/`), jangan ke `wp-content/`. Butuh VPS dengan akses sudo & Python 3.10+; di shared hosting langkah ini dilewati saja. Pasang sekali sebagai layanan systemd:
    ```bash
-   cd services/font-preview-service
+   sudo mkdir -p /opt/aksara-font-preview
+   sudo cp -r services/font-preview-service/. /opt/aksara-font-preview/
+   cd /opt/aksara-font-preview
    sudo ./deploy/install.sh /path/ke/wp-content/uploads/aksara-private
    ```
    Skrip ini menyiapkan virtualenv, memasang unit systemd (auto-restart & jalan saat boot, gunicorn multi-worker sesuai jumlah core), lalu memverifikasi `/health`. Untuk development, `python3 app.py` masih bisa dipakai.
