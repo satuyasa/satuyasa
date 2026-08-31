@@ -11,14 +11,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 ?>
 <section class="no-results not-found">
 	<header class="page-header">
-		<h1 class="page-title"><?php esc_html_e( 'Tidak ditemukan', 'aksara' ); ?></h1>
+		<h1 class="page-title"><?php esc_html_e( 'Not found', 'aksara' ); ?></h1>
 	</header>
 	<div class="page-content">
 		<?php if ( is_search() ) : ?>
-			<p><?php esc_html_e( 'Maaf, tidak ada hasil yang cocok dengan pencarian Anda.', 'aksara' ); ?></p>
+			<p><?php esc_html_e( 'Sorry, nothing matched your search.', 'aksara' ); ?></p>
 			<?php get_search_form(); ?>
 		<?php else : ?>
-			<p><?php esc_html_e( 'Belum ada konten di sini.', 'aksara' ); ?></p>
+			<p><?php esc_html_e( 'There is nothing here yet.', 'aksara' ); ?></p>
 		<?php endif; ?>
 	</div>
 </section>

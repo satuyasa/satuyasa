@@ -62,7 +62,7 @@ $specimen = function_exists( 'aksara_font_specimen' )
 				<?php
 				printf(
 					/* translators: %d: jumlah style. */
-					esc_html( _n( '%d style', '%d style', $style_count, 'aksara' ) ),
+					esc_html( _n( '%d style', '%d styles', $style_count, 'aksara' ) ),
 					absint( $style_count )
 				);
 				if ( $categories ) {
@@ -77,8 +77,8 @@ $specimen = function_exists( 'aksara_font_specimen' )
 			<?php if ( function_exists( 'aksara_wishlist_button' ) ) : ?>
 				<?php aksara_wishlist_button( $product->get_id() ); ?>
 			<?php endif; ?>
-			<a class="btn-trial" href="<?php echo esc_url( get_permalink() . '#aksara-font-tool' ); ?>"><?php esc_html_e( 'Coba', 'aksara' ); ?></a>
-			<a class="btn-view" href="<?php the_permalink(); ?>"><?php esc_html_e( 'Lihat', 'aksara' ); ?></a>
+			<a class="btn-trial" href="<?php echo esc_url( get_permalink() . '#aksara-font-tool' ); ?>"><?php esc_html_e( 'Try', 'aksara' ); ?></a>
+			<a class="btn-view" href="<?php the_permalink(); ?>"><?php esc_html_e( 'View', 'aksara' ); ?></a>
 		</div>
 	</div>
 

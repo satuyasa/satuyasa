@@ -49,12 +49,12 @@ class WC_Product_Font extends WC_Product {
 		$min = Aksara_Font_Licenses_Repository::get_min_price_for_product( $this->get_id() );
 
 		if ( null === $min ) {
-			return '<span class="price aksara-price-unset">' . esc_html__( 'Harga belum diatur', 'aksara-marketplace' ) . '</span>';
+			return '<span class="price aksara-price-unset">' . esc_html__( 'Price not set', 'aksara-marketplace' ) . '</span>';
 		}
 
 		return '<span class="price">' . sprintf(
 			/* translators: %s: harga terendah. */
-			esc_html__( 'Mulai dari %s', 'aksara-marketplace' ),
+			esc_html__( 'From %s', 'aksara-marketplace' ),
 			wc_price( $min )
 		) . '</span>';
 	}
@@ -76,6 +76,38 @@ class WC_Product_Font extends WC_Product {
 	 * @return bool
 	 */
 	public function is_sold_individually() {
+		return false;
+	}
+
+	/**
+	 * Digital goods: never shipped.
+	 *
+	 * WooCommerce decides whether checkout must collect a shipping address
+	 * from WC_Product::needs_shipping(), which is simply !is_virtual().
+	 * The "Virtual" checkbox that would normally set that flag is rendered
+	 * with class `show_if_simple`, so WooCommerce hides it for custom
+	 * product types — meaning nobody could ever tick it, and every order
+	 * asked the buyer for a shipping address for a file that is delivered
+	 * by download link. Forcing it here is also more honest than a
+	 * checkbox: there is no configuration in which one of these products
+	 * needs shipping.
+	 *
+	 * NOT marked downloadable on purpose: WooCommerce's own downloadable-
+	 * files machinery is deliberately bypassed in favour of the bearer
+	 * tokens in Aksara_Download_Manager (revocable on refund, never a
+	 * guessable public path).
+	 *
+	 * @param string $context Unused; kept for signature compatibility.
+	 * @return bool
+	 */
+	public function get_virtual( $context = 'view' ) {
+		return true;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function needs_shipping() {
 		return false;
 	}
 }

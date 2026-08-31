@@ -19,7 +19,7 @@ if ( post_password_required() ) {
 			<?php
 			printf(
 				/* translators: %s: jumlah komentar. */
-				esc_html( _n( '%s Komentar', '%s Komentar', get_comments_number(), 'aksara' ) ),
+				esc_html( _n( '%s Comment', '%s Comments', get_comments_number(), 'aksara' ) ),
 				esc_html( number_format_i18n( get_comments_number() ) )
 			);
 			?>
@@ -31,7 +31,7 @@ if ( post_password_required() ) {
 	<?php endif; ?>
 
 	<?php if ( ! comments_open() && get_comments_number() ) : ?>
-		<p class="no-comments"><?php esc_html_e( 'Komentar sudah ditutup.', 'aksara' ); ?></p>
+		<p class="no-comments"><?php esc_html_e( 'Comments are closed.', 'aksara' ); ?></p>
 	<?php endif; ?>
 
 	<?php comment_form( array( 'class_submit' => 'button' ) ); ?>

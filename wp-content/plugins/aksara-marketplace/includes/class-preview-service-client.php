@@ -79,7 +79,7 @@ class Aksara_Preview_Service_Client {
 				'aksara_preview_service_error',
 				sprintf(
 					/* translators: %d: kode HTTP dari microservice. */
-					__( 'Font preview service mengembalikan status %d.', 'aksara-marketplace' ),
+					__( 'The font preview service returned status %d.', 'aksara-marketplace' ),
 					$code
 				)
 			);

@@ -41,7 +41,7 @@ class Aksara_Dashboard_Widget {
 
 		wp_add_dashboard_widget(
 			'aksara_bestselling_fonts',
-			__( 'Aksara: Font Terlaris (30 Hari)', 'aksara-marketplace' ),
+			__( 'Aksara: Best-Selling Fonts (30 Days)', 'aksara-marketplace' ),
 			array( __CLASS__, 'render' )
 		);
 	}
@@ -53,13 +53,13 @@ class Aksara_Dashboard_Widget {
 		$rows = self::get_bestsellers();
 
 		if ( empty( $rows ) ) {
-			echo '<p>' . esc_html__( 'Belum ada penjualan font dalam 30 hari terakhir.', 'aksara-marketplace' ) . '</p>';
+			echo '<p>' . esc_html__( 'No font sales in the last 30 days.', 'aksara-marketplace' ) . '</p>';
 			return;
 		}
 
 		echo '<table class="widefat striped"><thead><tr><th>' .
 			esc_html__( 'Font', 'aksara-marketplace' ) . '</th><th>' .
-			esc_html__( 'Terjual', 'aksara-marketplace' ) . '</th></tr></thead><tbody>';
+			esc_html__( 'Sold', 'aksara-marketplace' ) . '</th></tr></thead><tbody>';
 
 		foreach ( $rows as $row ) {
 			printf(

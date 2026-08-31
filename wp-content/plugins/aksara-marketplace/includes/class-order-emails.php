@@ -50,19 +50,19 @@ class Aksara_Order_Emails {
 		}
 
 		if ( $plain_text ) {
-			echo "\n" . esc_html__( 'Tautan Unduh:', 'aksara-marketplace' ) . "\n";
+			echo "\n" . esc_html__( 'Download Link:', 'aksara-marketplace' ) . "\n";
 			foreach ( $tokens as $token_row ) {
 				echo '- ' . esc_url( Aksara_Download_Manager::get_download_url( $token_row->token ) ) . "\n";
 			}
 			return;
 		}
 
-		echo '<h2>' . esc_html__( 'Tautan Unduh', 'aksara-marketplace' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Download Link', 'aksara-marketplace' ) . '</h2>';
 		echo '<ul style="margin:0 0 16px;padding:0 0 0 20px;">';
 		foreach ( $tokens as $token_row ) {
 			$label = Aksara_Download_Tokens_Repository::RESOURCE_FONT_STYLE === $token_row->resource_type
-				? ( ( $style = Aksara_Font_Styles_Repository::get( $token_row->resource_id ) ) ? $style->style_name : __( 'Berkas', 'aksara-marketplace' ) )
-				: ( get_the_title( $token_row->resource_id ) ?: __( 'Berkas', 'aksara-marketplace' ) );
+				? ( ( $style = Aksara_Font_Styles_Repository::get( $token_row->resource_id ) ) ? $style->style_name : __( 'File', 'aksara-marketplace' ) )
+				: ( get_the_title( $token_row->resource_id ) ?: __( 'File', 'aksara-marketplace' ) );
 
 			printf(
 				'<li><a href="%1$s">%2$s</a></li>',
@@ -75,7 +75,7 @@ class Aksara_Order_Emails {
 		echo '<p>' . sprintf(
 			/* translators: %s: tautan ke My Account. */
 			wp_kses(
-				__( 'Anda juga bisa mengunduh ulang kapan saja lewat <a href="%s">My Account &gt; Unduhan Saya</a>.', 'aksara-marketplace' ),
+				__( 'You can also download again at any time from <a href="%s">My Account &gt; My Downloads</a>.', 'aksara-marketplace' ),
 				array( 'a' => array( 'href' => array() ) )
 			),
 			esc_url( wc_get_endpoint_url( 'aksara-downloads', '', wc_get_page_permalink( 'myaccount' ) ) )

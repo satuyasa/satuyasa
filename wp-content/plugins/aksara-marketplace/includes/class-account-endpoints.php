@@ -22,9 +22,15 @@ class Aksara_Account_Endpoints {
 	const ENDPOINTS_VERSION_OPTION = 'aksara_marketplace_endpoints_version';
 	const ENDPOINTS_VERSION        = '1.0';
 
+	/*
+	 * Slug endpoint => label acuan (bahasa Inggris, untuk dokumentasi saja).
+	 * Label yang BENAR-BENAR tampil datang dari translated_label(): sebuah
+	 * const tidak boleh memanggil __(), jadi nilai di sini tidak pernah
+	 * dicetak ke layar.
+	 */
 	const ENDPOINTS = array(
-		'aksara-downloads'    => 'Unduhan Saya',
-		'aksara-certificates' => 'Sertifikat Lisensi',
+		'aksara-downloads'    => 'My Downloads',
+		'aksara-certificates' => 'License Certificates',
 		'aksara-wishlist'     => 'Wishlist',
 	);
 
@@ -81,7 +87,7 @@ class Aksara_Account_Endpoints {
 
 		foreach ( $items as $key => $label ) {
 			if ( 'customer-logout' === $key ) {
-				foreach ( self::ENDPOINTS as $endpoint => $endpoint_label ) {
+				foreach ( array_keys( self::ENDPOINTS ) as $endpoint ) {
 					$new_items[ $endpoint ] = self::translated_label( $endpoint );
 				}
 			}
@@ -100,8 +106,8 @@ class Aksara_Account_Endpoints {
 	 */
 	private static function translated_label( $endpoint ) {
 		$labels = array(
-			'aksara-downloads'    => __( 'Unduhan Saya', 'aksara-marketplace' ),
-			'aksara-certificates' => __( 'Sertifikat Lisensi', 'aksara-marketplace' ),
+			'aksara-downloads'    => __( 'My Downloads', 'aksara-marketplace' ),
+			'aksara-certificates' => __( 'License Certificates', 'aksara-marketplace' ),
 			'aksara-wishlist'     => __( 'Wishlist', 'aksara-marketplace' ),
 		);
 		return $labels[ $endpoint ] ?? $endpoint;
@@ -114,17 +120,17 @@ class Aksara_Account_Endpoints {
 	public static function render_downloads() {
 		$tokens = Aksara_Download_Tokens_Repository::get_by_user( get_current_user_id() );
 		?>
-		<h2><?php esc_html_e( 'Unduhan Saya', 'aksara-marketplace' ); ?></h2>
+		<h2><?php esc_html_e( 'My Downloads', 'aksara-marketplace' ); ?></h2>
 
 		<?php if ( empty( $tokens ) ) : ?>
-			<p><?php esc_html_e( 'Belum ada berkas yang bisa diunduh. Berkas akan muncul di sini setelah pembayaran Anda dikonfirmasi.', 'aksara-marketplace' ); ?></p>
+			<p><?php esc_html_e( 'Nothing to download yet. Your files appear here once your payment is confirmed.', 'aksara-marketplace' ); ?></p>
 		<?php else : ?>
 			<table class="woocommerce-table shop_table">
 				<thead>
 					<tr>
-						<th><?php esc_html_e( 'Berkas', 'aksara-marketplace' ); ?></th>
+						<th><?php esc_html_e( 'File', 'aksara-marketplace' ); ?></th>
 						<th><?php esc_html_e( 'Order', 'aksara-marketplace' ); ?></th>
-						<th><?php esc_html_e( 'Sisa Unduhan', 'aksara-marketplace' ); ?></th>
+						<th><?php esc_html_e( 'Downloads Left', 'aksara-marketplace' ); ?></th>
 						<th></th>
 					</tr>
 				</thead>
@@ -147,9 +153,9 @@ class Aksara_Account_Endpoints {
 							<td><?php echo esc_html( $remaining ); ?></td>
 							<td>
 								<?php if ( $remaining > 0 ) : ?>
-									<a class="button" href="<?php echo esc_url( Aksara_Download_Manager::get_download_url( $token_row->token ) ); ?>"><?php esc_html_e( 'Unduh', 'aksara-marketplace' ); ?></a>
+									<a class="button" href="<?php echo esc_url( Aksara_Download_Manager::get_download_url( $token_row->token ) ); ?>"><?php esc_html_e( 'Download', 'aksara-marketplace' ); ?></a>
 								<?php else : ?>
-									<span class="description"><?php esc_html_e( 'Batas tercapai', 'aksara-marketplace' ); ?></span>
+									<span class="description"><?php esc_html_e( 'Limit reached', 'aksara-marketplace' ); ?></span>
 								<?php endif; ?>
 							</td>
 						</tr>
@@ -189,16 +195,16 @@ class Aksara_Account_Endpoints {
 
 		$certificates = Aksara_License_Certificates_Repository::get_by_orders( $order_ids );
 		?>
-		<h2><?php esc_html_e( 'Sertifikat Lisensi', 'aksara-marketplace' ); ?></h2>
+		<h2><?php esc_html_e( 'License Certificates', 'aksara-marketplace' ); ?></h2>
 
 		<?php if ( empty( $certificates ) ) : ?>
-			<p><?php esc_html_e( 'Belum ada sertifikat. Sertifikat dibuat otomatis untuk order yang berisi produk font.', 'aksara-marketplace' ); ?></p>
+			<p><?php esc_html_e( 'No certificates yet. They are generated automatically for orders containing font products.', 'aksara-marketplace' ); ?></p>
 		<?php else : ?>
 			<table class="woocommerce-table shop_table">
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'Order', 'aksara-marketplace' ); ?></th>
-						<th><?php esc_html_e( 'Tanggal', 'aksara-marketplace' ); ?></th>
+						<th><?php esc_html_e( 'Date', 'aksara-marketplace' ); ?></th>
 						<th></th>
 					</tr>
 				</thead>
@@ -208,7 +214,7 @@ class Aksara_Account_Endpoints {
 							<td>#<?php echo esc_html( $certificate->order_id ); ?></td>
 							<td><?php echo esc_html( mysql2date( get_option( 'date_format' ), $certificate->created_at ) ); ?></td>
 							<td>
-								<a class="button" href="<?php echo esc_url( rest_url( 'aksara/v1/certificate/' . $certificate->order_id ) ); ?>"><?php esc_html_e( 'Unduh PDF', 'aksara-marketplace' ); ?></a>
+								<a class="button" href="<?php echo esc_url( rest_url( 'aksara/v1/certificate/' . $certificate->order_id ) ); ?>"><?php esc_html_e( 'Download PDF', 'aksara-marketplace' ); ?></a>
 							</td>
 						</tr>
 					<?php endforeach; ?>
@@ -227,7 +233,7 @@ class Aksara_Account_Endpoints {
 		<h2><?php esc_html_e( 'Wishlist', 'aksara-marketplace' ); ?></h2>
 
 		<?php if ( empty( $product_ids ) ) : ?>
-			<p><?php esc_html_e( 'Belum ada produk di wishlist Anda. Klik ikon hati pada produk untuk menyimpannya di sini.', 'aksara-marketplace' ); ?></p>
+			<p><?php esc_html_e( 'Your wishlist is empty. Tap the heart icon on a product to save it here.', 'aksara-marketplace' ); ?></p>
 			<?php return; ?>
 		<?php endif; ?>
 

@@ -106,7 +106,7 @@ function aksara_render_product_meta() {
 			esc_html(
 				sprintf(
 					/* translators: %d: jumlah style. */
-					_n( '%d style', '%d style', count( $styles ), 'aksara' ),
+					_n( '%d style', '%d styles', count( $styles ), 'aksara' ),
 					count( $styles )
 				)
 			)

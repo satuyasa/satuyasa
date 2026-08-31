@@ -52,7 +52,7 @@ $categories = get_terms( array(
 
 	<?php if ( ! empty( $categories ) && ! is_wp_error( $categories ) ) : ?>
 		<div class="filter-bar">
-			<a href="<?php echo esc_url( remove_query_arg( 'kategori' ) ); ?>" class="<?php echo '' === $current_cat ? 'active' : ''; ?>"><?php esc_html_e( 'Semua', 'aksara' ); ?></a>
+			<a href="<?php echo esc_url( remove_query_arg( 'kategori' ) ); ?>" class="<?php echo '' === $current_cat ? 'active' : ''; ?>"><?php esc_html_e( 'All', 'aksara' ); ?></a>
 			<?php foreach ( $categories as $cat ) : ?>
 				<a href="<?php echo esc_url( add_query_arg( 'kategori', $cat->slug ) ); ?>" class="<?php echo $current_cat === $cat->slug ? 'active' : ''; ?>"><?php echo esc_html( $cat->name ); ?></a>
 			<?php endforeach; ?>
@@ -74,7 +74,7 @@ $categories = get_terms( array(
 		wp_reset_postdata();
 		?>
 	<?php else : ?>
-		<p><?php esc_html_e( 'Belum ada template yang cocok dengan filter ini.', 'aksara' ); ?></p>
+		<p><?php esc_html_e( 'No templates match this filter yet.', 'aksara' ); ?></p>
 	<?php endif; ?>
 </div>
 

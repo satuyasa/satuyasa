@@ -79,7 +79,7 @@ class Aksara_Cart_Handler {
 	private static function build_js_config( $product, $styles, $licenses, $matrix ) {
 		$preview_text = class_exists( 'Aksara_Specimen_Image' )
 			? Aksara_Specimen_Image::get_default_preview_text()
-			: __( 'Kopi pagi, ide baru, karya berani', 'aksara-marketplace' );
+			: __( 'Morning coffee, bold new ideas', 'aksara-marketplace' );
 
 		$styles_payload = array();
 		foreach ( $styles as $style ) {
@@ -136,19 +136,19 @@ class Aksara_Cart_Handler {
 			'maxPreviewChars'    => 100,
 			'defaultPreviewText' => $preview_text,
 			'i18n'               => array(
-				'selectStyle'    => __( 'Pilih minimal 1 style.', 'aksara-marketplace' ),
-				'selectLicense'  => __( 'Pilih jenis lisensi.', 'aksara-marketplace' ),
-				'adding'         => __( 'Menambahkan…', 'aksara-marketplace' ),
-				'added'          => __( 'Ditambahkan ke keranjang!', 'aksara-marketplace' ),
-				'error'          => __( 'Terjadi kesalahan, coba lagi.', 'aksara-marketplace' ),
-				'selectAll'      => __( 'Pilih Semua (Paket Lengkap)', 'aksara-marketplace' ),
-				'previewUnavailable' => __( 'Pratinjau tidak tersedia', 'aksara-marketplace' ),
-				'previewFallback'    => __( 'Menampilkan contoh statis — pratinjau ketik langsung sedang tidak tersedia.', 'aksara-marketplace' ),
+				'selectStyle'    => __( 'Select at least one style.', 'aksara-marketplace' ),
+				'selectLicense'  => __( 'Choose a license type.', 'aksara-marketplace' ),
+				'adding'         => __( 'Adding…', 'aksara-marketplace' ),
+				'added'          => __( 'Added to cart!', 'aksara-marketplace' ),
+				'error'          => __( 'Something went wrong, please try again.', 'aksara-marketplace' ),
+				'selectAll'      => __( 'Select All (Complete Family)', 'aksara-marketplace' ),
+				'previewUnavailable' => __( 'Preview unavailable', 'aksara-marketplace' ),
+				'previewFallback'    => __( 'Showing a static specimen — live typing preview is unavailable right now.', 'aksara-marketplace' ),
 				// Cadangan sisi klien untuk kuota codepoint. Normalnya pesan
 				// dari server (yang lebih spesifik) yang dipakai; ini hanya
 				// terpakai kalau body respons gagal diurai.
-				'previewBudget'      => __( 'Batas pratinjau untuk style ini sudah tercapai. Coba lagi besok, atau beli style-nya untuk memakai seluruh karakter.', 'aksara-marketplace' ),
-				'loading'        => __( 'Memuat pratinjau…', 'aksara-marketplace' ),
+				'previewBudget'      => __( 'You have reached the preview limit for this style. Try again tomorrow, or buy the style to use its full character set.', 'aksara-marketplace' ),
+				'loading'        => __( 'Loading preview…', 'aksara-marketplace' ),
 			),
 		);
 	}
@@ -167,17 +167,17 @@ class Aksara_Cart_Handler {
 	public static function validate_combo( $product_id, $style_ids, $license_id ) {
 		$product = wc_get_product( $product_id );
 		if ( ! $product instanceof WC_Product_Font ) {
-			return new WP_Error( 'aksara_invalid_product', __( 'Produk tidak valid.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+			return new WP_Error( 'aksara_invalid_product', __( 'Invalid product.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
 		$style_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $style_ids ) ) ) );
 		if ( empty( $style_ids ) ) {
-			return new WP_Error( 'aksara_missing_style', __( 'Pilih minimal 1 style.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+			return new WP_Error( 'aksara_missing_style', __( 'Select at least one style.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
 		$license = Aksara_Font_Licenses_Repository::get( $license_id );
 		if ( ! $license ) {
-			return new WP_Error( 'aksara_invalid_license', __( 'Jenis lisensi tidak valid.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+			return new WP_Error( 'aksara_invalid_license', __( 'Invalid license type.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
 		$all_styles     = Aksara_Font_Styles_Repository::get_by_product( $product_id );
@@ -195,7 +195,7 @@ class Aksara_Cart_Handler {
 
 		foreach ( $style_ids as $style_id ) {
 			if ( ! isset( $styles_by_id[ $style_id ] ) ) {
-				return new WP_Error( 'aksara_invalid_style', __( 'Salah satu style yang dipilih tidak valid.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+				return new WP_Error( 'aksara_invalid_style', __( 'One of the selected styles is not valid.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 			}
 
 			$price = Aksara_Font_Licenses_Repository::get_style_price( $style_id, $license_id );
@@ -204,7 +204,7 @@ class Aksara_Cart_Handler {
 					'aksara_price_unset',
 					sprintf(
 						/* translators: %s: nama style. */
-						__( 'Style "%s" belum memiliki harga untuk lisensi ini.', 'aksara-marketplace' ),
+						__( 'Style "%s" has no price for this license yet.', 'aksara-marketplace' ),
 						$styles_by_id[ $style_id ]->style_name
 					),
 					array( 'status' => 400 )
@@ -266,12 +266,12 @@ class Aksara_Cart_Handler {
 		}
 
 		$item_data[] = array(
-			'name'  => _n( 'Style', 'Style', count( $cart_item['aksara']['style_names'] ), 'aksara-marketplace' ),
+			'name'  => _n( 'Style', 'Styles', count( $cart_item['aksara']['style_names'] ), 'aksara-marketplace' ),
 			'value' => implode( ', ', $cart_item['aksara']['style_names'] ),
 		);
 		$item_data[] = array(
-			'name'  => __( 'Lisensi', 'aksara-marketplace' ),
-			'value' => $cart_item['aksara']['license_name'] . ( ! empty( $cart_item['aksara']['is_bundle'] ) ? ' — ' . __( 'Paket Lengkap', 'aksara-marketplace' ) : '' ),
+			'name'  => __( 'License', 'aksara-marketplace' ),
+			'value' => $cart_item['aksara']['license_name'] . ( ! empty( $cart_item['aksara']['is_bundle'] ) ? ' — ' . __( 'Complete Family', 'aksara-marketplace' ) : '' ),
 		);
 
 		return $item_data;
@@ -293,7 +293,7 @@ class Aksara_Cart_Handler {
 		}
 
 		$item->add_meta_data( __( 'Style', 'aksara-marketplace' ), implode( ', ', $values['aksara']['style_names'] ) );
-		$item->add_meta_data( __( 'Lisensi', 'aksara-marketplace' ), $values['aksara']['license_name'] );
+		$item->add_meta_data( __( 'License', 'aksara-marketplace' ), $values['aksara']['license_name'] );
 		$item->add_meta_data( '_aksara_style_ids', implode( ',', $values['aksara']['style_ids'] ) );
 		$item->add_meta_data( '_aksara_license_id', $values['aksara']['license_id'] );
 	}

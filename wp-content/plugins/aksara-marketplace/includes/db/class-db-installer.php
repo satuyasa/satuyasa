@@ -159,31 +159,31 @@ class Aksara_DB_Installer {
 			array(
 				'name'        => __( 'Desktop', 'aksara-marketplace' ),
 				'slug'        => 'desktop',
-				'description' => __( 'Untuk digunakan di aplikasi desain seperti Photoshop, Illustrator, dan Microsoft Word yang terpasang di komputer Anda.', 'aksara-marketplace' ),
+				'description' => __( 'For use in desktop design software such as Photoshop, Illustrator, and Microsoft Word installed on your computer.', 'aksara-marketplace' ),
 				'sort_order'  => 1,
 			),
 			array(
 				'name'        => __( 'Web / Webfont', 'aksara-marketplace' ),
 				'slug'        => 'web',
-				'description' => __( 'Untuk ditanamkan (embed) di situs web sebagai webfont.', 'aksara-marketplace' ),
+				'description' => __( 'For embedding on a website as a webfont.', 'aksara-marketplace' ),
 				'sort_order'  => 2,
 			),
 			array(
-				'name'        => __( 'Aplikasi', 'aksara-marketplace' ),
+				'name'        => __( 'App', 'aksara-marketplace' ),
 				'slug'        => 'app',
-				'description' => __( 'Untuk disertakan (embedding) dalam aplikasi mobile atau desktop.', 'aksara-marketplace' ),
+				'description' => __( 'For embedding in a mobile or desktop application.', 'aksara-marketplace' ),
 				'sort_order'  => 3,
 			),
 			array(
 				'name'        => __( 'E-book', 'aksara-marketplace' ),
 				'slug'        => 'ebook',
-				'description' => __( 'Untuk disertakan dalam berkas e-book yang didistribusikan.', 'aksara-marketplace' ),
+				'description' => __( 'For embedding in distributed e-book files.', 'aksara-marketplace' ),
 				'sort_order'  => 4,
 			),
 			array(
-				'name'        => __( 'Komersial Lanjutan', 'aksara-marketplace' ),
+				'name'        => __( 'Extended Commercial', 'aksara-marketplace' ),
 				'slug'        => 'extended',
-				'description' => __( 'Untuk merchandise, kemasan produk, dan penggunaan komersial skala besar.', 'aksara-marketplace' ),
+				'description' => __( 'For merchandise, product packaging, and large-scale commercial use.', 'aksara-marketplace' ),
 				'sort_order'  => 5,
 			),
 		);

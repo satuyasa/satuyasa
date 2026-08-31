@@ -20,7 +20,7 @@ get_header();
 					<?php
 					printf(
 						/* translators: %s: kata kunci pencarian. */
-						esc_html__( 'Hasil pencarian untuk: %s', 'aksara' ),
+						esc_html__( 'Search results for: %s', 'aksara' ),
 						'<span>' . esc_html( get_search_query() ) . '</span>'
 					);
 					?>

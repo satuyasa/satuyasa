@@ -82,14 +82,14 @@ class Aksara_Service_Health {
 		?>
 		<div class="notice notice-warning">
 			<p>
-				<strong><?php esc_html_e( 'Aksara: layanan pratinjau font sedang tidak aktif.', 'aksara-marketplace' ); ?></strong>
+				<strong><?php esc_html_e( 'Aksara: the font preview service is down.', 'aksara-marketplace' ); ?></strong>
 			</p>
 			<p>
-				<?php esc_html_e( 'Typing tool di halaman produk font untuk sementara menampilkan gambar contoh statis alih-alih pratinjau ketik langsung. Sisi toko lain (harga, keranjang, checkout, unduhan) tidak terpengaruh.', 'aksara-marketplace' ); ?>
+				<?php esc_html_e( 'The typing tool on font product pages is temporarily showing static specimen images instead of a live typing preview. The rest of the store (prices, cart, checkout, downloads) is unaffected.', 'aksara-marketplace' ); ?>
 			</p>
 			<p>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=aksara-service-status' ) ); ?>">
-					<?php esc_html_e( 'Lihat detail & cara menjalankannya kembali →', 'aksara-marketplace' ); ?>
+					<?php esc_html_e( 'See details and how to bring it back up →', 'aksara-marketplace' ); ?>
 				</a>
 			</p>
 		</div>
@@ -102,8 +102,8 @@ class Aksara_Service_Health {
 	public static function add_status_page() {
 		add_submenu_page(
 			'woocommerce',
-			__( 'Status Layanan Aksara', 'aksara-marketplace' ),
-			__( 'Status Layanan Aksara', 'aksara-marketplace' ),
+			__( 'Aksara Service Status', 'aksara-marketplace' ),
+			__( 'Aksara Service Status', 'aksara-marketplace' ),
 			'manage_woocommerce',
 			'aksara-service-status',
 			array( __CLASS__, 'render_status_page' )
@@ -116,7 +116,7 @@ class Aksara_Service_Health {
 	 */
 	public static function render_status_page() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'Anda tidak memiliki izin untuk mengakses halaman ini.', 'aksara-marketplace' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'aksara-marketplace' ) );
 		}
 
 		// Membuka halaman ini dianggap sebagai permintaan cek ulang.
@@ -128,33 +128,33 @@ class Aksara_Service_Health {
 		$gd_ok = function_exists( 'imagettftext' );
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Status Layanan Aksara', 'aksara-marketplace' ); ?></h1>
+			<h1><?php esc_html_e( 'Aksara Service Status', 'aksara-marketplace' ); ?></h1>
 
 			<table class="widefat striped aksara-health-table">
 				<tbody>
 					<tr>
-						<td class="aksara-health-label"><strong><?php esc_html_e( 'Layanan pratinjau font', 'aksara-marketplace' ); ?></strong><br>
-							<span class="description"><?php esc_html_e( 'Dibutuhkan untuk typing tool interaktif di halaman produk font.', 'aksara-marketplace' ); ?></span>
+						<td class="aksara-health-label"><strong><?php esc_html_e( 'Font preview service', 'aksara-marketplace' ); ?></strong><br>
+							<span class="description"><?php esc_html_e( 'Required for the interactive typing tool on font product pages.', 'aksara-marketplace' ); ?></span>
 						</td>
 						<td>
 							<?php if ( $is_up ) : ?>
-								<span class="aksara-status-up">● <?php esc_html_e( 'Aktif', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-up">● <?php esc_html_e( 'Running', 'aksara-marketplace' ); ?></span>
 							<?php else : ?>
-								<span class="aksara-status-down">● <?php esc_html_e( 'Tidak aktif', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-down">● <?php esc_html_e( 'Down', 'aksara-marketplace' ); ?></span>
 							<?php endif; ?>
 							<br><code><?php echo esc_html( $service_url ); ?></code>
 						</td>
 					</tr>
 					<tr>
-						<td><strong><?php esc_html_e( 'Render specimen (PHP GD)', 'aksara-marketplace' ); ?></strong><br>
-							<span class="description"><?php esc_html_e( 'Dipakai untuk gambar contoh font di listing & sebagai cadangan typing tool. Tidak butuh layanan eksternal.', 'aksara-marketplace' ); ?></span>
+						<td><strong><?php esc_html_e( 'Specimen rendering (PHP GD)', 'aksara-marketplace' ); ?></strong><br>
+							<span class="description"><?php esc_html_e( 'Used for type specimen images in listings and as the typing tool fallback. Needs no external service.', 'aksara-marketplace' ); ?></span>
 						</td>
 						<td>
 							<?php if ( $gd_ok ) : ?>
-								<span class="aksara-status-up">● <?php esc_html_e( 'Tersedia', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-up">● <?php esc_html_e( 'Available', 'aksara-marketplace' ); ?></span>
 							<?php else : ?>
-								<span class="aksara-status-down">● <?php esc_html_e( 'Tidak tersedia', 'aksara-marketplace' ); ?></span>
-								<br><span class="description"><?php esc_html_e( 'Ekstensi GD dengan dukungan FreeType tidak aktif di server ini — hubungi penyedia hosting Anda.', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-down">● <?php esc_html_e( 'Unavailable', 'aksara-marketplace' ); ?></span>
+								<br><span class="description"><?php esc_html_e( 'The GD extension with FreeType support is not enabled on this server — contact your hosting provider.', 'aksara-marketplace' ); ?></span>
 							<?php endif; ?>
 						</td>
 					</tr>
@@ -162,18 +162,18 @@ class Aksara_Service_Health {
 			</table>
 
 			<?php if ( ! $is_up ) : ?>
-				<h2><?php esc_html_e( 'Cara menjalankannya kembali', 'aksara-marketplace' ); ?></h2>
-				<p><?php esc_html_e( 'Kalau sudah dipasang sebagai layanan systemd (cara yang disarankan):', 'aksara-marketplace' ); ?></p>
+				<h2><?php esc_html_e( 'How to bring it back up', 'aksara-marketplace' ); ?></h2>
+				<p><?php esc_html_e( 'If it is installed as a systemd service (the recommended setup):', 'aksara-marketplace' ); ?></p>
 				<pre class="aksara-code-block">sudo systemctl status aksara-font-preview
 sudo systemctl restart aksara-font-preview
 sudo journalctl -u aksara-font-preview -n 50</pre>
-				<p><?php esc_html_e( 'Kalau belum dipasang sebagai layanan, lihat panduan di services/font-preview-service/README.md pada repositori proyek.', 'aksara-marketplace' ); ?></p>
+				<p><?php esc_html_e( 'If it has not been installed as a service yet, see the guide at services/font-preview-service/README.md in the project repository.', 'aksara-marketplace' ); ?></p>
 			<?php endif; ?>
 
-			<h2><?php esc_html_e( 'Yang terpengaruh saat layanan mati', 'aksara-marketplace' ); ?></h2>
+			<h2><?php esc_html_e( 'What is affected while it is down', 'aksara-marketplace' ); ?></h2>
 			<ul class="aksara-bullet-list">
-				<li><?php esc_html_e( 'Typing tool halaman produk font: pengunjung tidak bisa mengetik teks sendiri, tapi tetap melihat gambar contoh font (specimen).', 'aksara-marketplace' ); ?></li>
-				<li><?php esc_html_e( 'TIDAK terpengaruh: listing font, kalkulator harga, keranjang, checkout, unduhan setelah pembelian, sertifikat lisensi — semuanya tidak memakai layanan ini.', 'aksara-marketplace' ); ?></li>
+				<li><?php esc_html_e( 'Font product page typing tool: visitors cannot type their own text, but still see the font specimen image.', 'aksara-marketplace' ); ?></li>
+				<li><?php esc_html_e( 'NOT affected: font listings, the price calculator, cart, checkout, post-purchase downloads, and license certificates — none of them use this service.', 'aksara-marketplace' ); ?></li>
 			</ul>
 		</div>
 		<?php

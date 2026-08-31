@@ -80,7 +80,7 @@ class Aksara_File_Storage {
 	 */
 	public static function store_uploaded_font( $tmp_path, $original_filename ) {
 		if ( ! is_uploaded_file( $tmp_path ) ) {
-			return new WP_Error( 'aksara_invalid_upload', __( 'Berkas yang diunggah tidak valid.', 'aksara-marketplace' ) );
+			return new WP_Error( 'aksara_invalid_upload', __( 'The uploaded file is not valid.', 'aksara-marketplace' ) );
 		}
 
 		$extension = strtolower( pathinfo( $original_filename, PATHINFO_EXTENSION ) );
@@ -89,7 +89,7 @@ class Aksara_File_Storage {
 				'aksara_invalid_extension',
 				sprintf(
 					/* translators: %s: daftar ekstensi yang diizinkan. */
-					__( 'Jenis berkas tidak diizinkan. Gunakan salah satu dari: %s.', 'aksara-marketplace' ),
+					__( 'File type not allowed. Use one of: %s.', 'aksara-marketplace' ),
 					implode( ', ', self::ALLOWED_FONT_EXTENSIONS )
 				)
 			);
@@ -103,7 +103,7 @@ class Aksara_File_Storage {
 		$destination = trailingslashit( $dir ) . $filename;
 
 		if ( ! @move_uploaded_file( $tmp_path, $destination ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.file_system_operations_move_uploaded_file
-			return new WP_Error( 'aksara_move_failed', __( 'Gagal menyimpan berkas font ke folder privat.', 'aksara-marketplace' ) );
+			return new WP_Error( 'aksara_move_failed', __( 'Could not save the font file to the private folder.', 'aksara-marketplace' ) );
 		}
 
 		return 'fonts/' . $filename;
@@ -126,7 +126,7 @@ class Aksara_File_Storage {
 
 		$written = file_put_contents( $destination, $content ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		if ( false === $written ) {
-			return new WP_Error( 'aksara_write_failed', __( 'Gagal menyimpan berkas yang dihasilkan.', 'aksara-marketplace' ) );
+			return new WP_Error( 'aksara_write_failed', __( 'Could not save the generated file.', 'aksara-marketplace' ) );
 		}
 
 		return trim( $subdir, '/' ) . '/' . $filename;

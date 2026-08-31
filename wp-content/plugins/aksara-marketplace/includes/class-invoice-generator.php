@@ -115,14 +115,14 @@ class Aksara_Invoice_Generator {
 		$pdf->border( 24 );
 
 		$y = 780;
-		$pdf->text( 60, $y, __( 'SERTIFIKAT LISENSI FONT', 'aksara-marketplace' ), 20, true );
+		$pdf->text( 60, $y, __( 'FONT LICENSE CERTIFICATE', 'aksara-marketplace' ), 20, true );
 		$y -= 14;
 		$pdf->hr( 60, $y, 535 );
 		$y -= 26;
 
 		$buyer_name = trim( $order->get_formatted_billing_full_name() );
 		if ( ! $buyer_name ) {
-			$buyer_name = __( 'Pelanggan', 'aksara-marketplace' );
+			$buyer_name = __( 'Customer', 'aksara-marketplace' );
 		}
 
 		$paid_date = $order->get_date_paid() ? $order->get_date_paid() : $order->get_date_created();
@@ -134,7 +134,7 @@ class Aksara_Invoice_Generator {
 		$pdf->text( 60, $y, sprintf( 'Pembeli: %s (%s)', $buyer_name, $order->get_billing_email() ), 11 );
 		$y -= 32;
 
-		$pdf->text( 60, $y, __( 'Rincian Lisensi', 'aksara-marketplace' ), 13, true );
+		$pdf->text( 60, $y, __( 'License Details', 'aksara-marketplace' ), 13, true );
 		$y -= 22;
 
 		$shown = array_slice( $font_items, 0, self::MAX_ITEMS_PER_CERTIFICATE );
@@ -144,7 +144,7 @@ class Aksara_Invoice_Generator {
 			$y -= 16;
 			$pdf->text( 72, $y, 'Style: ' . implode( ', ', $entry['style_names'] ), 10 );
 			$y -= 14;
-			$pdf->text( 72, $y, 'Lisensi: ' . $entry['license_name'], 10 );
+			$pdf->text( 72, $y, __( 'License: ', 'aksara-marketplace' ) . $entry['license_name'], 10 );
 			$y -= 20;
 		}
 
@@ -155,7 +155,7 @@ class Aksara_Invoice_Generator {
 				$y,
 				sprintf(
 					/* translators: %d: jumlah item tambahan yang tidak muat di halaman. */
-					__( '+%d item lisensi lain — lihat detail lengkap di email konfirmasi order.', 'aksara-marketplace' ),
+					__( '+%d more license items — see the full details in your order confirmation email.', 'aksara-marketplace' ),
 					$remaining
 				),
 				9
@@ -166,9 +166,9 @@ class Aksara_Invoice_Generator {
 		$y = max( $y, 70 );
 		$pdf->hr( 60, $y, 535 );
 		$y -= 18;
-		$pdf->text( 60, $y, __( 'Dokumen ini adalah bukti lisensi resmi untuk font yang tercantum di atas.', 'aksara-marketplace' ), 9 );
+		$pdf->text( 60, $y, __( 'This document is the official proof of license for the fonts listed above.', 'aksara-marketplace' ), 9 );
 		$y -= 12;
-		$pdf->text( 60, $y, __( 'Simpan dokumen ini sebagai referensi hak penggunaan Anda.', 'aksara-marketplace' ), 9 );
+		$pdf->text( 60, $y, __( 'Keep this document as a record of your usage rights.', 'aksara-marketplace' ), 9 );
 
 		return $pdf->output();
 	}

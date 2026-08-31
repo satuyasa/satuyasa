@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
- * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, typing tool pratinjau interaktif, kalkulator lisensi, unduhan aman, sertifikat lisensi PDF, wishlist, dan logging untuk monitoring.
- * Version: 0.5.1
+ * Description: WooCommerce marketplace for Fonts (sold per style, with tiered licensing), Canva Templates, and Canva Elements. Adds custom product types, font style management, a license price matrix, an interactive typing-preview tool, a license calculator, secure downloads, PDF license certificates, wishlists, and logging for monitoring.
+ * Version: 0.6.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.5.1' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.6.0' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );
@@ -113,7 +113,7 @@ add_action( 'plugins_loaded', 'aksara_marketplace_init' );
  */
 function aksara_marketplace_missing_woocommerce_notice() {
 	echo '<div class="notice notice-error"><p>' .
-		esc_html__( 'Aksara Marketplace membutuhkan plugin WooCommerce yang aktif.', 'aksara-marketplace' ) .
+		esc_html__( 'Aksara Marketplace requires the WooCommerce plugin to be active.', 'aksara-marketplace' ) .
 		'</p></div>';
 }
 
@@ -197,7 +197,7 @@ function aksara_wishlist_button( $product_id ) {
 		$is_active ? ' is-active' : '',
 		(int) $product_id,
 		$is_active ? 'true' : 'false',
-		esc_attr__( 'Simpan ke wishlist', 'aksara-marketplace' ),
+		esc_attr__( 'Save to wishlist', 'aksara-marketplace' ),
 		$is_active ? '&hearts;' : '&#9825;'
 	);
 }

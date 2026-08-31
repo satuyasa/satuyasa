@@ -27,8 +27,8 @@ get_header();
 			endwhile;
 
 			the_posts_pagination( array(
-				'prev_text' => esc_html__( '&laquo; Sebelumnya', 'aksara' ),
-				'next_text' => esc_html__( 'Berikutnya &raquo;', 'aksara' ),
+				'prev_text' => esc_html__( '&laquo; Previous', 'aksara' ),
+				'next_text' => esc_html__( 'Next &raquo;', 'aksara' ),
 			) );
 			?>
 

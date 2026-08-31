@@ -134,3 +134,8 @@
 }
 
 .aksara-discount-input { width: 100px; }
+
+/* Notice di dalam metabox (bukan di puncak halaman): WordPress memberi
+   .notice margin negatif yang mengasumsikan konteks .wrap, sehingga di
+   dalam metabox ia menonjol keluar kotaknya. */
+.aksara-inline-notice { margin: 0 0 12px; }

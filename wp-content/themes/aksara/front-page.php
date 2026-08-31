@@ -23,18 +23,18 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 
 <section class="hero">
 	<div class="wrap">
-		<h1 class="hero-headline"><?php echo esc_html( get_theme_mod( 'aksara_hero_title', __( 'Huruf yang tepat untuk karyamu.', 'aksara' ) ) ); ?></h1>
-		<p class="hero-sub"><?php echo esc_html( get_theme_mod( 'aksara_hero_subtitle', __( 'Ribuan font berlisensi jelas, template Canva siap pakai, dan elemen desain — semua dalam satu tempat, dengan pratinjau langsung sebelum kamu beli.', 'aksara' ) ) ); ?></p>
+		<h1 class="hero-headline"><?php echo esc_html( get_theme_mod( 'aksara_hero_title', __( 'The right type for your work.', 'aksara' ) ) ); ?></h1>
+		<p class="hero-sub"><?php echo esc_html( get_theme_mod( 'aksara_hero_subtitle', __( 'Thousands of clearly licensed fonts, ready-made Canva templates, and design elements — all in one place, with a live preview before you buy.', 'aksara' ) ) ); ?></p>
 
 		<form class="hero-search" role="search" method="get" action="<?php echo esc_url( home_url( '/' ) ); ?>">
-			<input type="text" name="s" placeholder="<?php esc_attr_e( 'Cari nama font, gaya, atau kategori…', 'aksara' ); ?>">
-			<button type="submit"><?php esc_html_e( 'Cari', 'aksara' ); ?></button>
+			<input type="text" name="s" placeholder="<?php esc_attr_e( 'Search fonts, styles, or categories…', 'aksara' ); ?>">
+			<button type="submit"><?php esc_html_e( 'Search', 'aksara' ); ?></button>
 		</form>
 
 		<div class="hero-stats">
-			<div class="stat"><b><?php echo esc_html( number_format_i18n( $font_count ) ); ?></b><span><?php esc_html_e( 'Font tersedia', 'aksara' ); ?></span></div>
-			<div class="stat"><b><?php echo esc_html( number_format_i18n( $template_count ) ); ?></b><span><?php esc_html_e( 'Template Canva', 'aksara' ); ?></span></div>
-			<div class="stat"><b><?php echo esc_html( number_format_i18n( $element_count ) ); ?></b><span><?php esc_html_e( 'Elemen desain', 'aksara' ); ?></span></div>
+			<div class="stat"><b><?php echo esc_html( number_format_i18n( $font_count ) ); ?></b><span><?php esc_html_e( 'Fonts available', 'aksara' ); ?></span></div>
+			<div class="stat"><b><?php echo esc_html( number_format_i18n( $template_count ) ); ?></b><span><?php esc_html_e( 'Canva templates', 'aksara' ); ?></span></div>
+			<div class="stat"><b><?php echo esc_html( number_format_i18n( $element_count ) ); ?></b><span><?php esc_html_e( 'Design elements', 'aksara' ); ?></span></div>
 		</div>
 	</div>
 </section>
@@ -42,16 +42,16 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 <section class="categories">
 	<div class="wrap cat-grid">
 		<a class="cat-card" href="<?php echo esc_url( aksara_get_listing_url( 'fonts' ) ); ?>">
-			<div><h3><?php esc_html_e( 'Fonts', 'aksara' ); ?></h3><p><?php esc_html_e( 'Beli per style, dengan lisensi sesuai kebutuhanmu — desktop, web, atau komersial.', 'aksara' ); ?></p></div>
-			<span class="go"><?php esc_html_e( 'Jelajahi font', 'aksara' ); ?></span>
+			<div><h3><?php esc_html_e( 'Fonts', 'aksara' ); ?></h3><p><?php esc_html_e( 'Buy per style, with the license you actually need — desktop, web, or commercial.', 'aksara' ); ?></p></div>
+			<span class="go"><?php esc_html_e( 'Browse fonts', 'aksara' ); ?></span>
 		</a>
 		<a class="cat-card" href="<?php echo esc_url( aksara_get_listing_url( 'templates' ) ); ?>">
-			<div><h3><?php esc_html_e( 'Canva Templates', 'aksara' ); ?></h3><p><?php esc_html_e( 'Desain siap edit untuk media sosial, resume, presentasi, dan lainnya.', 'aksara' ); ?></p></div>
-			<span class="go"><?php esc_html_e( 'Jelajahi template', 'aksara' ); ?></span>
+			<div><h3><?php esc_html_e( 'Canva Templates', 'aksara' ); ?></h3><p><?php esc_html_e( 'Ready-to-edit designs for social media, resumes, presentations, and more.', 'aksara' ); ?></p></div>
+			<span class="go"><?php esc_html_e( 'Browse templates', 'aksara' ); ?></span>
 		</a>
 		<a class="cat-card" href="<?php echo esc_url( aksara_get_listing_url( 'elements' ) ); ?>">
-			<div><h3><?php esc_html_e( 'Canva Elements', 'aksara' ); ?></h3><p><?php esc_html_e( 'Ikon, ilustrasi, dan bentuk grafis untuk melengkapi desainmu.', 'aksara' ); ?></p></div>
-			<span class="go"><?php esc_html_e( 'Jelajahi elemen', 'aksara' ); ?></span>
+			<div><h3><?php esc_html_e( 'Canva Elements', 'aksara' ); ?></h3><p><?php esc_html_e( 'Icons, illustrations, and graphic shapes to finish your design.', 'aksara' ); ?></p></div>
+			<span class="go"><?php esc_html_e( 'Browse elements', 'aksara' ); ?></span>
 		</a>
 	</div>
 </section>
@@ -59,8 +59,8 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 <section class="section">
 	<div class="wrap">
 		<div class="section-head">
-			<h2><?php esc_html_e( 'Font pilihan minggu ini', 'aksara' ); ?></h2>
-			<a href="<?php echo esc_url( aksara_get_listing_url( 'fonts' ) ); ?>"><?php esc_html_e( 'Lihat semua font', 'aksara' ); ?></a>
+			<h2><?php esc_html_e( 'This week\'s featured fonts', 'aksara' ); ?></h2>
+			<a href="<?php echo esc_url( aksara_get_listing_url( 'fonts' ) ); ?>"><?php esc_html_e( 'View all fonts', 'aksara' ); ?></a>
 		</div>
 
 		<?php
@@ -77,7 +77,7 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 				?>
 			</div>
 		<?php else : ?>
-			<p><?php esc_html_e( 'Belum ada font yang dipublikasikan.', 'aksara' ); ?></p>
+			<p><?php esc_html_e( 'No fonts have been published yet.', 'aksara' ); ?></p>
 		<?php endif; ?>
 	</div>
 </section>
@@ -85,8 +85,8 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 <section class="section section--last">
 	<div class="wrap">
 		<div class="section-head">
-			<h2><?php esc_html_e( 'Template & elemen terbaru', 'aksara' ); ?></h2>
-			<a href="<?php echo esc_url( aksara_get_listing_url( 'templates' ) ); ?>"><?php esc_html_e( 'Lihat semua', 'aksara' ); ?></a>
+			<h2><?php esc_html_e( 'Latest templates & elements', 'aksara' ); ?></h2>
+			<a href="<?php echo esc_url( aksara_get_listing_url( 'templates' ) ); ?>"><?php esc_html_e( 'View all', 'aksara' ); ?></a>
 		</div>
 
 		<?php
@@ -118,7 +118,7 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 				?>
 			</div>
 		<?php else : ?>
-			<p><?php esc_html_e( 'Belum ada template atau elemen yang dipublikasikan.', 'aksara' ); ?></p>
+			<p><?php esc_html_e( 'No templates or elements have been published yet.', 'aksara' ); ?></p>
 		<?php endif; ?>
 	</div>
 </section>
@@ -126,16 +126,16 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 <section class="trust">
 	<div class="wrap">
 		<div>
-			<h3><?php esc_html_e( 'Lisensi yang jelas', 'aksara' ); ?></h3>
-			<p><?php esc_html_e( 'Setiap font punya rincian lisensi lengkap — desktop, web, aplikasi, hingga komersial — tanpa istilah membingungkan.', 'aksara' ); ?></p>
+			<h3><?php esc_html_e( 'Licensing you can actually read', 'aksara' ); ?></h3>
+			<p><?php esc_html_e( 'Every font comes with its full licensing terms — desktop, web, app, and commercial — without the confusing jargon.', 'aksara' ); ?></p>
 		</div>
 		<div>
-			<h3><?php esc_html_e( 'Coba sebelum beli', 'aksara' ); ?></h3>
-			<p><?php esc_html_e( 'Ketik teksmu sendiri dan lihat langsung tampilan tiap style font, tanpa perlu mengunduh apa pun.', 'aksara' ); ?></p>
+			<h3><?php esc_html_e( 'Try before you buy', 'aksara' ); ?></h3>
+			<p><?php esc_html_e( 'Type your own text and see every style live, without downloading anything.', 'aksara' ); ?></p>
 		</div>
 		<div>
-			<h3><?php esc_html_e( 'File aman terjaga', 'aksara' ); ?></h3>
-			<p><?php esc_html_e( 'File asli hanya dikirim setelah pembayaran berhasil, dengan tautan unduh yang terlindungi.', 'aksara' ); ?></p>
+			<h3><?php esc_html_e( 'Your files stay protected', 'aksara' ); ?></h3>
+			<p><?php esc_html_e( 'Original files are only released after successful payment, through a protected download link.', 'aksara' ); ?></p>
 		</div>
 	</div>
 </section>

@@ -76,11 +76,26 @@ class Aksara_Font_Styles_Metabox {
 		$product_type = Aksara_Canva_Info_Metabox::get_current_product_type( $post->ID );
 
 		if ( 'font' !== $product_type ) {
-			echo '<p>' . esc_html__( 'Set "Product type" ke Font (Aksara) untuk mengelola style di sini.', 'aksara-marketplace' ) . '</p>';
+			echo '<p>' . esc_html__( 'Set "Product type" to Font (Aksara), then save the draft — the style manager appears once the type is saved.', 'aksara-marketplace' ) . '</p>';
 			return;
 		}
 
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
+
+		/*
+		 * Produk font yang SUDAH publish tapi belum punya satu pun harga
+		 * tidak bisa dibeli (lihat WC_Product_Font::is_purchasable()), dan
+		 * di etalase hanya tampil sebagai "Price not set". Sebelumnya tidak
+		 * ada apa pun di wp-admin yang memberi tahu — produknya terbit,
+		 * terlihat normal di daftar produk, dan diam-diam tidak bisa dijual.
+		 */
+		if ( 'publish' === get_post_status( $post->ID )
+			&& null === Aksara_Font_Licenses_Repository::get_min_price_for_product( $post->ID ) ) {
+			printf(
+				'<div class="notice notice-warning inline aksara-inline-notice"><p>%s</p></div>',
+				esc_html__( 'This font is published but cannot be bought yet: no style has a price for any license. Fill in at least one price below.', 'aksara-marketplace' )
+			);
+		}
 
 		$styles           = Aksara_Font_Styles_Repository::get_by_product( $post->ID );
 		$licenses         = Aksara_Font_Licenses_Repository::get_all();
@@ -88,30 +103,39 @@ class Aksara_Font_Styles_Metabox {
 		$bundle_discount  = get_post_meta( $post->ID, '_aksara_bundle_discount_percent', true );
 
 		if ( empty( $licenses ) ) {
-			echo '<p>' . esc_html__( 'Belum ada jenis lisensi. Tambahkan dulu di menu WooCommerce > Lisensi Font.', 'aksara-marketplace' ) . '</p>';
+			// Jalan buntu ini butuh jalan keluar, bukan cuma penjelasan:
+			// tanpa satu pun jenis lisensi, harga style tidak bisa diisi sama
+			// sekali, jadi sertakan tautan langsung ke halaman tempat
+			// memperbaikinya alih-alih menyuruh admin mencarinya sendiri.
+			printf(
+				'<p>%1$s</p><p><a class="button" href="%2$s">%3$s</a></p>',
+				esc_html__( 'No license types yet. Font prices are set per license, so at least one license type must exist before styles can be priced.', 'aksara-marketplace' ),
+				esc_url( admin_url( 'admin.php?page=aksara-font-licenses' ) ),
+				esc_html__( 'Add a license type', 'aksara-marketplace' )
+			);
 			return;
 		}
 		?>
 		<p>
-			<label for="aksara_bundle_discount_percent"><strong><?php esc_html_e( 'Diskon Paket Lengkap (%)', 'aksara-marketplace' ); ?></strong></label><br>
+			<label for="aksara_bundle_discount_percent"><strong><?php esc_html_e( 'Complete Family Discount (%)', 'aksara-marketplace' ); ?></strong></label><br>
 			<input type="number" id="aksara_bundle_discount_percent" name="aksara_bundle_discount_percent" class="aksara-discount-input" min="0" max="90" step="1" value="<?php echo esc_attr( $bundle_discount ); ?>">
-			<span class="description"><?php esc_html_e( 'Diterapkan otomatis di kalkulator saat pembeli memilih tombol "Pilih Semua" (seluruh style yang berharga untuk lisensi tersebut). Kosongkan/0 untuk menonaktifkan.', 'aksara-marketplace' ); ?></span>
+			<span class="description"><?php esc_html_e( 'Applied automatically in the calculator when the buyer uses "Select All" (every style priced for that license). Leave empty or 0 to disable.', 'aksara-marketplace' ); ?></span>
 		</p>
 		<?php if ( empty( $styles ) ) : ?>
-			<p><?php esc_html_e( 'Belum ada style. Unggah file font di bawah untuk mulai.', 'aksara-marketplace' ); ?></p>
+			<p><?php esc_html_e( 'No styles yet. Upload font files below to get started.', 'aksara-marketplace' ); ?></p>
 		<?php else : ?>
 			<table class="aksara-styles-table">
 				<thead>
 					<tr>
-						<th class="aksara-preview-cell"><?php esc_html_e( 'Pratinjau', 'aksara-marketplace' ); ?></th>
-						<th><?php esc_html_e( 'Nama Style', 'aksara-marketplace' ); ?></th>
+						<th class="aksara-preview-cell"><?php esc_html_e( 'Preview', 'aksara-marketplace' ); ?></th>
+						<th><?php esc_html_e( 'Style Name', 'aksara-marketplace' ); ?></th>
 						<th><?php esc_html_e( 'Weight', 'aksara-marketplace' ); ?></th>
 						<th><?php esc_html_e( 'Italic', 'aksara-marketplace' ); ?></th>
-						<th><?php esc_html_e( 'Berkas', 'aksara-marketplace' ); ?></th>
+						<th><?php esc_html_e( 'File', 'aksara-marketplace' ); ?></th>
 						<?php foreach ( $licenses as $license ) : ?>
 							<th class="aksara-price-cell"><?php echo esc_html( $license->name ); ?></th>
 						<?php endforeach; ?>
-						<th><?php esc_html_e( 'Hapus', 'aksara-marketplace' ); ?></th>
+						<th><?php esc_html_e( 'Delete', 'aksara-marketplace' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -152,14 +176,14 @@ class Aksara_Font_Styles_Metabox {
 								if ( $preview ) {
 									echo wp_kses_post( $preview );
 								} else {
-									echo '<span class="aksara-no-preview" title="' . esc_attr__( 'Berkas ini tidak bisa dirender jadi gambar (biasanya karena format .woff/.woff2). Style tetap bisa dijual & diunduh pembeli, tapi tidak akan tampil sebagai contoh huruf di listing.', 'aksara-marketplace' ) . '">' . esc_html__( 'tidak bisa dirender', 'aksara-marketplace' ) . '</span>';
+									echo '<span class="aksara-no-preview" title="' . esc_attr__( 'This file cannot be rendered to an image (usually because it is .woff/.woff2). The style can still be sold and downloaded by buyers, but it will not appear as a type specimen in listings.', 'aksara-marketplace' ) . '">' . esc_html__( 'cannot be rendered', 'aksara-marketplace' ) . '</span>';
 								}
 								?>
 							</td>
 							<td>
 								<input type="text" name="aksara_style[<?php echo esc_attr( $style->id ); ?>][style_name]" value="<?php echo esc_attr( $style->style_name ); ?>">
 								<?php if ( ! $has_price ) : ?>
-									<span class="aksara-unpriced-flag"><?php esc_html_e( 'Belum ada harga — style ini tidak bisa dibeli.', 'aksara-marketplace' ); ?></span>
+									<span class="aksara-unpriced-flag"><?php esc_html_e( 'No price set — this style cannot be bought.', 'aksara-marketplace' ); ?></span>
 								<?php endif; ?>
 							</td>
 							<td>
@@ -181,7 +205,7 @@ class Aksara_Font_Styles_Metabox {
 										<?php
 										printf(
 											/* translators: %s: nama style. */
-											esc_html__( 'Hapus style %s', 'aksara-marketplace' ),
+											esc_html__( 'Delete style %s', 'aksara-marketplace' ),
 											esc_html( $style->style_name )
 										);
 										?>
@@ -194,12 +218,12 @@ class Aksara_Font_Styles_Metabox {
 			</table>
 		<?php endif; ?>
 
-		<h4><?php esc_html_e( 'Tambah Style Baru (Bulk Upload)', 'aksara-marketplace' ); ?></h4>
+		<h4><?php esc_html_e( 'Add New Styles (Bulk Upload)', 'aksara-marketplace' ); ?></h4>
 		<p>
 			<input type="file" name="aksara_new_font_files[]" multiple accept=".ttf,.otf,.woff,.woff2">
 		</p>
 		<p class="description">
-			<?php esc_html_e( 'Pilih beberapa berkas font sekaligus (.ttf/.otf/.woff/.woff2). Nama style, weight, dan italic akan ditebak otomatis dari nama berkas (mis. "Grafira-SemiBoldItalic.otf") — bisa disunting lagi setelah disimpan. Atur harga per lisensi setelah style baru muncul di tabel atas.', 'aksara-marketplace' ); ?>
+			<?php esc_html_e( 'Pick several font files at once (.ttf/.otf/.woff/.woff2). Style name, weight, and italic are guessed from the filename (e.g. "Grafira-SemiBoldItalic.otf") and can be edited after saving. Set the per-license prices once the new styles appear in the table above.', 'aksara-marketplace' ); ?>
 		</p>
 		<p class="description">
 			<?php
@@ -212,7 +236,7 @@ class Aksara_Font_Styles_Metabox {
 			echo wp_kses_post(
 				sprintf(
 					/* translators: 1: batas ukuran per berkas, 2: format .ttf/.otf. */
-					esc_html__( 'Maksimal %1$s per berkas. Agar contoh hurufnya bisa tampil di listing, unggah dalam format %2$s — .woff/.woff2 tetap bisa dijual dan diunduh pembeli, tapi tidak bisa dirender jadi gambar spesimen.', 'aksara-marketplace' ),
+					esc_html__( 'Maximum %1$s per file. To have the type specimen appear in listings, upload %2$s — .woff/.woff2 can still be sold and downloaded by buyers, but cannot be rendered as a specimen image.', 'aksara-marketplace' ),
 					esc_html( size_format( wp_max_upload_size() ) ),
 					'<code>.ttf</code>/<code>.otf</code>'
 				)
@@ -409,7 +433,7 @@ class Aksara_Font_Styles_Metabox {
 			Aksara_Admin_UI::queue_notice(
 				sprintf(
 					/* translators: %d: jumlah style yang ditambahkan. */
-					_n( '%d style font ditambahkan. Jangan lupa isi harganya per lisensi.', '%d style font ditambahkan. Jangan lupa isi harganya per lisensi.', $added, 'aksara-marketplace' ),
+					_n( '%d font style added. Remember to set its price for each license.', '%d font styles added. Remember to set their prices for each license.', $added, 'aksara-marketplace' ),
 					$added
 				),
 				'success'
@@ -420,7 +444,7 @@ class Aksara_Font_Styles_Metabox {
 			Aksara_Admin_UI::queue_notice(
 				sprintf(
 					/* translators: %s: daftar berkas yang gagal beserta sebabnya. */
-					__( 'Berkas berikut gagal diunggah: %s', 'aksara-marketplace' ),
+					__( 'The following files failed to upload: %s', 'aksara-marketplace' ),
 					implode( '; ', $failures )
 				),
 				'error'
@@ -440,18 +464,18 @@ class Aksara_Font_Styles_Metabox {
 			case UPLOAD_ERR_FORM_SIZE:
 				return sprintf(
 					/* translators: %s: batas ukuran unggah server, mis. "8 MB". */
-					__( 'melebihi batas ukuran unggah server (%s)', 'aksara-marketplace' ),
+					__( 'exceeds the server upload limit (%s)', 'aksara-marketplace' ),
 					size_format( wp_max_upload_size() )
 				);
 			case UPLOAD_ERR_PARTIAL:
-				return __( 'terkirim sebagian, coba unggah ulang', 'aksara-marketplace' );
+				return __( 'only partially uploaded, please try again', 'aksara-marketplace' );
 			case UPLOAD_ERR_NO_TMP_DIR:
 			case UPLOAD_ERR_CANT_WRITE:
-				return __( 'server tidak bisa menulis berkas sementara — hubungi hosting', 'aksara-marketplace' );
+				return __( 'the server could not write a temporary file — contact your host', 'aksara-marketplace' );
 			case UPLOAD_ERR_EXTENSION:
-				return __( 'ditolak oleh ekstensi PHP di server', 'aksara-marketplace' );
+				return __( 'blocked by a PHP extension on the server', 'aksara-marketplace' );
 			default:
-				return __( 'gagal diunggah', 'aksara-marketplace' );
+				return __( 'upload failed', 'aksara-marketplace' );
 		}
 	}
 }

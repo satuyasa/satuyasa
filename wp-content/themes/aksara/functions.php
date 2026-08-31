@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '0.5.0' );
+define( 'AKSARA_THEME_VERSION', '0.6.0' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -37,10 +37,10 @@ function aksara_setup() {
 	add_theme_support( 'wc-product-gallery-slider' );
 
 	register_nav_menus( array(
-		'primary' => __( 'Menu Utama', 'aksara' ),
-		'footer_shop'  => __( 'Footer — Belanja', 'aksara' ),
-		'footer_help'  => __( 'Footer — Bantuan', 'aksara' ),
-		'footer_about' => __( 'Footer — Perusahaan', 'aksara' ),
+		'primary' => __( 'Primary Menu', 'aksara' ),
+		'footer_shop'  => __( 'Footer — Shop', 'aksara' ),
+		'footer_help'  => __( 'Footer — Help', 'aksara' ),
+		'footer_about' => __( 'Footer — Company', 'aksara' ),
 	) );
 }
 add_action( 'after_setup_theme', 'aksara_setup' );
@@ -88,7 +88,7 @@ add_action( 'wp_enqueue_scripts', 'aksara_scripts' );
  */
 function aksara_widgets_init() {
 	register_sidebar( array(
-		'name'          => __( 'Sidebar Blog', 'aksara' ),
+		'name'          => __( 'Blog Sidebar', 'aksara' ),
 		'id'            => 'sidebar-1',
 		'before_widget' => '<div id="%1$s" class="widget %2$s">',
 		'after_widget'  => '</div>',

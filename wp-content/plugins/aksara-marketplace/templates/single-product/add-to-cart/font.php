@@ -21,17 +21,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( empty( $styles ) ) {
-	echo '<p class="aksara-no-styles">' . esc_html__( 'Produk ini belum memiliki style. Silakan cek kembali nanti.', 'aksara-marketplace' ) . '</p>';
+	echo '<p class="aksara-no-styles">' . esc_html__( 'This product has no styles yet. Please check back later.', 'aksara-marketplace' ) . '</p>';
 	return;
 }
 
 if ( empty( $licenses ) || ! $product->is_purchasable() ) {
-	echo '<p class="aksara-no-styles">' . esc_html__( 'Produk ini belum siap dijual (harga belum diatur).', 'aksara-marketplace' ) . '</p>';
+	echo '<p class="aksara-no-styles">' . esc_html__( 'This product is not ready to sell yet (no price set).', 'aksara-marketplace' ) . '</p>';
 	return;
 }
 ?>
 <noscript>
-	<p class="aksara-no-styles"><?php esc_html_e( 'Aktifkan JavaScript untuk mencoba pratinjau interaktif dan membeli font ini.', 'aksara-marketplace' ); ?></p>
+	<p class="aksara-no-styles"><?php esc_html_e( 'Enable JavaScript to use the interactive preview and buy this font.', 'aksara-marketplace' ); ?></p>
 </noscript>
 
 <div class="aksara-font-tool" id="aksaraFontTool" hidden>
@@ -41,7 +41,7 @@ if ( empty( $licenses ) || ! $product->is_purchasable() ) {
 			<div class="aksara-ft-toolbar-right">
 				<button type="button" class="aksara-ft-italic-toggle" id="aksaraItalicToggle" aria-pressed="false"><?php esc_html_e( 'Italic', 'aksara-marketplace' ); ?></button>
 				<label class="aksara-ft-size-slider">
-					<?php esc_html_e( 'Ukuran', 'aksara-marketplace' ); ?>
+					<?php esc_html_e( 'Size', 'aksara-marketplace' ); ?>
 					<input type="range" id="aksaraSizeSlider" min="24" max="96" value="52">
 					<?php
 					/*
@@ -66,16 +66,16 @@ if ( empty( $licenses ) || ! $product->is_purchasable() ) {
 				spellcheck="false"
 				role="textbox"
 				aria-multiline="true"
-				aria-label="<?php esc_attr_e( 'Teks pratinjau font', 'aksara-marketplace' ); ?>"
+				aria-label="<?php esc_attr_e( 'Font preview text', 'aksara-marketplace' ); ?>"
 			></div>
 		</div>
 		<p class="aksara-ft-preview-hint">
-			<?php esc_html_e( 'Ketik teksmu sendiri untuk melihat tampilan font ini — ini hanya pratinjau, file font tidak dapat diunduh dari sini.', 'aksara-marketplace' ); ?>
+			<?php esc_html_e( 'Type your own text to see how this font looks — this is a preview only; the font file cannot be downloaded from here.', 'aksara-marketplace' ); ?>
 			<span id="aksaraPreviewStatus"></span>
 		</p>
 
 		<div class="aksara-ft-styles-head">
-			<h3><?php esc_html_e( 'Pilih style', 'aksara-marketplace' ); ?></h3>
+			<h3><?php esc_html_e( 'Select style', 'aksara-marketplace' ); ?></h3>
 			<span id="aksaraSelectedCount"></span>
 		</div>
 		<div class="aksara-ft-style-list" id="aksaraStyleList"></div>
@@ -83,8 +83,8 @@ if ( empty( $licenses ) || ! $product->is_purchasable() ) {
 	</div>
 
 	<div class="aksara-ft-side">
-		<h3><?php esc_html_e( 'Lisensi', 'aksara-marketplace' ); ?></h3>
-		<p class="aksara-ft-side-hint"><?php esc_html_e( 'Pilih sesuai penggunaanmu.', 'aksara-marketplace' ); ?></p>
+		<h3><?php esc_html_e( 'License', 'aksara-marketplace' ); ?></h3>
+		<p class="aksara-ft-side-hint"><?php esc_html_e( 'Pick the one that matches your use.', 'aksara-marketplace' ); ?></p>
 		<div id="aksaraLicenseList"></div>
 
 		<div class="aksara-ft-price-summary">
@@ -99,7 +99,7 @@ if ( empty( $licenses ) || ! $product->is_purchasable() ) {
 		</div>
 
 		<button type="button" class="button alt aksara-ft-cta" id="aksaraAddToCart" disabled>
-			<?php esc_html_e( 'Tambah ke Keranjang', 'aksara-marketplace' ); ?>
+			<?php esc_html_e( 'Add to Cart', 'aksara-marketplace' ); ?>
 		</button>
 		<p class="aksara-ft-cta-note" id="aksaraCtaMessage"></p>
 	</div>

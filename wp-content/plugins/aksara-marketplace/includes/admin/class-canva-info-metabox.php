@@ -37,7 +37,7 @@ class Aksara_Canva_Info_Metabox {
 	public static function register() {
 		add_meta_box(
 			'aksara_canva_info',
-			__( 'Info Canva', 'aksara-marketplace' ),
+			__( 'Canva Info', 'aksara-marketplace' ),
 			array( __CLASS__, 'render' ),
 			'product',
 			'normal',
@@ -54,7 +54,7 @@ class Aksara_Canva_Info_Metabox {
 		$product_type = self::get_current_product_type( $post->ID );
 
 		if ( ! in_array( $product_type, array( 'canva_template', 'canva_element' ), true ) ) {
-			echo '<p>' . esc_html__( 'Set "Product type" ke Canva Template atau Canva Element untuk mengisi info ini.', 'aksara-marketplace' ) . '</p>';
+			echo '<p>' . esc_html__( 'Set "Product type" to Canva Template or Canva Element, then save the draft — these fields appear once the type is saved.', 'aksara-marketplace' ) . '</p>';
 			return;
 		}
 
@@ -62,18 +62,32 @@ class Aksara_Canva_Info_Metabox {
 
 		$link       = get_post_meta( $post->ID, '_aksara_canva_link', true );
 		$dimensions = get_post_meta( $post->ID, '_aksara_dimensions', true );
+
+		/*
+		 * Tautan Canva adalah SATU-SATUNYA hal yang diterima pembeli untuk
+		 * produk ini (lihat Aksara_Download_Manager, yang membaca meta yang
+		 * sama). Produk yang terbit tanpa tautan tetap bisa dibeli dan
+		 * dibayar, lalu pembeli mendapat halaman unduhan kosong — kegagalan
+		 * yang baru ketahuan setelah ada uang berpindah.
+		 */
+		if ( 'publish' === get_post_status( $post->ID ) && '' === trim( (string) $link ) ) {
+			printf(
+				'<div class="notice notice-warning inline aksara-inline-notice"><p>%s</p></div>',
+				esc_html__( 'This product is published but has no Canva link. Buyers would pay and receive nothing — add the link below.', 'aksara-marketplace' )
+			);
+		}
 		?>
 		<p>
-			<label for="aksara_canva_link"><strong><?php esc_html_e( 'Tautan Canva', 'aksara-marketplace' ); ?></strong></label><br>
+			<label for="aksara_canva_link"><strong><?php esc_html_e( 'Canva Link', 'aksara-marketplace' ); ?></strong></label><br>
 			<input type="url" id="aksara_canva_link" name="aksara_canva_link" class="widefat" placeholder="https://www.canva.com/design/..." value="<?php echo esc_attr( $link ); ?>">
-			<span class="description"><?php esc_html_e( 'Link "duplicate template" atau berkas terkait yang dikirim ke pembeli setelah pembayaran berhasil.', 'aksara-marketplace' ); ?></span>
+			<span class="description"><?php esc_html_e( 'The "duplicate template" link or related file sent to the buyer after successful payment.', 'aksara-marketplace' ); ?></span>
 		</p>
 		<p>
-			<label for="aksara_dimensions"><strong><?php esc_html_e( 'Dimensi', 'aksara-marketplace' ); ?></strong></label><br>
+			<label for="aksara_dimensions"><strong><?php esc_html_e( 'Dimensions', 'aksara-marketplace' ); ?></strong></label><br>
 			<input type="text" id="aksara_dimensions" name="aksara_dimensions" class="widefat" placeholder="1080 x 1080 px" value="<?php echo esc_attr( $dimensions ); ?>">
 		</p>
 		<p class="description">
-			<?php esc_html_e( 'Kategori diatur lewat kotak "Product categories" di sidebar kanan (taksonomi bawaan WooCommerce), dipakai untuk filter di halaman Templates/Elements.', 'aksara-marketplace' ); ?>
+			<?php esc_html_e( 'Categories are set in the "Product categories" box in the right sidebar (WooCommerce\'s own taxonomy). They drive the filters on the Templates and Elements pages.', 'aksara-marketplace' ); ?>
 		</p>
 		<?php
 	}
@@ -112,6 +126,26 @@ class Aksara_Canva_Info_Metabox {
 	 * @return string
 	 */
 	public static function get_current_product_type( $post_id ) {
+		/*
+		 * During a save request, trust the submitted dropdown over the stored
+		 * term. WordPress fires save_post_{post_type} before save_post, and
+		 * WooCommerce writes the product_type term from its own save_post
+		 * handler — so a metabox saving on save_post_product can still read
+		 * the PREVIOUS type. Without this, the first save after switching a
+		 * product to Font would silently drop everything submitted from the
+		 * Font Styles box, with no error shown.
+		 *
+		 * Read-only type detection: every caller that writes anything checks
+		 * its own nonce before doing so.
+		 */
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- read-only; writers verify their own nonce.
+		if ( isset( $_POST['product-type'] ) ) {
+			$submitted = sanitize_key( wp_unslash( $_POST['product-type'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( '' !== $submitted ) {
+				return $submitted;
+			}
+		}
+
 		$terms = get_the_terms( $post_id, 'product_type' );
 		if ( empty( $terms ) || is_wp_error( $terms ) ) {
 			return 'simple';

@@ -63,7 +63,7 @@ class Aksara_Specimen_Image {
 	public static function get_default_preview_text() {
 		return apply_filters(
 			'aksara_default_preview_text',
-			__( 'Kopi pagi, ide baru, karya berani', 'aksara-marketplace' )
+			__( 'Morning coffee, bold new ideas', 'aksara-marketplace' )
 		);
 	}
 
@@ -229,7 +229,7 @@ class Aksara_Specimen_Image {
 			'<img src="%1$s" alt="%2$s" class="%3$s" style="height:%4$dpx;width:auto;" loading="lazy" decoding="async">',
 			esc_url( $url ),
 			/* translators: %s: teks yang dirender dalam font tersebut. */
-			esc_attr( sprintf( __( '%s — contoh tampilan font', 'aksara-marketplace' ), $text ) ),
+			esc_attr( sprintf( __( '%s — font specimen', 'aksara-marketplace' ), $text ) ),
 			esc_attr( $class ),
 			(int) $size
 		);

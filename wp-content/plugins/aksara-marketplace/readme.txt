@@ -188,3 +188,59 @@ Detail perilaku:
 Hasil: pemanen hanya mendapat ~19% charset per IP per hari (dari sebelumnya
 100% dalam 9 detik), dan 432 codepoint di luar ASCII — aksen, simbol, mata
 uang, yang justru jadi nilai jual font — tetap di luar jangkauan.
+
+== v0.6.0 — audit alur pembuatan produk + seluruh UI jadi bahasa Inggris ==
+
+=== Bahasa ===
+
+Seluruh teks yang dilihat pengunjung & admin (233 string) diterjemahkan ke
+bahasa Inggris: label, tombol, pesan error, notice admin, email order,
+sertifikat PDF, dan header plugin. Komentar kode & dokumen internal tetap
+bahasa Indonesia sesuai keputusan. Bentuk jamak `_n()` ikut diperbaiki —
+beberapa sebelumnya memakai teks yang sama untuk tunggal & jamak, jadi
+"2 style" tidak akan pernah jadi "2 styles".
+
+=== Hasil audit alur pembuatan produk ===
+
+Dua di antaranya membuat alur pembuatan produk TIDAK BISA diselesaikan sama
+sekali:
+
+1. **Produk Canva tidak bisa diberi harga (kritis).** WooCommerce menampilkan
+   dan menyembunyikan panel "Product data" murni lewat class `show_if_<type>`,
+   dan core hanya memasang class itu untuk type bawaannya. Kelompok harga
+   ditandai `show_if_simple show_if_external`, jadi untuk slug `canva_template`
+   / `canva_element` field Regular price TIDAK PERNAH muncul — admin secara
+   harfiah tidak bisa memasang harga, dan produknya tidak bisa dibeli.
+   Diperbaiki lewat `assets/js/admin-product.js`.
+
+2. **Tidak ada produk yang virtual (kritis).** `WC_Product::needs_shipping()`
+   hanyalah `!is_virtual()`, dan checkbox "Virtual" yang biasanya mengatur itu
+   juga bertanda `show_if_simple` — jadi tidak ada yang bisa mencentangnya.
+   Akibatnya checkout meminta alamat pengiriman untuk berkas yang dikirim lewat
+   tautan unduh. Sekarang ketiga product type meng-override `get_virtual()` &
+   `needs_shipping()` di PHP: lebih jujur daripada checkbox, karena tidak ada
+   konfigurasi di mana produk ini butuh pengiriman. Sengaja TIDAK ditandai
+   downloadable — mekanisme unduhan WooCommerce memang dilewati demi token
+   di `Aksara_Download_Manager`.
+
+3. **Jalan buntu di produk baru.** Metabox membaca product type dari term yang
+   TERSIMPAN. Di "Add new product" term itu belum ada, dan mengubah dropdown
+   tidak memunculkan metabox sampai disimpan — sementara pesannya berbunyi
+   seolah cukup mengubah dropdown. Pesannya kini menyebut langkah simpannya.
+
+4. **Perubahan type pertama kali bisa hilang diam-diam.** WordPress memicu
+   `save_post_{post_type}` SEBELUM `save_post`, sedangkan WooCommerce menulis
+   term product_type dari handler `save_post`-nya sendiri. Jadi metabox yang
+   menyimpan di `save_post_product` masih membaca type LAMA.
+   `get_current_product_type()` kini mendahulukan `$_POST['product-type']`.
+
+5. **Jalan buntu tanpa jalan keluar.** Pesan "belum ada jenis lisensi" kini
+   disertai tombol menuju halamannya, bukan menyuruh admin mencari sendiri.
+
+6. **Produk bisa terbit tanpa isi.** Produk font yang publish tanpa satu pun
+   harga tidak bisa dibeli, dan produk Canva yang publish tanpa tautan membuat
+   pembeli membayar lalu tidak menerima apa pun. Keduanya kini diberi peringatan
+   di metabox — sebelumnya sama sekali tidak ada tanda di wp-admin.
+
+Juga: panel Product data untuk type Font kini menjelaskan bahwa harga font
+memang tidak diatur di situ, melainkan dari matriks style x lisensi di bawah.

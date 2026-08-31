@@ -33,8 +33,8 @@ class Aksara_License_Admin {
 	public static function add_menu() {
 		add_submenu_page(
 			'woocommerce',
-			__( 'Lisensi Font — Aksara', 'aksara-marketplace' ),
-			__( 'Lisensi Font', 'aksara-marketplace' ),
+			__( 'Font Licenses — Aksara', 'aksara-marketplace' ),
+			__( 'Font Licenses', 'aksara-marketplace' ),
 			'manage_woocommerce',
 			'aksara-font-licenses',
 			array( __CLASS__, 'render_page' )
@@ -46,7 +46,7 @@ class Aksara_License_Admin {
 	 */
 	public static function render_page() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'Anda tidak memiliki izin untuk mengakses halaman ini.', 'aksara-marketplace' ) );
+			wp_die( esc_html__( 'You do not have permission to access this page.', 'aksara-marketplace' ) );
 		}
 
 		/*
@@ -68,28 +68,28 @@ class Aksara_License_Admin {
 		$licenses = Aksara_Font_Licenses_Repository::get_all();
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Lisensi Font', 'aksara-marketplace' ); ?></h1>
+			<h1><?php esc_html_e( 'Font Licenses', 'aksara-marketplace' ); ?></h1>
 
 			<?php if ( $form_error ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( $form_error ); ?></p></div>
 			<?php endif; ?>
 
-			<p><?php esc_html_e( 'Kelola jenis lisensi (Desktop, Web, App, dst). Deskripsi di sini otomatis dirender di halaman "License" pada situs.', 'aksara-marketplace' ); ?></p>
+			<p><?php esc_html_e( 'Manage license types (Desktop, Web, App, and so on). The descriptions here are rendered automatically on the site\'s "License" page.', 'aksara-marketplace' ); ?></p>
 
 			<div class="aksara-admin-columns">
 				<div class="aksara-admin-col-main">
 					<table class="widefat striped">
 						<thead>
 							<tr>
-								<th><?php esc_html_e( 'Nama', 'aksara-marketplace' ); ?></th>
+								<th><?php esc_html_e( 'Name', 'aksara-marketplace' ); ?></th>
 								<th><?php esc_html_e( 'Slug', 'aksara-marketplace' ); ?></th>
-								<th><?php esc_html_e( 'Urutan', 'aksara-marketplace' ); ?></th>
+								<th><?php esc_html_e( 'Order', 'aksara-marketplace' ); ?></th>
 								<th></th>
 							</tr>
 						</thead>
 						<tbody>
 							<?php if ( empty( $licenses ) ) : ?>
-								<tr><td colspan="4"><?php esc_html_e( 'Belum ada lisensi.', 'aksara-marketplace' ); ?></td></tr>
+								<tr><td colspan="4"><?php esc_html_e( 'No licenses yet.', 'aksara-marketplace' ); ?></td></tr>
 							<?php endif; ?>
 							<?php foreach ( $licenses as $license ) : ?>
 								<tr>
@@ -97,9 +97,9 @@ class Aksara_License_Admin {
 									<td><code><?php echo esc_html( $license->slug ); ?></code></td>
 									<td><?php echo esc_html( $license->sort_order ); ?></td>
 									<td>
-										<a href="<?php echo esc_url( add_query_arg( 'edit', $license->id ) ); ?>"><?php esc_html_e( 'Sunting', 'aksara-marketplace' ); ?></a>
+										<a href="<?php echo esc_url( add_query_arg( 'edit', $license->id ) ); ?>"><?php esc_html_e( 'Edit', 'aksara-marketplace' ); ?></a>
 										|
-										<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'aksara_delete_license' => $license->id ) ), 'aksara_delete_license_' . $license->id ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Hapus lisensi ini? Harga style yang memakainya juga akan terhapus.', 'aksara-marketplace' ) ); ?>');"><?php esc_html_e( 'Hapus', 'aksara-marketplace' ); ?></a>
+										<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'aksara_delete_license' => $license->id ) ), 'aksara_delete_license_' . $license->id ) ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this license? Style prices that use it will be deleted too.', 'aksara-marketplace' ) ); ?>');"><?php esc_html_e( 'Delete', 'aksara-marketplace' ); ?></a>
 									</td>
 								</tr>
 							<?php endforeach; ?>
@@ -108,24 +108,24 @@ class Aksara_License_Admin {
 				</div>
 
 				<div class="aksara-admin-col-side">
-					<h2><?php echo $editing ? esc_html__( 'Sunting Lisensi', 'aksara-marketplace' ) : esc_html__( 'Tambah Lisensi', 'aksara-marketplace' ); ?></h2>
+					<h2><?php echo $editing ? esc_html__( 'Edit License', 'aksara-marketplace' ) : esc_html__( 'Add License', 'aksara-marketplace' ); ?></h2>
 					<form method="post">
 						<?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME ); ?>
 						<input type="hidden" name="license_id" value="<?php echo esc_attr( $editing->id ?? '' ); ?>">
 						<p>
-							<label><?php esc_html_e( 'Nama', 'aksara-marketplace' ); ?></label><br>
+							<label><?php esc_html_e( 'Name', 'aksara-marketplace' ); ?></label><br>
 							<input type="text" class="widefat" name="name" required value="<?php echo esc_attr( $editing->name ?? '' ); ?>">
 						</p>
 						<p>
 							<label><?php esc_html_e( 'Slug', 'aksara-marketplace' ); ?></label><br>
-							<input type="text" class="widefat" name="slug" placeholder="<?php esc_attr_e( 'kosongkan untuk otomatis dari nama', 'aksara-marketplace' ); ?>" value="<?php echo esc_attr( $editing->slug ?? '' ); ?>">
+							<input type="text" class="widefat" name="slug" placeholder="<?php esc_attr_e( 'leave empty to generate from the name', 'aksara-marketplace' ); ?>" value="<?php echo esc_attr( $editing->slug ?? '' ); ?>">
 						</p>
 						<p>
-							<label><?php esc_html_e( 'Urutan', 'aksara-marketplace' ); ?></label><br>
+							<label><?php esc_html_e( 'Order', 'aksara-marketplace' ); ?></label><br>
 							<input type="number" name="sort_order" value="<?php echo esc_attr( $editing->sort_order ?? 0 ); ?>">
 						</p>
 						<p>
-							<label><?php esc_html_e( 'Deskripsi (legal, tampil di halaman License)', 'aksara-marketplace' ); ?></label><br>
+							<label><?php esc_html_e( 'Description (legal text, shown on the License page)', 'aksara-marketplace' ); ?></label><br>
 							<?php
 							wp_editor(
 								$editing->description ?? '',
@@ -140,9 +140,9 @@ class Aksara_License_Admin {
 							?>
 						</p>
 						<p>
-							<button type="submit" class="button button-primary"><?php echo $editing ? esc_html__( 'Simpan Perubahan', 'aksara-marketplace' ) : esc_html__( 'Tambah Lisensi', 'aksara-marketplace' ); ?></button>
+							<button type="submit" class="button button-primary"><?php echo $editing ? esc_html__( 'Save Changes', 'aksara-marketplace' ) : esc_html__( 'Add License', 'aksara-marketplace' ); ?></button>
 							<?php if ( $editing ) : ?>
-								<a class="button" href="<?php echo esc_url( remove_query_arg( 'edit' ) ); ?>"><?php esc_html_e( 'Batal', 'aksara-marketplace' ); ?></a>
+								<a class="button" href="<?php echo esc_url( remove_query_arg( 'edit' ) ); ?>"><?php esc_html_e( 'Cancel', 'aksara-marketplace' ); ?></a>
 							<?php endif; ?>
 						</p>
 					</form>
@@ -162,7 +162,7 @@ class Aksara_License_Admin {
 			$id = absint( $_GET['aksara_delete_license'] );
 			check_admin_referer( 'aksara_delete_license_' . $id );
 			Aksara_Font_Licenses_Repository::delete( $id );
-			Aksara_Admin_UI::queue_notice( __( 'Lisensi dihapus.', 'aksara-marketplace' ), 'success' );
+			Aksara_Admin_UI::queue_notice( __( 'License deleted.', 'aksara-marketplace' ), 'success' );
 			wp_safe_redirect( remove_query_arg( array( 'aksara_delete_license', '_wpnonce' ) ) );
 			exit;
 		}
@@ -175,7 +175,7 @@ class Aksara_License_Admin {
 			// Nama kosong dulu berarti form diam saja: tidak tersimpan, tidak
 			// ada pesan, dan isian yang sudah diketik tetap terlihat — mudah
 			// disangka sudah tersimpan padahal tidak.
-			return __( 'Nama lisensi wajib diisi — belum ada yang disimpan.', 'aksara-marketplace' );
+			return __( 'The license name is required — nothing was saved.', 'aksara-marketplace' );
 		}
 
 		$id = ! empty( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : null;
@@ -191,7 +191,7 @@ class Aksara_License_Admin {
 		);
 
 		Aksara_Admin_UI::queue_notice(
-			$id ? __( 'Perubahan lisensi disimpan.', 'aksara-marketplace' ) : __( 'Lisensi baru ditambahkan.', 'aksara-marketplace' ),
+			$id ? __( 'License changes saved.', 'aksara-marketplace' ) : __( 'New license added.', 'aksara-marketplace' ),
 			'success'
 		);
 

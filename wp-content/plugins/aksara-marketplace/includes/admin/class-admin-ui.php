@@ -84,6 +84,30 @@ class Aksara_Admin_UI {
 			array(),
 			AKSARA_MARKETPLACE_VERSION
 		);
+
+		// Only the product editor needs the Product data panel fixes.
+		// get_current_screen() can return null on screens registered oddly,
+		// so it is checked rather than dereferenced blindly.
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true )
+			&& $screen && 'product' === $screen->post_type ) {
+			wp_enqueue_script(
+				'aksara-admin-product',
+				AKSARA_MARKETPLACE_URL . 'assets/js/admin-product.js',
+				array( 'jquery' ),
+				AKSARA_MARKETPLACE_VERSION,
+				true
+			);
+
+			wp_localize_script(
+				'aksara-admin-product',
+				'aksaraAdminProduct',
+				array(
+					'fontPriceNote' => __( 'Font prices are not set here. Each price comes from the style x license matrix in the "Font Styles" box below.', 'aksara-marketplace' ),
+				)
+			);
+		}
 	}
 
 	/**

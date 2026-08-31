@@ -198,7 +198,7 @@ class Aksara_Rest_Controller {
 		if ( $count >= self::PREVIEW_RATE_LIMIT ) {
 			return new WP_Error(
 				'aksara_rate_limited',
-				__( 'Terlalu banyak permintaan pratinjau. Coba lagi sebentar.', 'aksara-marketplace' ),
+				__( 'Too many preview requests. Please try again shortly.', 'aksara-marketplace' ),
 				array( 'status' => 429 )
 			);
 		}
@@ -232,22 +232,22 @@ class Aksara_Rest_Controller {
 		$text = trim( wp_strip_all_tags( (string) $text ) );
 
 		if ( '' === $text ) {
-			return new WP_Error( 'aksara_empty_text', __( 'Teks pratinjau tidak boleh kosong.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+			return new WP_Error( 'aksara_empty_text', __( 'Preview text cannot be empty.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
 		if ( function_exists( 'mb_strlen' ) ? mb_strlen( $text ) > 100 : strlen( $text ) > 100 ) {
-			return new WP_Error( 'aksara_text_too_long', __( 'Teks pratinjau maksimal 100 karakter.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+			return new WP_Error( 'aksara_text_too_long', __( 'Preview text is limited to 100 characters.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
 		$style = Aksara_Font_Styles_Repository::get( $style_id );
 		if ( ! $style ) {
-			return new WP_Error( 'aksara_invalid_style', __( 'Style tidak ditemukan.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+			return new WP_Error( 'aksara_invalid_style', __( 'Style not found.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 		}
 
 		// Hanya style milik produk font yang sudah publish yang boleh dipratinjaukan
 		// — mencegah endpoint ini dipakai mengintip style produk draft/privat.
 		if ( 'publish' !== get_post_status( $style->product_id ) ) {
-			return new WP_Error( 'aksara_product_not_published', __( 'Produk belum dipublikasikan.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+			return new WP_Error( 'aksara_product_not_published', __( 'This product is not published.', 'aksara-marketplace' ), array( 'status' => 403 ) );
 		}
 
 		// Dicek PALING AKHIR, setelah style dipastikan valid: kuota
@@ -323,7 +323,7 @@ class Aksara_Rest_Controller {
 		if ( count( $union ) > $budget ) {
 			return new WP_Error(
 				'aksara_preview_budget_reached',
-				__( 'Kamu sudah mencoba banyak karakter berbeda untuk style ini. Pratinjau ketik dibatasi untuk melindungi berkas font — coba lagi besok, atau beli style-nya untuk memakai seluruh karakter.', 'aksara-marketplace' ),
+				__( 'You have tried a lot of different characters for this style. Live preview is limited to protect the font file — try again tomorrow, or buy the style to use its full character set.', 'aksara-marketplace' ),
 				array( 'status' => 429 )
 			);
 		}
@@ -377,7 +377,7 @@ class Aksara_Rest_Controller {
 		$style_ids = array_slice( array_unique( array_filter( $style_ids ) ), 0, 30 ); // batas wajar per batch.
 
 		if ( empty( $style_ids ) ) {
-			return new WP_Error( 'aksara_empty_style_ids', __( 'style_ids tidak boleh kosong.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+			return new WP_Error( 'aksara_empty_style_ids', __( 'style_ids cannot be empty.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
 		$results       = array();
@@ -442,7 +442,7 @@ class Aksara_Rest_Controller {
 	 */
 	public static function handle_add_font_to_cart( WP_REST_Request $request ) {
 		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
-			return new WP_Error( 'aksara_cart_unavailable', __( 'Keranjang belanja tidak tersedia.', 'aksara-marketplace' ), array( 'status' => 500 ) );
+			return new WP_Error( 'aksara_cart_unavailable', __( 'The shopping cart is unavailable.', 'aksara-marketplace' ), array( 'status' => 500 ) );
 		}
 
 		$product_id = absint( $request->get_param( 'product_id' ) );
@@ -457,7 +457,7 @@ class Aksara_Rest_Controller {
 		$cart_item_key = WC()->cart->add_to_cart( $product_id, 1, 0, array(), array( 'aksara' => $combo ) );
 
 		if ( ! $cart_item_key ) {
-			return new WP_Error( 'aksara_add_to_cart_failed', __( 'Gagal menambahkan ke keranjang.', 'aksara-marketplace' ), array( 'status' => 500 ) );
+			return new WP_Error( 'aksara_add_to_cart_failed', __( 'Could not add to cart.', 'aksara-marketplace' ), array( 'status' => 500 ) );
 		}
 
 		return new WP_REST_Response( array(
@@ -522,22 +522,22 @@ class Aksara_Rest_Controller {
 		$order    = wc_get_order( $order_id );
 
 		if ( ! $order ) {
-			return new WP_Error( 'aksara_invalid_order', __( 'Order tidak ditemukan.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+			return new WP_Error( 'aksara_invalid_order', __( 'Order not found.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 		}
 
 		$is_owner = get_current_user_id() && (int) $order->get_customer_id() === get_current_user_id();
 		if ( ! $is_owner && ! current_user_can( 'manage_woocommerce' ) ) {
-			return new WP_Error( 'aksara_forbidden', __( 'Anda tidak berhak mengakses sertifikat ini.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+			return new WP_Error( 'aksara_forbidden', __( 'You are not allowed to access this certificate.', 'aksara-marketplace' ), array( 'status' => 403 ) );
 		}
 
 		$certificate = Aksara_License_Certificates_Repository::get_by_order( $order_id );
 		if ( ! $certificate ) {
-			return new WP_Error( 'aksara_no_certificate', __( 'Order ini tidak memiliki sertifikat lisensi.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+			return new WP_Error( 'aksara_no_certificate', __( 'This order has no license certificate.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 		}
 
 		$path = Aksara_File_Storage::get_absolute_path( $certificate->file_path );
 		if ( ! file_exists( $path ) ) {
-			return new WP_Error( 'aksara_missing_resource', __( 'Berkas sertifikat tidak ditemukan di server.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+			return new WP_Error( 'aksara_missing_resource', __( 'Certificate file not found on the server.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 		}
 
 		nocache_headers();

@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 <?php wp_body_open(); ?>
 
 <div id="page" class="site">
-	<a class="skip-link screen-reader-text" href="#primary"><?php esc_html_e( 'Langsung ke konten', 'aksara' ); ?></a>
+	<a class="skip-link screen-reader-text" href="#primary"><?php esc_html_e( 'Skip to content', 'aksara' ); ?></a>
 
 	<header id="masthead" class="site-header">
 		<div class="wrap site-header-inner">
@@ -37,7 +37,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<?php esc_html_e( 'Menu', 'aksara' ); ?>
 			</button>
 
-			<nav id="site-navigation" class="main-navigation" aria-label="<?php esc_attr_e( 'Menu utama', 'aksara' ); ?>">
+			<nav id="site-navigation" class="main-navigation" aria-label="<?php esc_attr_e( 'Primary menu', 'aksara' ); ?>">
 				<?php
 				if ( has_nav_menu( 'primary' ) ) {
 					wp_nav_menu( array(
@@ -52,9 +52,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 			<div class="header-actions">
 				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
-					<a href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>"><?php esc_html_e( 'Masuk', 'aksara' ); ?></a>
+					<a href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>"><?php esc_html_e( 'Sign in', 'aksara' ); ?></a>
 					<a href="<?php echo esc_url( wc_get_cart_url() ); ?>">
-						<?php esc_html_e( 'Keranjang', 'aksara' ); ?>
+						<?php esc_html_e( 'Cart', 'aksara' ); ?>
 						<span class="cart-count"><?php echo esc_html( WC()->cart ? WC()->cart->get_cart_contents_count() : 0 ); ?></span>
 					</a>
 				<?php endif; ?>

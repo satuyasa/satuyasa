@@ -16,10 +16,10 @@ get_header();
 	<main id="primary">
 		<section class="no-results not-found">
 			<header class="page-header">
-				<h1 class="page-title"><?php esc_html_e( 'Halaman Tidak Ditemukan (404)', 'aksara' ); ?></h1>
+				<h1 class="page-title"><?php esc_html_e( 'Page Not Found (404)', 'aksara' ); ?></h1>
 			</header>
 			<div class="page-content">
-				<p><?php esc_html_e( 'Sepertinya tidak ada yang cocok dengan alamat yang Anda tuju. Coba gunakan pencarian di bawah ini.', 'aksara' ); ?></p>
+				<p><?php esc_html_e( 'Nothing seems to match that address. Try the search below.', 'aksara' ); ?></p>
 				<?php get_search_form(); ?>
 			</div>
 		</section>

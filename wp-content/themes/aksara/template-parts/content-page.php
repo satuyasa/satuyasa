@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 	<?php if ( get_edit_post_link() ) : ?>
 		<footer class="entry-footer">
-			<?php edit_post_link( esc_html__( 'Sunting halaman ini', 'aksara' ) ); ?>
+			<?php edit_post_link( esc_html__( 'Edit this page', 'aksara' ) ); ?>
 		</footer>
 	<?php endif; ?>
 </article>

@@ -33,7 +33,7 @@ $licenses = class_exists( 'Aksara_Font_Licenses_Repository' ) ? Aksara_Font_Lice
 	?>
 
 	<?php if ( empty( $licenses ) ) : ?>
-		<p><?php esc_html_e( 'Belum ada jenis lisensi yang diatur.', 'aksara' ); ?></p>
+		<p><?php esc_html_e( 'No license types have been set up yet.', 'aksara' ); ?></p>
 	<?php else : ?>
 		<?php foreach ( $licenses as $license ) : ?>
 			<div class="license-page-item">

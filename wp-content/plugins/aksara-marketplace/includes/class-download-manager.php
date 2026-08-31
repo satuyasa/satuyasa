@@ -130,30 +130,30 @@ class Aksara_Download_Manager {
 		$row = Aksara_Download_Tokens_Repository::get( $token );
 
 		if ( ! $row ) {
-			return new WP_Error( 'aksara_invalid_token', __( 'Tautan unduh tidak valid.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+			return new WP_Error( 'aksara_invalid_token', __( 'Invalid download link.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 		}
 
 		if ( $row->is_revoked ) {
-			return new WP_Error( 'aksara_token_revoked', __( 'Tautan unduh ini sudah tidak berlaku.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+			return new WP_Error( 'aksara_token_revoked', __( 'This download link is no longer valid.', 'aksara-marketplace' ), array( 'status' => 403 ) );
 		}
 
 		if ( $row->expires_at && strtotime( $row->expires_at ) < time() ) {
-			return new WP_Error( 'aksara_token_expired', __( 'Tautan unduh ini sudah kedaluwarsa.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+			return new WP_Error( 'aksara_token_expired', __( 'This download link has expired.', 'aksara-marketplace' ), array( 'status' => 403 ) );
 		}
 
 		if ( $row->download_count >= $row->download_limit ) {
-			return new WP_Error( 'aksara_token_limit', __( 'Batas jumlah unduhan untuk tautan ini sudah tercapai.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+			return new WP_Error( 'aksara_token_limit', __( 'This link has reached its download limit.', 'aksara-marketplace' ), array( 'status' => 403 ) );
 		}
 
 		if ( Aksara_Download_Tokens_Repository::RESOURCE_FONT_STYLE === $row->resource_type ) {
 			$style = Aksara_Font_Styles_Repository::get( $row->resource_id );
 			if ( ! $style ) {
-				return new WP_Error( 'aksara_missing_resource', __( 'Berkas tidak ditemukan.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+				return new WP_Error( 'aksara_missing_resource', __( 'File not found.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 			}
 
 			$path = Aksara_File_Storage::get_absolute_path( $style->file_path );
 			if ( ! file_exists( $path ) ) {
-				return new WP_Error( 'aksara_missing_resource', __( 'Berkas tidak ditemukan di server.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+				return new WP_Error( 'aksara_missing_resource', __( 'File not found on the server.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 			}
 
 			Aksara_Download_Tokens_Repository::increment_download_count( $row->id );
@@ -168,7 +168,7 @@ class Aksara_Download_Manager {
 		if ( Aksara_Download_Tokens_Repository::RESOURCE_CANVA === $row->resource_type ) {
 			$link = get_post_meta( $row->resource_id, '_aksara_canva_link', true );
 			if ( ! $link ) {
-				return new WP_Error( 'aksara_missing_resource', __( 'Tautan Canva belum diatur oleh penjual.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+				return new WP_Error( 'aksara_missing_resource', __( 'The seller has not set the Canva link yet.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 			}
 
 			Aksara_Download_Tokens_Repository::increment_download_count( $row->id );
@@ -179,6 +179,6 @@ class Aksara_Download_Manager {
 			);
 		}
 
-		return new WP_Error( 'aksara_unknown_resource', __( 'Jenis resource tidak dikenali.', 'aksara-marketplace' ), array( 'status' => 500 ) );
+		return new WP_Error( 'aksara_unknown_resource', __( 'Unrecognised resource type.', 'aksara-marketplace' ), array( 'status' => 500 ) );
 	}
 }
