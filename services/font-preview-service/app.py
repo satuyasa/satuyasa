@@ -41,11 +41,17 @@ FONT_STORAGE_DIR = os.environ.get(
 )
 
 # Very small in-memory per-IP rate limiter. This is a POC-grade backstop,
-# NOT the real defense — it resets on process restart and doesn't survive
-# multiple workers. The PRD calls for rate limiting the preview endpoint
-# to stop charset-scraping via many small requests; the durable version of
-# that belongs at the WordPress REST layer / reverse proxy in Fase 2,
-# where it can be tied to logged-in session + persistent storage.
+# NOT the real defense — it resets on process restart, AND it's per-process:
+# confirmed by load testing (Fase 4) that running this under 4 gunicorn
+# workers turns the "30/min" limit into an effective ~120/min split
+# unevenly across whichever worker handles each request, not one clean
+# global cap. The durable version — tied to a session/IP with storage
+# shared across every worker — is Aksara_Rest_Controller::check_preview_rate_limit()
+# in the WordPress plugin (40/min via a transient, which IS shared across
+# PHP-FPM workers because it lives in the DB). Don't try to "fix" this by
+# adding a shared-memory/Redis limiter here — that's solving a problem the
+# WordPress layer already solves; this one only needs to keep being a
+# cheap, no-dependency backstop.
 RATE_LIMIT_WINDOW_SECONDS = 60
 RATE_LIMIT_MAX_REQUESTS = 30
 _request_log: dict[str, deque] = defaultdict(deque)
@@ -121,4 +127,13 @@ def subset():
 if __name__ == "__main__":
     # Bind to loopback only — this service must never be reachable from
     # outside the box. WordPress calls it over http://127.0.0.1:5055.
-    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 5055)))
+    #
+    # threaded=True matters even for local/staging use, not just aesthetics:
+    # Flask's dev server is single-threaded by default, so concurrent
+    # requests queue up and serialize (measured ~2.3s average latency under
+    # a 20-concurrent burst vs. ~100ms for a single request — see Fase 4
+    # load test notes in README.md). This does not make the dev server
+    # production-ready; it only stops local testing from being misleadingly
+    # slow. Production still needs a real WSGI server with multiple worker
+    # processes (see README).
+    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 5055)), threaded=True)

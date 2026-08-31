@@ -39,7 +39,7 @@ if ( empty( $licenses ) || ! $product->is_purchasable() ) {
 		<div class="aksara-ft-toolbar">
 			<div class="aksara-ft-weight-tabs" id="aksaraWeightTabs"></div>
 			<div class="aksara-ft-toolbar-right">
-				<button type="button" class="aksara-ft-italic-toggle" id="aksaraItalicToggle"><?php esc_html_e( 'Italic', 'aksara-marketplace' ); ?></button>
+				<button type="button" class="aksara-ft-italic-toggle" id="aksaraItalicToggle" aria-pressed="false"><?php esc_html_e( 'Italic', 'aksara-marketplace' ); ?></button>
 				<label class="aksara-ft-size-slider">
 					<?php esc_html_e( 'Ukuran', 'aksara-marketplace' ); ?>
 					<input type="range" id="aksaraSizeSlider" min="24" max="96" value="52">
@@ -48,7 +48,15 @@ if ( empty( $licenses ) || ! $product->is_purchasable() ) {
 		</div>
 
 		<div class="aksara-ft-preview-box">
-			<div class="aksara-ft-preview-text" id="aksaraPreviewText" contenteditable="true" spellcheck="false"></div>
+			<div
+				class="aksara-ft-preview-text"
+				id="aksaraPreviewText"
+				contenteditable="true"
+				spellcheck="false"
+				role="textbox"
+				aria-multiline="true"
+				aria-label="<?php esc_attr_e( 'Teks pratinjau font', 'aksara-marketplace' ); ?>"
+			></div>
 		</div>
 		<p class="aksara-ft-preview-hint">
 			<?php esc_html_e( 'Ketik teksmu sendiri untuk melihat tampilan font ini — ini hanya pratinjau, file font tidak dapat diunduh dari sini.', 'aksara-marketplace' ); ?>

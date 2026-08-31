@@ -5,11 +5,11 @@ Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 Requires Plugins: woocommerce
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Status saat ini: **Fase 3 — download aman, sertifikat lisensi, wishlist** (lihat Breakdown Task Development Aksara).
+Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Status saat ini: **Fase 4 — SEO, performa, aksesibilitas, monitoring** (lihat Breakdown Task Development Aksara).
 
 Butuh `services/font-preview-service/` (microservice Python) berjalan di server yang sama untuk fitur typing tool — lihat readme di folder tersebut untuk cara menjalankannya bersama plugin ini.
 
@@ -46,11 +46,22 @@ Butuh `services/font-preview-service/` (microservice Python) berjalan di server 
 * **Dashboard admin**: widget WP Dashboard "Font Terlaris (30 Hari)", dihitung dari order item lewat `wc_get_orders()` (aman untuk HPOS, tidak query tabel order langsung), di-cache 12 jam.
 * Cron kedua `aksara_cleanup_download_tokens` (bersama `aksara_cleanup_preview_cache` yang sudah ada) — saat ini biasanya no-op karena token tidak diberi kedaluwarsa otomatis (lisensi yang sudah dibeli tidak semestinya berhenti bisa diunduh), tapi siap dipakai begitu ada kebijakan retensi.
 
+== Cakupan Fase 4 (ditambahkan di atas Fase 1-3) ==
+
+* **SEO**: meta description & Open Graph tags (tema, `inc/seo.php`) — meta `<title>`, `rel=canonical`, sitemap XML, dan structured data Product untuk semua jenis produk (termasuk font, lewat `WC_Product_Font::get_price()` yang sudah kompatibel) ternyata **sudah otomatis** ditangani WordPress core & WooCommerce core sejak Fase 1, tidak butuh kode tambahan — didokumentasikan di `inc/seo.php` supaya tidak ada yang mencoba membangunnya ulang.
+* **Performa**: `aksara_count_products_by_type()` & `aksara_get_listing_url()` (dipanggil tiap load Home) sekarang di-cache pakai transient, dibersihkan otomatis saat produk/halaman terkait disimpan.
+* **Aksesibilitas**: warna `--ochre` untuk teks harga digelapkan (gagal WCAG AA 2.9-3.5:1 di versi mockup asli → sekarang 5.9-6.5:1), indikator fokus keyboard (`:focus-visible`) konsisten di seluruh situs, kontrol typing tool (weight tabs, italic toggle, pilihan lisensi) diberi `aria-pressed`/`role="radio"`/label yang sesuai — opsi lisensi diubah dari `<div>` jadi `<button>` supaya benar-benar bisa dioperasikan lewat keyboard.
+* **Responsif**: tabel WooCommerce (cart/checkout/My Account) bisa di-scroll horizontal alih-alih merusak layout di layar sempit; sidebar kalkulator lisensi berhenti "menempel" (sticky) saat ditumpuk ke 1 kolom di mobile.
+* **Monitoring** (`class-error-logger.php`): setiap `WP_Error` dari endpoint `aksara/v1` & setiap order yang jatuh ke status *failed* otomatis dicatat (error_log + action hook `aksara_error`) — titik ekstensi siap pakai untuk Sentry PHP SDK atau layanan monitoring lain tanpa plugin ini membundel SDK apa pun.
+* **Load test nyata** terhadap `font-preview-service` (lihat readme-nya): ditemukan & diperbaiki bug performa (dev server Flask single-threaded bikin request antre), dan didokumentasikan kenapa deployment produksi butuh WSGI multi-process (gunicorn), bukan sekadar multi-thread.
+* Draft konten blog awal (font pairing, tips memilih font, tutorial Canva, panduan lisensi) di `content/blog/` — siap disalin ke Posts, environment ini tidak punya database WordPress aktif untuk diisi langsung.
+* Rencana uji manual (`docs/QA-TEST-PLAN.md`) untuk item testing yang butuh WordPress+WooCommerce+PayPal sungguhan (kombinasi style/lisensi, kuota unduhan, alur pembayaran) — tidak bisa dijalankan otomatis di environment development ini.
+
 ## Yang BELUM ada (menyusul di fase lanjut sesuai Breakdown Task)
 
-* SEO (schema markup, sitemap), blog, polish UI/UX menyeluruh, testing end-to-end (Fase 4).
+* Testing end-to-end sungguhan di browser (lihat `docs/QA-TEST-PLAN.md` — perlu staging WordPress+WooCommerce+PayPal aktif).
 * Multi-vendor, integrasi Canva API resmi, multi-bahasa (Fase 5, opsional sesuai keputusan produk).
-* Deployment produksi microservice (systemd/WSGI server) — lihat readme di `services/font-preview-service/`.
+* Deployment produksi microservice sebagai systemd unit — lihat readme di `services/font-preview-service/` (perintah gunicorn-nya sudah diverifikasi lewat load test).
 
 == Instalasi ==
 
@@ -64,6 +75,9 @@ Butuh `services/font-preview-service/` (microservice Python) berjalan di server 
 8. Setelah plugin diperbarui dari versi sebelumnya (bukan instalasi baru), buka **Pengaturan > Permalink** sekali dan klik Simpan supaya tab My Account baru (Unduhan Saya, dst.) langsung bisa diakses tanpa 404 — plugin sudah mencoba melakukan ini otomatis, langkah ini cuma jaring pengaman.
 
 == Changelog ==
+
+= 0.4.0 =
+* Fase 4: SEO (meta description/OG, verifikasi schema & sitemap bawaan), cache performa, perbaikan aksesibilitas (kontras, focus-visible, keyboard), tabel responsif, logging monitoring dengan titik ekstensi Sentry, load test microservice, draft konten blog, rencana uji manual.
 
 = 0.3.0 =
 * Fase 3: token unduh aman, sertifikat lisensi PDF (penulis PDF sendiri, tanpa dependency), 3 tab My Account baru, wishlist, tautan unduh & lampiran PDF di email order, widget dashboard admin, cron cleanup token.

@@ -89,6 +89,7 @@ add_action( 'widgets_init', 'aksara_widgets_init' );
 require AKSARA_THEME_DIR . '/inc/template-tags.php';
 require AKSARA_THEME_DIR . '/inc/template-functions.php';
 require AKSARA_THEME_DIR . '/inc/woocommerce-helpers.php';
+require AKSARA_THEME_DIR . '/inc/seo.php';
 
 /**
  * Fallback menu jika belum ada menu Utama yang diatur.

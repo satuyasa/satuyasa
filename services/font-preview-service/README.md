@@ -67,6 +67,24 @@ Script ini adalah demo command-line yang diminta Breakdown Task Fase 0 — memva
 
 Semua kombinasi jauh di bawah target 800ms (p95 ~150-165ms di environment ini — server produksi sebaiknya tetap diukur ulang karena beban CPU untuk subsetting cukup terasa saat konkuren).
 
+## Load test konkurensi (Fase 4)
+
+Breakdown Task Fase 4 secara eksplisit meminta load test endpoint `/font-preview` karena ini bagian paling berat dari sistem. Diuji langsung di service ini (bukan lewat WordPress) dengan `requests` + `ThreadPoolExecutor`, hasilnya membongkar dua temuan nyata yang lalu diperbaiki/didokumentasikan:
+
+**Temuan 1 — dev server Flask default itu single-threaded.** Burst 50 request dengan 20 klien konkuren ke `python3 app.py` (sebelum perbaikan): rata-rata **2.295ms** per request (naik ~20x dari baseline ~100ms), karena semua request diproses satu-satu secara berurutan. **Perbaikan:** `app.run(..., threaded=True)` ditambahkan (lihat `app.py`) — cukup untuk local/staging, TAPI thread Python tidak membantu banyak untuk kerja CPU-bound seperti subsetting (GIL), rata-rata cuma turun ke ~1.746ms.
+
+**Temuan 2 — perlu multi-process (bukan cuma multi-thread) untuk beban CPU-bound ini.** Dijalankan ulang di bawah `gunicorn -w 4` (4 proses worker, bukan thread):
+
+| Skenario | Konkurensi | Total request | Sukses | Latency (min / p50 / p95 / max) | Throughput |
+|---|---|---|---|---|---|
+| `python3 app.py` (single-thread, sebelum fix) | 20 | 50 | 30 (20 kena rate limit) | 1090 / — / — / 3468 ms | — |
+| `python3 app.py` (dengan `threaded=True`) | 20 | 50 | 30 (20 kena rate limit) | 1032 / — / — / 2591 ms | — |
+| `gunicorn -w 4` | 8 | 96 | 96 (0 gagal) | 126 / 194 / 206 / 215 ms | ~40 req/s |
+
+**Kesimpulan untuk deployment produksi:** jangan pernah jalankan `python3 app.py` langsung di production (Flask sendiri sudah memperingatkan ini). Pakai WSGI server dengan **beberapa worker PROCESS**, bukan sekadar thread — mulai dari `gunicorn -w 4 -b 127.0.0.1:5055 app:app` (sesuaikan jumlah worker dengan jumlah core CPU server). Dengan 4 worker, layanan ini menangani ~40 request pratinjau/detik dengan p95 di bawah 210ms — jauh di atas kebutuhan realistis (debounce 1 detik di frontend berarti satu pengguna aktif mengetik paling banyak menghasilkan ~1 request/detik).
+
+**Temuan 3 (efek samping) — rate limiter in-memory jadi per-worker, bukan global.** Dengan 4 worker gunicorn, batas "30 request/menit/IP" secara efektif menjadi ~120/menit karena tiap worker punya counter sendiri-sendiri di memori (dikonfirmasi: batch 50 request lolos semua tanpa kena 429 sampai counter gabungan terlampaui di test berikutnya). Ini **tidak diperbaiki** di sini secara sengaja — lihat komentar di `app.py` dekat `RATE_LIMIT_MAX_REQUESTS`: pertahanan rate-limit yang sesungguhnya sudah ada di lapisan WordPress (`Aksara_Rest_Controller::check_preview_rate_limit()`, transient yang dibagi semua PHP-FPM worker lewat database), jadi menambah rate limiter terdistribusi (mis. Redis) di sini untuk "memperbaiki" masalah yang sama akan jadi kerja ganda yang tidak perlu.
+
 ## Keamanan yang sudah ditangani
 
 - **Path traversal:** `font_path` divalidasi harus tetap berada di dalam `AKSARA_FONT_STORAGE_DIR` (`_resolve_font_path` di `app.py`); path absolut atau `../..` ditolak dengan HTTP 400.
@@ -79,7 +97,7 @@ Semua kombinasi jauh di bawah target 800ms (p95 ~150-165ms di environment ini �
 
 ## Yang sengaja belum ada (menyusul di fase lanjut)
 
-- Deployment sebagai service produksi (systemd unit, WSGI server seperti gunicorn — dev server Flask bawaan **tidak boleh** dipakai di production, sudah otomatis diperingatkan oleh Flask sendiri saat dijalankan).
+- Deployment sebagai service produksi yang benar-benar otomatis (systemd unit supaya restart sendiri kalau crash/reboot server). Perintah WSGI server-nya sendiri sudah diverifikasi lewat load test di atas (`gunicorn -w 4 -b 127.0.0.1:5055 app:app`) — dev server Flask bawaan **tidak boleh** dipakai di production, sudah otomatis diperingatkan oleh Flask sendiri saat dijalankan.
 - Signed/expiring URL bergaya file statis — sengaja tidak dipakai; endpoint WordPress mengembalikan data langsung (base64 dalam JSON) tanpa pernah menulis file ke direktori publik, yang secara desain lebih aman daripada URL yang bisa disalin-ulang (lihat komentar di `class-rest-controller.php`).
 
 ## Struktur

@@ -63,6 +63,7 @@
 		el.italicToggle.addEventListener( 'click', function () {
 			state.italic = ! state.italic;
 			el.italicToggle.classList.toggle( 'is-active', state.italic );
+			el.italicToggle.setAttribute( 'aria-pressed', state.italic ? 'true' : 'false' );
 			updateActivePreview( config, state, el );
 		} );
 
@@ -145,17 +146,21 @@
 
 		el.weightTabs.innerHTML = '';
 		weights.forEach( function ( weight ) {
+			var isActive = weight === state.weight;
 			var tab = document.createElement( 'button' );
 			tab.type = 'button';
-			tab.className = 'aksara-ft-weight-tab' + ( weight === state.weight ? ' is-active' : '' );
+			tab.className = 'aksara-ft-weight-tab' + ( isActive ? ' is-active' : '' );
 			tab.textContent = WEIGHT_LABELS[ weight ] || String( weight );
 			tab.dataset.weight = weight;
+			tab.setAttribute( 'aria-pressed', isActive ? 'true' : 'false' );
 			tab.addEventListener( 'click', function () {
 				state.weight = weight;
 				el.weightTabs.querySelectorAll( '.aksara-ft-weight-tab' ).forEach( function ( t ) {
 					t.classList.remove( 'is-active' );
+					t.setAttribute( 'aria-pressed', 'false' );
 				} );
 				tab.classList.add( 'is-active' );
+				tab.setAttribute( 'aria-pressed', 'true' );
 				updateActivePreview( config, state, el );
 			} );
 			el.weightTabs.appendChild( tab );
@@ -209,10 +214,19 @@
 
 	function renderLicenseList( config, state, el ) {
 		el.licenseList.innerHTML = '';
+		el.licenseList.setAttribute( 'role', 'radiogroup' );
+		el.licenseList.setAttribute( 'aria-label', config.i18n.selectLicense );
+
 		config.licenses.forEach( function ( license ) {
-			var opt = document.createElement( 'div' );
+			// <button> (bukan <div>) supaya bisa dijangkau & diaktifkan lewat
+			// keyboard secara native, dengan role="radio" karena cuma 1 lisensi
+			// yang bisa dipilih dalam satu waktu.
+			var opt = document.createElement( 'button' );
+			opt.type = 'button';
 			opt.className = 'aksara-ft-license-opt';
 			opt.dataset.licenseId = license.id;
+			opt.setAttribute( 'role', 'radio' );
+			opt.setAttribute( 'aria-checked', 'false' );
 
 			var row = document.createElement( 'div' );
 			row.className = 'aksara-ft-license-row';
@@ -225,8 +239,10 @@
 				state.selectedLicense = license.id;
 				el.licenseList.querySelectorAll( '.aksara-ft-license-opt' ).forEach( function ( o ) {
 					o.classList.remove( 'is-active' );
+					o.setAttribute( 'aria-checked', 'false' );
 				} );
 				opt.classList.add( 'is-active' );
+				opt.setAttribute( 'aria-checked', 'true' );
 				updateStylePrices( config, state, el );
 				updatePriceSummary( config, state, el );
 			} );

@@ -1,3 +1,8 @@
 flask==3.1.3
 fonttools==4.63.0
 brotli==1.2.0
+
+# Produksi saja (tidak perlu untuk python3 app.py lokal/testing) — dev
+# server Flask bawaan single-process dan tidak boleh dipakai di production.
+# Lihat "Load test konkurensi (Fase 4)" di README.md untuk alasannya.
+gunicorn==26.2.0

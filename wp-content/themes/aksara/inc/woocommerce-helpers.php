@@ -38,15 +38,47 @@ function aksara_query_products_by_type( $type, $limit = 12 ) {
 /**
  * Hitung jumlah produk publish untuk satu product_type — dipakai di hero stats.
  *
+ * Di-cache 1 jam: tanpa ini, tiap kali Home dibuka menjalankan 3 WP_Query
+ * penuh (font/canva_template/canva_element) hanya untuk 3 angka di hero
+ * yang jarang berubah drastis dalam hitungan menit.
+ *
  * @param string $type Slug product_type.
  * @return int
  */
 function aksara_count_products_by_type( $type ) {
+	$cache_key = 'aksara_product_count_' . $type;
+	$cached    = get_transient( $cache_key );
+	if ( false !== $cached ) {
+		return (int) $cached;
+	}
+
 	$query = aksara_query_products_by_type( $type, -1 );
 	$count = (int) $query->found_posts;
 	wp_reset_postdata();
+
+	set_transient( $cache_key, $count, HOUR_IN_SECONDS );
+
 	return $count;
 }
+
+/**
+ * Bersihkan cache jumlah produk begitu ada produk yang disimpan/dihapus —
+ * lebih murah daripada menghitung ulang tiap request, tapi tetap akurat
+ * dalam hitungan detik setelah admin publish/unpublish produk.
+ *
+ * @param int $post_id ID post yang disimpan.
+ */
+function aksara_flush_product_count_cache( $post_id ) {
+	if ( 'product' !== get_post_type( $post_id ) ) {
+		return;
+	}
+	foreach ( array( 'font', 'canva_template', 'canva_element' ) as $type ) {
+		delete_transient( 'aksara_product_count_' . $type );
+	}
+}
+add_action( 'save_post_product', 'aksara_flush_product_count_cache' );
+add_action( 'trashed_post', 'aksara_flush_product_count_cache' );
+add_action( 'deleted_post', 'aksara_flush_product_count_cache' );
 
 /**
  * Tampilkan info tambahan di ringkasan single product, sesuai jenisnya:
@@ -132,10 +164,17 @@ function aksara_is_font_product( $product ) {
  * @return string URL halaman, atau '#' jika halaman belum dibuat.
  */
 function aksara_get_listing_url( $slug ) {
-	static $cache = array();
+	static $request_cache = array();
 
-	if ( isset( $cache[ $slug ] ) ) {
-		return $cache[ $slug ];
+	if ( isset( $request_cache[ $slug ] ) ) {
+		return $request_cache[ $slug ];
+	}
+
+	$transient_key = 'aksara_listing_url_' . $slug;
+	$cached        = get_transient( $transient_key );
+	if ( false !== $cached ) {
+		$request_cache[ $slug ] = $cached;
+		return $cached;
 	}
 
 	$template_file = 'page-templates/template-' . $slug . '.php';
@@ -148,7 +187,29 @@ function aksara_get_listing_url( $slug ) {
 		'meta_value'       => $template_file, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 	) );
 
-	$cache[ $slug ] = ! empty( $pages ) ? get_permalink( $pages[0] ) : '#';
+	$url = ! empty( $pages ) ? get_permalink( $pages[0] ) : '#';
 
-	return $cache[ $slug ];
+	// TTL panjang (halaman & template-nya jarang berubah) tapi tetap
+	// dibersihkan langsung saat halaman disimpan (lihat hook di bawah),
+	// jadi perubahan admin tidak perlu menunggu cache basi.
+	set_transient( $transient_key, $url, DAY_IN_SECONDS );
+	$request_cache[ $slug ] = $url;
+
+	return $url;
 }
+
+/**
+ * Bersihkan cache URL listing begitu ada Page yang disimpan — mencegah
+ * cache basi kalau admin memindahkan template kustom ke Page lain.
+ *
+ * @param int $post_id ID post yang disimpan.
+ */
+function aksara_flush_listing_url_cache( $post_id ) {
+	if ( 'page' !== get_post_type( $post_id ) ) {
+		return;
+	}
+	foreach ( array( 'fonts', 'templates', 'elements', 'license' ) as $slug ) {
+		delete_transient( 'aksara_listing_url_' . $slug );
+	}
+}
+add_action( 'save_post_page', 'aksara_flush_listing_url_cache' );

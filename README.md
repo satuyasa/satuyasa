@@ -2,7 +2,7 @@
 
 Marketplace WordPress + WooCommerce untuk Font (per-style, lisensi bertingkat ala MyFonts), Canva Template, dan Canva Element. Lihat dokumen sumber (PRD, Starter Brief, Breakdown Task, mockup) untuk konteks lengkap — ringkasan & status implementasi ada di bawah.
 
-## Status: Fase 3 selesai (download aman, sertifikat lisensi, wishlist)
+## Status: Fase 4 selesai (SEO, performa, aksesibilitas, monitoring)
 
 | Fase | Status |
 |---|---|
@@ -10,8 +10,19 @@ Marketplace WordPress + WooCommerce untuk Font (per-style, lisensi bertingkat al
 | **Fase 1** — Fondasi produk & halaman inti | ✅ Selesai — lihat `wp-content/plugins/aksara-marketplace/` & `wp-content/themes/aksara/` |
 | **Fase 2** — Font preview engine interaktif & kalkulator lisensi | ✅ Selesai — REST API `aksara/v1`, typing tool, kalkulator multi-style + diskon paket |
 | **Fase 3** — Download aman, invoice lisensi, wishlist | ✅ Selesai — token unduh, sertifikat PDF, 3 tab My Account, wishlist, email otomatis |
-| **Fase 4** — SEO, blog, polish, testing | ⏳ Belum dimulai |
+| **Fase 4** — SEO, blog, polish, testing | ✅ Selesai — lihat ringkasan & keterbatasan di bawah |
 | **Fase 5** — Multi-vendor, integrasi Canva API, multi-bahasa | ⏳ Opsional, di luar keputusan saat ini |
+
+### Ringkasan Fase 4
+
+- **SEO**: meta description & Open Graph (tema `inc/seo.php`) — structured data Product, sitemap, dan meta title ternyata sudah otomatis dari WordPress/WooCommerce core, tidak perlu kode tambahan (didokumentasikan supaya jelas, bukan diam-diam terlewat).
+- **Performa**: cache transient untuk query yang tadinya jalan ulang tiap Home dibuka.
+- **Aksesibilitas**: kontras warna harga (`--ochre`) diperbaiki dari gagal WCAG AA (2,9-3,5:1) jadi lolos (5,9-6,5:1); fokus keyboard terlihat jelas di seluruh situs; opsi lisensi di typing tool diubah dari `<div>` jadi elemen yang benar-benar bisa dioperasikan lewat keyboard.
+- **Responsif**: tabel WooCommerce & baris spesimen font ditata ulang untuk layar sempit.
+- **Monitoring**: setiap error dari endpoint `aksara/v1` & order yang gagal bayar otomatis ter-log, dengan action hook siap pakai untuk Sentry.
+- **Load test nyata** terhadap `font-preview-service`: menemukan & memperbaiki bug performa asli (dev server Flask single-threaded), membuktikan kebutuhan WSGI multi-process untuk produksi — lihat angka lengkapnya di `services/font-preview-service/README.md`.
+- **Konten blog** awal (4 draft artikel) di `content/blog/`.
+- **Rencana uji manual** (`docs/QA-TEST-PLAN.md`) untuk skenario yang butuh WordPress+WooCommerce+PayPal sungguhan.
 
 ## Keputusan arsitektur yang sudah ditetapkan
 
@@ -35,6 +46,10 @@ wp-content/
 └── plugins/aksara-marketplace/       # Plugin: product type, DB, metabox admin, cart (lihat readme.txt)
 services/
 └── font-preview-service/             # POC Fase 0: microservice subsetting font (Python + fontTools)
+content/
+└── blog/                             # Fase 4: draft artikel blog siap-terbit
+docs/
+└── QA-TEST-PLAN.md                   # Fase 4: checklist uji manual (butuh staging WP+WooCommerce+PayPal)
 ```
 
 ## Menjalankan di lokal
@@ -56,4 +71,6 @@ File font/template asli **tidak pernah** diekspos lewat URL publik — baik di h
 
 ## Yang belum diuji end-to-end
 
-Seluruh kode (PHP & JS) sudah lolos lint (`php -l`, `node --check`) dan direview manual baris-per-baris, plus PDF writer & microservice sudah divalidasi lewat skrip pengujian nyata (lihat commit history). Tapi belum ada instalasi WordPress + WooCommerce aktif di environment pengembangan ini untuk uji end-to-end di browser sungguhan (alur checkout PayPal, isi email order, tampilan My Account di tema lain, dst.) — sebaiknya di-deploy ke staging dan dites langsung sebelum produksi.
+Seluruh kode (PHP & JS) sudah lolos lint (`php -l`, `node --check`) dan direview manual baris-per-baris. Beberapa bagian sudah divalidasi lewat pengujian nyata di environment ini: PDF writer (lihat commit Fase 3), fungsi subsetting font, dan load test konkurensi microservice (lihat `services/font-preview-service/README.md` — load test ini bahkan menemukan & memperbaiki bug performa asli).
+
+Yang **belum** bisa diuji di sini karena tidak ada instalasi WordPress + WooCommerce + MySQL aktif (dan akses keluar ke wordpress.org diblokir oleh kebijakan jaringan environment ini): alur checkout PayPal sungguhan, isi email order yang benar-benar terkirim, tampilan responsif/aksesibilitas di browser asli, kombinasi pembelian style+lisensi end-to-end, dan skenario token/kuota unduhan. Checklist lengkapnya ada di `docs/QA-TEST-PLAN.md` — jalankan di staging sebelum produksi.

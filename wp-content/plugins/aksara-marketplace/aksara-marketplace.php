@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
- * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, typing tool pratinjau interaktif, kalkulator lisensi, unduhan aman, sertifikat lisensi PDF, dan wishlist.
- * Version: 0.3.0 (Fase 3 — download aman, sertifikat lisensi, wishlist)
+ * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, typing tool pratinjau interaktif, kalkulator lisensi, unduhan aman, sertifikat lisensi PDF, wishlist, dan logging untuk monitoring.
+ * Version: 0.4.0 (Fase 4 — SEO, performa, aksesibilitas, monitoring)
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.3.0' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.4.0' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );
@@ -68,6 +68,7 @@ function aksara_marketplace_load_includes() {
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-account-endpoints.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-order-emails.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-dashboard-widget.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-error-logger.php';
 }
 
 /**
@@ -93,6 +94,7 @@ function aksara_marketplace_init() {
 	Aksara_Account_Endpoints::init();
 	Aksara_Order_Emails::init();
 	Aksara_Dashboard_Widget::init();
+	Aksara_Error_Logger::init();
 
 	Aksara_DB_Installer::maybe_upgrade();
 }
