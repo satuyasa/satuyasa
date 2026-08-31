@@ -1,0 +1,136 @@
+/**
+ * Style untuk layar admin plugin Aksara Marketplace.
+ *
+ * CATATAN PENTING SOAL SISTEM VISUAL:
+ * Berkas ini SENGAJA tidak mengikuti palet monokrom di DESIGN.md.
+ * DESIGN.md adalah acuan untuk ETALASE (situs yang dilihat pembeli).
+ * wp-admin punya bahasa visualnya sendiri yang sudah dikenal setiap
+ * pengguna WordPress — termasuk arti warna notice (hijau = sukses,
+ * merah = error) yang dipakai konsisten di seluruh dasbor. Memaksakan
+ * gaya foundry ke sini akan membuat panel plugin terasa asing dan
+ * membuang keuntungan itu tanpa manfaat apa pun bagi admin toko.
+ *
+ * Yang diambil dari sini cuma satu: JANGAN pernah menyampaikan status
+ * lewat warna saja. Setiap penanda di bawah punya teks atau bentuk
+ * pendamping.
+ *
+ * Menggantikan blok <style> inline yang dulu dicetak di tengah metabox
+ * (tidak bisa di-cache browser, dan ikut terkirim ulang di setiap
+ * pemuatan layar editor).
+ */
+
+/* -----------------------------------------------------------------------
+   Tabel style font di metabox produk
+------------------------------------------------------------------------ */
+.aksara-styles-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-bottom: 8px;
+}
+
+.aksara-styles-table th,
+.aksara-styles-table td {
+	padding: 10px 8px;
+	border-bottom: 1px solid #dcdcde;
+	vertical-align: middle;
+	text-align: left;
+}
+
+.aksara-styles-table thead th {
+	border-bottom: 1px solid #c3c4c7;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.aksara-styles-table input[type="text"],
+.aksara-styles-table input[type="number"] { width: 100%; }
+
+.aksara-styles-table .aksara-price-cell { width: 90px; }
+.aksara-styles-table .aksara-price-cell input { width: 80px; }
+
+/* Kolom pratinjau: lebar tetap supaya nama style tidak melompat-lompat
+   antar baris ketika lebar gambar spesimennya berbeda-beda. */
+.aksara-styles-table .aksara-preview-cell {
+	width: 180px;
+	max-width: 180px;
+	overflow: hidden;
+}
+
+.aksara-admin-specimen {
+	display: block;
+	height: 22px !important; /* override height inline dari get_img_tag() */
+	width: auto;
+	max-width: 100%;
+}
+
+.aksara-no-preview {
+	font-size: 11px;
+	color: #646970;
+	font-style: italic;
+	cursor: help;
+	border-bottom: 1px dotted #a7aaad;
+}
+
+/* Style tanpa harga: ditandai latar kuning WordPress DAN kalimat
+   penjelas di bawah namanya. Warnanya sendiri tidak pernah jadi
+   satu-satunya penanda. */
+.aksara-styles-table tr.aksara-style-unpriced { background: #fcf9e8; }
+
+.aksara-unpriced-flag {
+	display: block;
+	margin-top: 4px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: #8a6100;
+	font-weight: 600;
+}
+
+.aksara-styles-table .aksara-delete-cell { width: 60px; text-align: center; }
+
+/* -----------------------------------------------------------------------
+   Halaman "Lisensi Font"
+------------------------------------------------------------------------ */
+.aksara-admin-columns {
+	display: flex;
+	gap: 32px;
+	align-items: flex-start;
+	flex-wrap: wrap;
+	margin-top: 16px;
+}
+
+.aksara-admin-col-main { flex: 1 1 480px; min-width: 0; }
+.aksara-admin-col-side { flex: 0 0 360px; max-width: 100%; }
+
+@media screen and (max-width: 782px) {
+	.aksara-admin-columns { gap: 24px; }
+	.aksara-admin-col-side { flex-basis: 100%; }
+}
+
+/* -----------------------------------------------------------------------
+   Halaman "Status Layanan Aksara"
+------------------------------------------------------------------------ */
+.aksara-health-table { max-width: 820px; margin-top: 16px; }
+.aksara-health-table .aksara-health-label { width: 280px; }
+
+/* Titik status selalu berpasangan dengan kata ("Aktif"/"Tidak aktif"),
+   jadi warnanya memperkuat, bukan menggantikan, informasinya. */
+.aksara-status-up,
+.aksara-status-down { font-weight: 600; white-space: nowrap; }
+.aksara-status-up { color: #007017; }
+.aksara-status-down { color: #b32d2e; }
+
+.aksara-code-block {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	padding: 12px;
+	max-width: 820px;
+	overflow: auto;
+}
+
+.aksara-bullet-list {
+	list-style: disc;
+	padding-left: 20px;
+	max-width: 820px;
+}
+
+.aksara-discount-input { width: 100px; }

@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.4.0' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.5.0' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );
@@ -52,6 +52,7 @@ function aksara_marketplace_load_includes() {
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/db/class-font-licenses-repository.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-file-storage.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/product-types/class-product-type-registrar.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-admin-ui.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-canva-info-metabox.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-font-styles-metabox.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-license-admin.php';
@@ -85,6 +86,10 @@ function aksara_marketplace_init() {
 
 	aksara_marketplace_load_includes();
 
+	// Admin_UI lebih dulu: ia memasang enctype multipart pada form editor
+	// post, yang tanpa itu bulk upload di metabox Font Styles tidak akan
+	// pernah menerima berkas.
+	Aksara_Admin_UI::init();
 	Aksara_Product_Type_Registrar::init();
 	Aksara_Canva_Info_Metabox::init();
 	Aksara_Font_Styles_Metabox::init();
@@ -152,13 +157,12 @@ function aksara_marketplace_enqueue_assets() {
 			AKSARA_MARKETPLACE_VERSION,
 			true
 		);
+		// Tidak ada 'i18n' di sini: label tombol kini tetap ("Simpan ke
+		// wishlist") dan status disampaikan lewat aria-pressed + bentuk
+		// glif, jadi JS tidak lagi menukar teks label saat di-toggle.
 		wp_localize_script( 'aksara-wishlist', 'aksaraWishlist', array(
 			'restUrl' => esc_url_raw( rest_url( 'aksara/v1' ) ),
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
-			'i18n'    => array(
-				'add'    => __( 'Tambah ke wishlist', 'aksara-marketplace' ),
-				'remove' => __( 'Hapus dari wishlist', 'aksara-marketplace' ),
-			),
 		) );
 	}
 }
@@ -177,11 +181,24 @@ function aksara_wishlist_button( $product_id ) {
 
 	$is_active = Aksara_Wishlist_Repository::has( get_current_user_id(), $product_id );
 
+	/*
+	 * Glifnya BERBEDA antar status (hati penuh vs hati kosong), bukan cuma
+	 * warnanya. Sebelumnya keduanya memakai &hearts; dan yang membedakan
+	 * hanya warna merah dari CSS — begitu tema pindah ke palet monokrom
+	 * (lihat DESIGN.md), statusnya jadi sama sekali tidak terlihat. Bentuk
+	 * juga lebih baik daripada warna untuk pengguna buta warna, jadi ini
+	 * perbaikan aksesibilitas sekaligus, bukan cuma penyesuaian gaya.
+	 *
+	 * aria-pressed menyampaikan status yang sama ke screen reader, jadi
+	 * label tombol tidak perlu berubah-ubah untuk menjelaskannya.
+	 */
 	printf(
-		'<button type="button" class="aksara-wishlist-toggle%s" data-product-id="%d" aria-label="%s">&hearts;</button>',
+		'<button type="button" class="aksara-wishlist-toggle%1$s" data-product-id="%2$d" aria-pressed="%3$s" aria-label="%4$s">%5$s</button>',
 		$is_active ? ' is-active' : '',
 		(int) $product_id,
-		$is_active ? esc_attr__( 'Hapus dari wishlist', 'aksara-marketplace' ) : esc_attr__( 'Tambah ke wishlist', 'aksara-marketplace' )
+		$is_active ? 'true' : 'false',
+		esc_attr__( 'Simpan ke wishlist', 'aksara-marketplace' ),
+		$is_active ? '&hearts;' : '&#9825;'
 	);
 }
 

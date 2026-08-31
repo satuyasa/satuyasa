@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '0.4.0' );
+define( 'AKSARA_THEME_VERSION', '0.5.0' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -46,17 +46,29 @@ function aksara_setup() {
 add_action( 'after_setup_theme', 'aksara_setup' );
 
 /**
- * Enqueue Google Fonts (Fraunces untuk heading/branding, Inter untuk UI chrome),
- * style.css, dan JS navigasi.
+ * Enqueue webfont UI, style.css, dan JS navigasi.
  *
- * PENTING: font Google di sini HANYA untuk chrome UI situs (judul, tombol, dst.) —
- * bukan font yang dijual. Font produk TIDAK PERNAH di-@font-face secara publik
- * dari tema; itu justru yang dicegah oleh seluruh sistem preview di PRD Bagian 4.3.
+ * Kenapa cuma SATU keluarga (Work Sans), bukan dua seperti sebelumnya:
+ * DESIGN.md menetapkan Sterling sebagai satu-satunya suara UI, dengan
+ * Work Sans sebagai "silent failsafe" — dan secara eksplisit melarang
+ * memakai dua keluarga dekoratif. Berkas Sterling milik foundry dan tidak
+ * ikut dalam repo ini, jadi yang benar-benar dimuat adalah failsafe-nya.
+ * Begitu berkas Sterling dipasang (mis. @font-face di child theme), ia
+ * otomatis menang karena disebut lebih dulu di --font-ui (style.css) —
+ * tanpa perlu mengubah fungsi ini.
+ *
+ * Pasangan Fraunces + Inter versi lama sudah dilepas: keduanya milik
+ * bahasa visual mockup hangat yang digantikan DESIGN.md, dan memuat dua
+ * keluarga display yang tak terpakai berarti dua request font sia-sia.
+ *
+ * PENTING: webfont di sini HANYA untuk chrome UI situs — bukan font yang
+ * dijual. Font produk TIDAK PERNAH di-@font-face secara publik dari tema;
+ * itu justru yang dicegah oleh seluruh sistem preview di PRD Bagian 4.3.
  */
 function aksara_scripts() {
 	wp_enqueue_style(
 		'aksara-google-fonts',
-		'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap',
+		'https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500&display=swap',
 		array(),
 		null
 	);

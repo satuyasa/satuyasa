@@ -130,17 +130,17 @@ class Aksara_Service_Health {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Status Layanan Aksara', 'aksara-marketplace' ); ?></h1>
 
-			<table class="widefat striped" style="max-width:820px;margin-top:16px;">
+			<table class="widefat striped aksara-health-table">
 				<tbody>
 					<tr>
-						<td style="width:280px;"><strong><?php esc_html_e( 'Layanan pratinjau font', 'aksara-marketplace' ); ?></strong><br>
+						<td class="aksara-health-label"><strong><?php esc_html_e( 'Layanan pratinjau font', 'aksara-marketplace' ); ?></strong><br>
 							<span class="description"><?php esc_html_e( 'Dibutuhkan untuk typing tool interaktif di halaman produk font.', 'aksara-marketplace' ); ?></span>
 						</td>
 						<td>
 							<?php if ( $is_up ) : ?>
-								<span style="color:#067647;font-weight:600;">● <?php esc_html_e( 'Aktif', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-up">● <?php esc_html_e( 'Aktif', 'aksara-marketplace' ); ?></span>
 							<?php else : ?>
-								<span style="color:#b42318;font-weight:600;">● <?php esc_html_e( 'Tidak aktif', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-down">● <?php esc_html_e( 'Tidak aktif', 'aksara-marketplace' ); ?></span>
 							<?php endif; ?>
 							<br><code><?php echo esc_html( $service_url ); ?></code>
 						</td>
@@ -151,9 +151,9 @@ class Aksara_Service_Health {
 						</td>
 						<td>
 							<?php if ( $gd_ok ) : ?>
-								<span style="color:#067647;font-weight:600;">● <?php esc_html_e( 'Tersedia', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-up">● <?php esc_html_e( 'Tersedia', 'aksara-marketplace' ); ?></span>
 							<?php else : ?>
-								<span style="color:#b42318;font-weight:600;">● <?php esc_html_e( 'Tidak tersedia', 'aksara-marketplace' ); ?></span>
+								<span class="aksara-status-down">● <?php esc_html_e( 'Tidak tersedia', 'aksara-marketplace' ); ?></span>
 								<br><span class="description"><?php esc_html_e( 'Ekstensi GD dengan dukungan FreeType tidak aktif di server ini — hubungi penyedia hosting Anda.', 'aksara-marketplace' ); ?></span>
 							<?php endif; ?>
 						</td>
@@ -164,14 +164,14 @@ class Aksara_Service_Health {
 			<?php if ( ! $is_up ) : ?>
 				<h2><?php esc_html_e( 'Cara menjalankannya kembali', 'aksara-marketplace' ); ?></h2>
 				<p><?php esc_html_e( 'Kalau sudah dipasang sebagai layanan systemd (cara yang disarankan):', 'aksara-marketplace' ); ?></p>
-				<pre style="background:#f6f7f7;padding:12px;max-width:820px;overflow:auto;">sudo systemctl status aksara-font-preview
+				<pre class="aksara-code-block">sudo systemctl status aksara-font-preview
 sudo systemctl restart aksara-font-preview
 sudo journalctl -u aksara-font-preview -n 50</pre>
 				<p><?php esc_html_e( 'Kalau belum dipasang sebagai layanan, lihat panduan di services/font-preview-service/README.md pada repositori proyek.', 'aksara-marketplace' ); ?></p>
 			<?php endif; ?>
 
 			<h2><?php esc_html_e( 'Yang terpengaruh saat layanan mati', 'aksara-marketplace' ); ?></h2>
-			<ul style="list-style:disc;padding-left:20px;max-width:820px;">
+			<ul class="aksara-bullet-list">
 				<li><?php esc_html_e( 'Typing tool halaman produk font: pengunjung tidak bisa mengetik teks sendiri, tapi tetap melihat gambar contoh font (specimen).', 'aksara-marketplace' ); ?></li>
 				<li><?php esc_html_e( 'TIDAK terpengaruh: listing font, kalkulator harga, keranjang, checkout, unduhan setelah pembelian, sertifikat lisensi — semuanya tidak memakai layanan ini.', 'aksara-marketplace' ); ?></li>
 			</ul>

@@ -50,7 +50,7 @@ Microservice Python (`services/font-preview-service/`) **hanya** dibutuhkan untu
 
 * **SEO**: meta description & Open Graph tags (tema, `inc/seo.php`) — meta `<title>`, `rel=canonical`, sitemap XML, dan structured data Product untuk semua jenis produk (termasuk font, lewat `WC_Product_Font::get_price()` yang sudah kompatibel) ternyata **sudah otomatis** ditangani WordPress core & WooCommerce core sejak Fase 1, tidak butuh kode tambahan — didokumentasikan di `inc/seo.php` supaya tidak ada yang mencoba membangunnya ulang.
 * **Performa**: `aksara_count_products_by_type()` & `aksara_get_listing_url()` (dipanggil tiap load Home) sekarang di-cache pakai transient, dibersihkan otomatis saat produk/halaman terkait disimpan.
-* **Aksesibilitas**: warna `--ochre` untuk teks harga digelapkan (gagal WCAG AA 2.9-3.5:1 di versi mockup asli → sekarang 5.9-6.5:1), indikator fokus keyboard (`:focus-visible`) konsisten di seluruh situs, kontrol typing tool (weight tabs, italic toggle, pilihan lisensi) diberi `aria-pressed`/`role="radio"`/label yang sesuai — opsi lisensi diubah dari `<div>` jadi `<button>` supaya benar-benar bisa dioperasikan lewat keyboard.
+* **Aksesibilitas**: warna `--ochre` untuk teks harga digelapkan (gagal WCAG AA 2.9-3.5:1 di versi mockup asli → 5.9-6.5:1; sejak v0.5.0 palet berwarna diganti monokrom, lihat di bawah), indikator fokus keyboard (`:focus-visible`) konsisten di seluruh situs, kontrol typing tool (weight tabs, italic toggle, pilihan lisensi) diberi `aria-pressed`/`role="radio"`/label yang sesuai — opsi lisensi diubah dari `<div>` jadi `<button>` supaya benar-benar bisa dioperasikan lewat keyboard.
 * **Responsif**: tabel WooCommerce (cart/checkout/My Account) bisa di-scroll horizontal alih-alih merusak layout di layar sempit; sidebar kalkulator lisensi berhenti "menempel" (sticky) saat ditumpuk ke 1 kolom di mobile.
 * **Monitoring** (`class-error-logger.php`): setiap `WP_Error` dari endpoint `aksara/v1` & setiap order yang jatuh ke status *failed* otomatis dicatat (error_log + action hook `aksara_error`) — titik ekstensi siap pakai untuk Sentry PHP SDK atau layanan monitoring lain tanpa plugin ini membundel SDK apa pun.
 * **Load test nyata** terhadap `font-preview-service` (lihat readme-nya): ditemukan & diperbaiki bug performa (dev server Flask single-threaded bikin request antre), dan didokumentasikan kenapa deployment produksi butuh WSGI multi-process (gunicorn), bukan sekadar multi-thread.
@@ -98,3 +98,50 @@ Sebelumnya seluruh tampilan font bergantung pada microservice Python; kalau mati
 
 = 0.1.0 =
 * Fase 1: fondasi product type, database, metabox admin, dan alur beli dasar.
+
+== v0.5.0 — UI monokrom & perbaikan sistem admin ==
+
+=== Sisi etalase (mengikuti DESIGN.md) ===
+
+* CSS typing tool & wishlist ditulis ulang monokrom. Fallback `var(--indigo,
+  #33417A)` / `var(--ochre, #835420)` dari palet lama dihapus: karena tema
+  v0.5.0 tidak lagi mendefinisikan token itu, SETIAP fallback tersebut akan
+  aktif dan mengembalikan warna yang justru baru dihapus — bug diam-diam,
+  bukan sekadar kode mati.
+* **Tombol wishlist**: glifnya kini berbeda antar status (hati penuh vs hati
+  kosong) dan membawa `aria-pressed`, bukan lagi dibedakan warna merah saja.
+  Tanpa ini statusnya jadi tidak terlihat sama sekali di palet monokrom;
+  bentuk juga lebih baik daripada warna untuk pengguna buta warna.
+* **Slider ukuran** di typing tool sekarang menampilkan nilainya (`<output>`).
+  Sebelumnya tidak ada pembacaan nilai sama sekali.
+* Pesan sukses/gagal tidak lagi memakai warna sebagai pembeda — memakai garis
+  tinta di kiri + berat huruf (sekaligus memenuhi WCAG 1.4.1).
+
+=== Sisi admin ===
+
+wp-admin SENGAJA tidak diubah jadi monokrom: DESIGN.md adalah acuan etalase,
+sementara dasbor punya bahasa visual WordPress yang sudah dikenal admin.
+Yang diperbaiki di sini fungsinya, bukan gayanya.
+
+* **PERBAIKAN BUG KRITIS — bulk upload font tidak pernah berfungsi.** Form
+  editor post bawaan WordPress dicetak tanpa `enctype="multipart/form-data"`,
+  sehingga browser hanya mengirim NAMA berkas dan `$_FILES` selalu kosong.
+  Admin memilih berkas, menekan Update, halaman tersimpan tanpa error, dan
+  tidak ada satu pun style bertambah. Diperbaiki lewat hook
+  `post_edit_form_tag` di `Aksara_Admin_UI`.
+* **Kegagalan unggah kini dilaporkan.** Sebelumnya setiap kondisi gagal
+  memakai `continue` polos: berkas kebesaran atau format salah menghilang
+  tanpa jejak. Sekarang tiap berkas gagal disebut beserta sebabnya (termasuk
+  batas ukuran server yang sebenarnya), dan jumlah yang berhasil dikonfirmasi.
+* **Pratinjau spesimen di tabel style.** Admin melihat wujud tiap style
+  memakai mesin render yang sama dengan etalase — termasuk saat sebuah berkas
+  TIDAK bisa dirender (mis. .woff2), yang dulu baru ketahuan setelah terbit.
+* **Style tanpa harga ditandai.** Style yang tidak punya harga untuk lisensi
+  mana pun tidak akan pernah bisa dibeli, dan sebelumnya kondisi itu tidak
+  terlihat sama sekali dari tabel yang penuh kotak kosong.
+* **Notice setelah simpan.** Halaman Lisensi Font dulu redirect tanpa kabar
+  apa pun; sekarang ada konfirmasi tersimpan/terhapus, dan validasi gagal
+  dicetak inline (bukan diantrekan — `render_page()` berjalan setelah hook
+  `admin_notices`, jadi notice yang diantrekan akan tertunda satu halaman).
+* **Seluruh style inline dipindah** ke `assets/css/admin.css` (bisa di-cache
+  browser, tidak lagi dikirim ulang di tiap pemuatan layar editor).

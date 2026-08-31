@@ -1,6 +1,12 @@
 <?php
 /**
- * Satu baris di daftar font (Home & halaman Fonts).
+ * Satu baris di daftar font (Home & halaman Fonts) — unit konten inti
+ * sistem visual ini (DESIGN.md > Components > "Font Specimen Row").
+ *
+ * Strukturnya: strip kontrol tipis di atas (nama, meta, harga, tombol
+ * Trial/View), lalu huruf raksasa di bawahnya edge-to-edge. Dipisahkan
+ * dari baris berikutnya oleh satu hairline — tanpa card, tanpa kotak,
+ * tanpa shadow.
  *
  * CATATAN KEAMANAN: nama font di sini ditampilkan dalam font ASLINYA,
  * tapi sebagai GAMBAR hasil render server (PHP GD), bukan dengan memuat
@@ -12,7 +18,8 @@
  *
  * Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang
  * tidak terbaca FreeType, GD tidak tersedia, atau plugin nonaktif),
- * baris ini otomatis mundur ke teks biasa dalam font tema.
+ * baris ini otomatis mundur ke teks biasa dalam font tema pada ukuran
+ * display yang sama — jadi tata letaknya tidak berubah, cuma hurufnya.
  *
  * @package Aksara
  */
@@ -32,35 +39,54 @@ $style_count = class_exists( 'Aksara_Font_Styles_Repository' )
 
 $categories = wc_get_product_category_list( $product->get_id() );
 
+/*
+ * Ukuran spesimen = 115px, token --text-display di DESIGN.md.
+ *
+ * DESIGN.md menyebut dua ukuran kanonik (115px & 158px) dan melarang nilai
+ * di luar rentang itu. Untuk baris listing dipilih yang 115px karena di
+ * sini gambarnya adalah PNG hasil render, bukan teks: pada 158px dengan
+ * SCALE 2x, nama font yang panjang menghasilkan PNG selebar beberapa ribu
+ * piksel per baris, dikali 6 baris di Home. 115px tetap "spesimen, bukan
+ * logo" sesuai filosofi DESIGN.md, dengan berat berkas yang masuk akal.
+ * Skala 158px dipakai di halaman produk tunggal, tempat cuma ada satu.
+ */
 $specimen = function_exists( 'aksara_font_specimen' )
-	? aksara_font_specimen( $product->get_id(), get_the_title(), 34 )
+	? aksara_font_specimen( $product->get_id(), get_the_title(), 115 )
 	: '';
 ?>
 <div class="specimen-row">
-	<div>
-		<div class="sp-name">
-			<?php if ( $specimen ) : ?>
-				<?php echo wp_kses_post( $specimen ); ?>
-			<?php else : ?>
-				<?php the_title(); ?>
-			<?php endif; ?>
+	<div class="sp-controls">
+		<div class="sp-label">
+			<span class="sp-name-text"><?php the_title(); ?></span>
+			<span class="sp-meta">
+				<?php
+				printf(
+					/* translators: %d: jumlah style. */
+					esc_html( _n( '%d style', '%d style', $style_count, 'aksara' ) ),
+					absint( $style_count )
+				);
+				if ( $categories ) {
+					echo ' · ' . wp_kses_post( $categories );
+				}
+				?>
+			</span>
 		</div>
-		<div class="sp-meta">
-			<?php
-			printf(
-				/* translators: %d: jumlah style. */
-				esc_html( _n( '%d style', '%d style', $style_count, 'aksara' ) ),
-				$style_count
-			);
-			if ( $categories ) {
-				echo ' · ' . wp_kses_post( $categories );
-			}
-			?>
+
+		<div class="sp-actions">
+			<span class="sp-price"><?php echo wp_kses_post( $product->get_price_html() ); ?></span>
+			<?php if ( function_exists( 'aksara_wishlist_button' ) ) : ?>
+				<?php aksara_wishlist_button( $product->get_id() ); ?>
+			<?php endif; ?>
+			<a class="btn-trial" href="<?php echo esc_url( get_permalink() . '#aksara-font-tool' ); ?>"><?php esc_html_e( 'Coba', 'aksara' ); ?></a>
+			<a class="btn-view" href="<?php the_permalink(); ?>"><?php esc_html_e( 'Lihat', 'aksara' ); ?></a>
 		</div>
 	</div>
-	<div class="sp-price"><?php echo wp_kses_post( $product->get_price_html() ); ?></div>
-	<a class="sp-view" href="<?php the_permalink(); ?>"><?php esc_html_e( 'Lihat →', 'aksara' ); ?></a>
-	<?php if ( function_exists( 'aksara_wishlist_button' ) ) : ?>
-		<?php aksara_wishlist_button( $product->get_id() ); ?>
-	<?php endif; ?>
+
+	<a class="sp-specimen" href="<?php the_permalink(); ?>" aria-hidden="true" tabindex="-1">
+		<?php if ( $specimen ) : ?>
+			<?php echo wp_kses_post( $specimen ); ?>
+		<?php else : ?>
+			<span class="sp-specimen-fallback"><?php the_title(); ?></span>
+		<?php endif; ?>
+	</a>
 </div>

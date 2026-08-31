@@ -1,28 +1,39 @@
 /**
- * Style untuk typing tool + kalkulator lisensi interaktif (produk Font).
+ * Style typing tool + kalkulator lisensi (produk Font) dan tombol wishlist.
  *
- * Warna memakai CSS custom property dengan fallback (var(--indigo, #33417A)):
- * kalau tema aktif mendefinisikan token yang sama (seperti tema Aksara,
- * lihat wp-content/themes/aksara/style.css), widget ini otomatis mengikuti
- * palet tema tanpa perlu dependency langsung; kalau tidak, tetap tampil
- * rapi dengan warna default sendiri di tema lain.
+ * Mengikuti sistem visual monokrom di DESIGN.md, sama seperti tema Aksara:
+ * hanya tinta & kertas, hairline sebagai satu-satunya pemisah, radius 6px
+ * untuk tombol dan 2px untuk sisanya, tanpa shadow.
+ *
+ * Warna tetap memakai custom property dengan fallback (var(--ink, #000)):
+ * kalau tema aktif mendefinisikan token yang sama — seperti tema Aksara,
+ * lihat wp-content/themes/aksara/style.css — widget ini otomatis mengikuti
+ * palet tema; kalau dipasang di tema lain, fallback-nya tetap monokrom dan
+ * netral, bukan warna merek yang tiba-tiba muncul entah dari mana.
+ *
+ * (Versi sebelumnya memakai fallback --indigo #33417A / --ochre #835420
+ * dari palet hangat lama. Fallback itu bukan sekadar tidak terpakai: karena
+ * tema baru tidak lagi mendefinisikan token-token tersebut, SEMUA fallback
+ * itu akan aktif dan mengembalikan warna yang justru baru dihapus.)
  */
 
 .aksara-no-styles {
-	color: #b42318;
+	font-weight: 500;
+	border-left: 3px solid var(--ink, #000);
+	padding-left: 12px;
 }
 
 .aksara-price-unset {
-	color: var(--ink-soft, #5b6472);
+	color: var(--muted, #767676);
 	font-style: italic;
 }
 
 .aksara-font-tool {
 	display: grid;
 	grid-template-columns: 1fr 320px;
-	gap: 40px;
+	gap: 48px;
 	align-items: start;
-	margin: 24px 0 48px;
+	margin: 24px 0 112px;
 }
 
 @media (max-width: 900px) {
@@ -40,74 +51,127 @@
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 12px;
-	margin-bottom: 14px;
+	margin-bottom: 16px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--hairline, #ebedee);
 }
 
 .aksara-ft-weight-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .aksara-ft-weight-tab,
 .aksara-ft-italic-toggle {
-	padding: 7px 14px;
-	border: 1px solid var(--line, #D7D2C4);
-	background: var(--paper-raised, #F6F4EC);
-	font-size: 13px;
-	font-weight: 500;
-	border-radius: var(--radius, 3px);
+	padding: 8px 16px;
+	border: 1px solid var(--hairline-strong, #b7b7b7);
+	background: transparent;
+	font-family: inherit;
+	font-size: 12px;
+	letter-spacing: 0.204px;
+	text-transform: uppercase;
+	border-radius: 6px;
 	cursor: pointer;
-	color: var(--ink-soft, #5b6472);
+	color: var(--ink, #000);
 }
 
 .aksara-ft-italic-toggle { font-style: italic; }
 
 .aksara-ft-weight-tab.is-active,
 .aksara-ft-italic-toggle.is-active {
-	background: var(--ink, #221F1A);
-	color: var(--paper, #EDEBE3);
-	border-color: var(--ink, #221F1A);
+	background: var(--ink, #000);
+	color: var(--paper, #fff);
+	border-color: var(--ink, #000);
+	font-weight: 500;
 }
 
-.aksara-ft-toolbar-right { display: flex; align-items: center; gap: 10px; }
+.aksara-ft-toolbar-right { display: flex; align-items: center; gap: 12px; }
 
+/* Slider ukuran: track hairline tinta + thumb bulat tinta, sesuai
+ * DESIGN.md > Components > Size Slider. accent-color tidak dipakai karena
+ * ia mewarnai track DAN thumb sekaligus dengan satu warna solid — di sini
+ * yang diinginkan track tipis dengan thumb pekat. */
 .aksara-ft-size-slider {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	font-size: 13px;
-	color: var(--ink-soft, #5b6472);
+	gap: 12px;
+	font-size: 12px;
+	letter-spacing: 0.204px;
+	text-transform: uppercase;
+	color: var(--ink, #000);
 }
 
+.aksara-ft-size-slider input[type="range"] {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 120px;
+	height: 12px;
+	background: transparent;
+	margin: 0;
+	padding: 0;
+	cursor: pointer;
+}
+.aksara-ft-size-slider input[type="range"]::-webkit-slider-runnable-track {
+	height: 1px;
+	background: var(--ink, #000);
+}
+.aksara-ft-size-slider input[type="range"]::-moz-range-track {
+	height: 1px;
+	background: var(--ink, #000);
+}
+.aksara-ft-size-slider input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: var(--ink, #000);
+	border: none;
+	margin-top: -5.5px;
+}
+.aksara-ft-size-slider input[type="range"]::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: var(--ink, #000);
+	border: none;
+}
+.aksara-ft-size-slider output { font-variant-numeric: tabular-nums; }
+
+/* Kotak pratinjau: tanpa latar & tanpa border kotak penuh — DESIGN.md
+ * melarang membungkus kontrol dalam card/panel. Yang tersisa cuma hairline
+ * bawah sebagai alas tempat huruf berdiri. */
 .aksara-ft-preview-box {
-	background: var(--paper-raised, #F6F4EC);
-	border: 1px solid var(--line, #D7D2C4);
+	background: transparent;
+	border: none;
+	border-bottom: 1px solid var(--hairline, #ebedee);
 	min-height: 180px;
-	padding: 24px 26px;
+	padding: 24px 0;
 }
 
 .aksara-ft-preview-text {
 	width: 100%;
 	min-height: 60px;
 	outline: none;
-	font-size: 52px;
-	line-height: 1.2;
-	color: var(--ink, #221F1A);
+	font-size: 56px;
+	line-height: 1;
+	letter-spacing: -0.02em;
+	color: var(--ink, #000);
 	word-break: break-word;
 }
 
-/* aksara-ft-preview-text.outline:none di atas dipasang supaya klik mouse
- * tidak memunculkan kotak default browser di dalam kotak pratinjau yang
- * sudah punya border sendiri — tapi navigasi keyboard tetap harus terlihat
- * jelas fokusnya di sini (ini area contenteditable yang bisa diketik). */
+/* outline:none di atas dipasang supaya klik mouse tidak memunculkan kotak
+ * default browser — tapi navigasi keyboard tetap harus terlihat jelas
+ * fokusnya di sini (ini area contenteditable yang bisa diketik). */
 .aksara-ft-preview-text:focus-visible {
-	outline: 2px solid var(--indigo, #33417A);
-	outline-offset: 4px;
+	outline: 2px solid var(--ink, #000);
+	outline-offset: 8px;
 }
 
 .aksara-ft-preview-text.is-loading { opacity: .45; }
 
 .aksara-ft-preview-hint {
 	font-size: 12px;
-	color: var(--ink-soft, #5b6472);
-	margin-top: 10px;
+	letter-spacing: 0.204px;
+	color: var(--muted, #767676);
+	margin-top: 12px;
 }
 
 #aksaraPreviewStatus { font-style: italic; }
@@ -116,115 +180,187 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: baseline;
-	margin: 36px 0 14px;
+	margin: 36px 0 16px;
 }
 
-.aksara-ft-styles-head h3 { margin: 0; font-size: 20px; }
+.aksara-ft-styles-head h3 {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.204px;
+	text-transform: uppercase;
+}
 
-.aksara-ft-styles-head span { font-size: 13px; color: var(--ink-soft, #5b6472); }
+.aksara-ft-styles-head span { font-size: 12px; letter-spacing: 0.204px; color: var(--muted, #767676); }
 
-.aksara-ft-style-list { border-left: 2px solid var(--ink, #221F1A); padding-left: 22px; }
+.aksara-ft-style-list { border-left: none; padding-left: 0; }
 
 .aksara-ft-style-row {
 	display: grid;
 	grid-template-columns: 22px 160px 1fr;
 	align-items: center;
-	gap: 18px;
-	padding: 14px 0;
-	border-bottom: 1px solid var(--line, #D7D2C4);
+	gap: 20px;
+	padding: 16px 0;
+	border-bottom: 1px solid var(--hairline, #ebedee);
 	cursor: pointer;
 }
 
 .aksara-ft-style-row:last-child { border-bottom: none; }
-.aksara-ft-style-row input { width: 16px; height: 16px; accent-color: var(--indigo, #33417A); }
-.aksara-ft-style-row .aksara-ft-style-name { font-size: 13.5px; font-weight: 600; }
+.aksara-ft-style-row input { width: 16px; height: 16px; accent-color: var(--ink, #000); }
+.aksara-ft-style-row .aksara-ft-style-name {
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.204px;
+	text-transform: uppercase;
+}
 .aksara-ft-style-row .aksara-ft-style-sample {
-	font-size: 20px;
+	font-size: 24px;
+	line-height: 1;
+	letter-spacing: -0.02em;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
-	color: var(--ink-soft, #5b6472);
+	color: var(--ink, #000);
 }
 .aksara-ft-style-row .aksara-ft-style-price {
 	font-size: 12px;
-	color: var(--ochre, #835420);
-	font-weight: 600;
+	letter-spacing: 0.204px;
+	color: var(--muted, #767676);
+	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 }
 
 .aksara-ft-select-all {
-	margin-top: 16px;
-	background: none;
-	border: 1px dashed var(--line, #D7D2C4);
-	border-radius: var(--radius, 3px);
-	padding: 8px 14px;
-	font-size: 13px;
-	font-weight: 600;
-	color: var(--indigo, #33417A);
+	margin-top: 20px;
+	background: transparent;
+	border: 1px solid var(--ink, #000);
+	border-radius: 6px;
+	padding: 12px 24px;
+	font-family: inherit;
+	font-size: 14px;
+	letter-spacing: 0.196px;
+	color: var(--ink, #000);
 	cursor: pointer;
 }
+.aksara-ft-select-all:hover { box-shadow: inset 0 0 0 1px var(--ink, #000); }
 
+/* Sidebar lisensi: tanpa latar terangkat, cuma hairline kiri sebagai
+ * penanda kolom. */
 .aksara-ft-side {
 	position: sticky;
 	top: 24px;
-	border: 1px solid var(--line, #D7D2C4);
-	background: var(--paper-raised, #F6F4EC);
-	padding: 22px;
+	border: none;
+	border-left: 1px solid var(--hairline-strong, #b7b7b7);
+	background: transparent;
+	padding: 0 0 0 24px;
 }
 
-.aksara-ft-side h3 { margin: 0 0 4px; font-size: 19px; }
-.aksara-ft-side-hint { font-size: 13px; color: var(--ink-soft, #5b6472); margin-bottom: 16px; }
+.aksara-ft-side h3 {
+	margin: 0 0 4px;
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.204px;
+	text-transform: uppercase;
+}
+.aksara-ft-side-hint { font-size: 12px; letter-spacing: 0.204px; color: var(--muted, #767676); margin-bottom: 20px; }
 
 .aksara-ft-license-opt {
 	display: block;
 	width: 100%;
 	text-align: left;
 	font: inherit;
-	color: inherit;
-	background: var(--paper-raised, #F6F4EC);
-	border: 1px solid var(--line, #D7D2C4);
-	border-radius: var(--radius, 3px);
-	padding: 12px 14px;
-	margin-bottom: 10px;
+	color: var(--ink, #000);
+	background: transparent;
+	border: 1px solid var(--hairline-strong, #b7b7b7);
+	border-radius: 6px;
+	padding: 12px 16px;
+	margin-bottom: 8px;
 	cursor: pointer;
 }
-.aksara-ft-license-opt.is-active { border-color: var(--indigo, #33417A); background: rgba(51,65,122,.06); }
-.aksara-ft-license-opt .aksara-ft-license-row { display: flex; justify-content: space-between; align-items: center; }
-.aksara-ft-license-opt b { font-size: 14px; font-weight: 600; }
+/* Status terpilih ditandai isian tinta penuh, bukan tint warna lembut —
+ * satu-satunya cara menandai "aktif" yang tersedia di palet tanpa warna,
+ * dan kebetulan kontrasnya jauh lebih tinggi daripada versi sebelumnya. */
+.aksara-ft-license-opt.is-active {
+	background: var(--ink, #000);
+	color: var(--paper, #fff);
+	border-color: var(--ink, #000);
+	font-weight: 500;
+}
+.aksara-ft-license-opt .aksara-ft-license-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.aksara-ft-license-opt b { font-size: 14px; font-weight: 500; letter-spacing: 0.196px; }
 
-.aksara-ft-price-summary { border-top: 1px solid var(--line, #D7D2C4); margin-top: 16px; padding-top: 14px; }
-.aksara-ft-price-row { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--ink-soft, #5b6472); margin-bottom: 6px; }
-.aksara-ft-price-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 600; margin-top: 8px; }
-
-.aksara-ft-cta { width: 100%; margin-top: 14px; }
-.aksara-ft-cta:disabled { opacity: .5; cursor: not-allowed; }
-.aksara-ft-cta-note { font-size: 12px; text-align: center; margin-top: 10px; min-height: 1.2em; color: var(--ink-soft, #5b6472); }
-.aksara-ft-cta-note.is-error { color: #b42318; }
-.aksara-ft-cta-note.is-success { color: var(--teal, #1F5C52); }
-
-/* Tombol wishlist (ikon hati) — dipasang di pojok kartu produk & single product. */
-.aksara-wishlist-toggle {
-	background: var(--paper-raised, #fff);
-	border: 1px solid var(--line, #D7D2C4);
-	border-radius: 50%;
-	width: 34px;
-	height: 34px;
-	line-height: 1;
+.aksara-ft-price-summary { border-top: 1px solid var(--hairline-strong, #b7b7b7); margin-top: 20px; padding-top: 16px; }
+.aksara-ft-price-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	font-size: 12px;
+	letter-spacing: 0.204px;
+	color: var(--muted, #767676);
+	margin-bottom: 6px;
+	font-variant-numeric: tabular-nums;
+}
+.aksara-ft-price-total {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
 	font-size: 16px;
-	color: var(--ink-soft, #5b6472);
+	font-weight: 500;
+	margin-top: 12px;
+	color: var(--ink, #000);
+	font-variant-numeric: tabular-nums;
+}
+
+.aksara-ft-cta { width: 100%; margin-top: 16px; }
+.aksara-ft-cta:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Pesan sukses/gagal TIDAK dibedakan lewat warna (DESIGN.md melarang
+ * merah-error & hijau-sukses). Yang membedakan: pesan gagal ditebalkan
+ * dan diberi garis tinta di kiri. Tidak bergantung pada warna saja juga
+ * kebetulan syarat WCAG 1.4.1, jadi ini bukan pengorbanan. */
+.aksara-ft-cta-note {
+	font-size: 12px;
+	letter-spacing: 0.204px;
+	text-align: center;
+	margin-top: 12px;
+	min-height: 1.2em;
+	color: var(--muted, #767676);
+}
+.aksara-ft-cta-note.is-error {
+	color: var(--ink, #000);
+	font-weight: 500;
+	text-align: left;
+	border-left: 3px solid var(--ink, #000);
+	padding-left: 12px;
+}
+.aksara-ft-cta-note.is-success { color: var(--ink, #000); font-weight: 500; }
+
+/* Tombol wishlist. Status dibedakan oleh BENTUK glifnya (hati penuh vs
+ * hati kosong, ditukar di wishlist.js) — bukan oleh warna, yang di palet
+ * ini tidak tersedia. Border ikut menebal sebagai penanda kedua. */
+.aksara-wishlist-toggle {
+	background: var(--paper, #fff);
+	border: 1px solid var(--hairline-strong, #b7b7b7);
+	border-radius: 6px;
+	width: 32px;
+	height: 32px;
+	line-height: 1;
+	font-size: 15px;
+	color: var(--ink, #000);
 	cursor: pointer;
+	padding: 0;
 }
 
 .aksara-wishlist-toggle.is-active {
-	color: #d1345b;
-	border-color: #d1345b;
+	border-color: var(--ink, #000);
+	box-shadow: inset 0 0 0 1px var(--ink, #000);
 }
 
-.aksara-wishlist-toggle:disabled { opacity: .6; cursor: wait; }
+.aksara-wishlist-toggle:disabled { opacity: .4; cursor: wait; }
 
 /* Kartu produk (.asset-card) dari tema Aksara punya position:static secara
  * default — beri position:relative supaya tombol hati bisa absolute di pojoknya. */
 .asset-card { position: relative; }
-.asset-card .aksara-wishlist-toggle { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.asset-card .aksara-wishlist-toggle { position: absolute; top: 8px; right: 8px; z-index: 2; }
 
-.aksara-product-summary .aksara-wishlist-toggle { margin-top: 10px; }
+.aksara-product-summary .aksara-wishlist-toggle { margin-top: 12px; }

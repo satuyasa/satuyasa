@@ -22,8 +22,15 @@
 		} )
 			.then( function ( res ) { return res.json(); } )
 			.then( function ( data ) {
-				button.classList.toggle( 'is-active', !! data.in_wishlist );
-				button.setAttribute( 'aria-label', data.in_wishlist ? config.i18n.remove : config.i18n.add );
+				var inWishlist = !! data.in_wishlist;
+
+				// Glif ikut berubah bentuk (hati penuh vs kosong), bukan cuma
+				// class untuk warna: di palet monokrom warna tidak bisa jadi
+				// satu-satunya pembeda status. aria-pressed menyampaikan hal
+				// yang sama ke screen reader.
+				button.classList.toggle( 'is-active', inWishlist );
+				button.setAttribute( 'aria-pressed', inWishlist ? 'true' : 'false' );
+				button.innerHTML = inWishlist ? '&hearts;' : '&#9825;';
 
 				// Di tab Wishlist My Account, hapus kartunya langsung dari layar
 				// begitu di-unwishlist supaya user tidak perlu reload halaman.

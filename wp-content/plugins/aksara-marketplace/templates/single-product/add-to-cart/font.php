@@ -43,6 +43,17 @@ if ( empty( $licenses ) || ! $product->is_purchasable() ) {
 				<label class="aksara-ft-size-slider">
 					<?php esc_html_e( 'Ukuran', 'aksara-marketplace' ); ?>
 					<input type="range" id="aksaraSizeSlider" min="24" max="96" value="52">
+					<?php
+					/*
+					 * Nilai ukuran ditampilkan sebagai <output>. Slider tanpa
+					 * pembacaan nilai memaksa pengguna menebak posisinya, dan
+					 * DESIGN.md > Components > Size Slider memang menyebut
+					 * nilai berjalan sebagai satu-satunya pembacaan (label
+					 * min/maks sengaja dihilangkan). Nilai awal dicetak dari
+					 * PHP supaya tetap benar sebelum JS sempat berjalan.
+					 */
+					?>
+					<output id="aksaraSizeValue" for="aksaraSizeSlider">52</output><span aria-hidden="true">px</span>
 				</label>
 			</div>
 		</div>

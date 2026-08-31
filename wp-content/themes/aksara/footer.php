@@ -15,8 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<div class="wrap">
 			<div class="footer-grid">
 				<div>
-					<p class="site-title" style="font-family:'Fraunces',serif; font-weight:600; font-size:24px;"><?php bloginfo( 'name' ); ?></p>
-					<p style="font-size:13px; color:var(--ink-soft); max-width:220px;"><?php bloginfo( 'description' ); ?></p>
+					<p class="site-title"><?php bloginfo( 'name' ); ?></p>
+					<p class="footer-tagline"><?php bloginfo( 'description' ); ?></p>
 				</div>
 				<div>
 					<h5><?php esc_html_e( 'Belanja', 'aksara' ); ?></h5>

@@ -82,7 +82,7 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 	</div>
 </section>
 
-<section class="section" style="border-bottom:none;">
+<section class="section section--last">
 	<div class="wrap">
 		<div class="section-head">
 			<h2><?php esc_html_e( 'Template & elemen terbaru', 'aksara' ); ?></h2>

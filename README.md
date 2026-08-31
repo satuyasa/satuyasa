@@ -2,7 +2,7 @@
 
 Marketplace WordPress + WooCommerce untuk Font (per-style, lisensi bertingkat ala MyFonts), Canva Template, dan Canva Element. Lihat dokumen sumber (PRD, Starter Brief, Breakdown Task, mockup) untuk konteks lengkap — ringkasan & status implementasi ada di bawah.
 
-## Status: Fase 4 selesai (SEO, performa, aksesibilitas, monitoring)
+## Status: Fase 4 selesai + UI dirombak ke sistem visual monokrom (v0.5.0)
 
 | Fase | Status |
 |---|---|
@@ -23,6 +23,27 @@ Marketplace WordPress + WooCommerce untuk Font (per-style, lisensi bertingkat al
 - **Load test nyata** terhadap `font-preview-service`: menemukan & memperbaiki bug performa asli (dev server Flask single-threaded), membuktikan kebutuhan WSGI multi-process untuk produksi — lihat angka lengkapnya di `services/font-preview-service/README.md`.
 - **Konten blog** awal (4 draft artikel) di `content/blog/`.
 - **Rencana uji manual** (`docs/QA-TEST-PLAN.md`) untuk skenario yang butuh WordPress+WooCommerce+PayPal sungguhan.
+
+## Sistem visual: monokrom (DESIGN.md)
+
+Sejak v0.5.0 tema & plugin mengikuti `docs/DESIGN.md` ("Studio Few — Style
+Reference"): galeri huruf serba tinta-di-atas-kertas, tanpa warna kromatik,
+tanpa shadow, pemisah cuma hairline 1px, radius tepat dua nilai (6px tombol /
+2px sisanya), dan satu pola tombol (Trial outline + View terisi).
+
+Ini **menggantikan** palet hangat dari `mockup-home.html` (paper #EDEBE3,
+indigo, ochre) yang dipakai Fase 1-4. Kalau menemukan token lama di kode atau
+dokumen, itu sisa yang harus dibersihkan, bukan pilihan yang masih berlaku.
+
+Diverifikasi dengan merender halaman di Chromium headless lalu mengaudit
+pikselnya: **0 piksel berwarna** setelah antialiasing subpiksel dimatikan, dan
+`scrollWidth == clientWidth` di lebar 375px, 768px & 1440px (tidak ada scroll
+horizontal). Penyimpangan yang disengaja beserta alasannya — terutama token
+Ash yang gagal kontras WCAG — didokumentasikan di
+`wp-content/themes/aksara/readme.txt`.
+
+**wp-admin sengaja TIDAK ikut monokrom.** DESIGN.md adalah acuan etalase;
+dasbor tetap memakai bahasa visual WordPress yang sudah dikenal admin.
 
 ## Keputusan arsitektur yang sudah ditetapkan
 
@@ -49,6 +70,7 @@ services/
 content/
 └── blog/                             # Fase 4: draft artikel blog siap-terbit
 docs/
+├── DESIGN.md                         # Acuan sistem visual etalase (monokrom) — dirujuk dari CSS & readme tema
 └── QA-TEST-PLAN.md                   # Fase 4: checklist uji manual (butuh staging WP+WooCommerce+PayPal)
 ```
 

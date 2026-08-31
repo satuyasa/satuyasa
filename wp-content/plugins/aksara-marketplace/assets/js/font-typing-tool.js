@@ -43,6 +43,7 @@
 			weightTabs: document.getElementById( 'aksaraWeightTabs' ),
 			italicToggle: document.getElementById( 'aksaraItalicToggle' ),
 			sizeSlider: document.getElementById( 'aksaraSizeSlider' ),
+			sizeValue: document.getElementById( 'aksaraSizeValue' ),
 			previewText: document.getElementById( 'aksaraPreviewText' ),
 			previewStatus: document.getElementById( 'aksaraPreviewStatus' ),
 			selectedCount: document.getElementById( 'aksaraSelectedCount' ),
@@ -69,6 +70,9 @@
 
 		el.sizeSlider.addEventListener( 'input', function () {
 			el.previewText.style.fontSize = el.sizeSlider.value + 'px';
+			if ( el.sizeValue ) {
+				el.sizeValue.textContent = el.sizeSlider.value;
+			}
 		} );
 
 		el.selectAll.textContent = config.i18n.selectAll;

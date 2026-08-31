@@ -94,23 +94,16 @@ class Aksara_Font_Styles_Metabox {
 		?>
 		<p>
 			<label for="aksara_bundle_discount_percent"><strong><?php esc_html_e( 'Diskon Paket Lengkap (%)', 'aksara-marketplace' ); ?></strong></label><br>
-			<input type="number" id="aksara_bundle_discount_percent" name="aksara_bundle_discount_percent" min="0" max="90" step="1" style="width:100px;" value="<?php echo esc_attr( $bundle_discount ); ?>">
+			<input type="number" id="aksara_bundle_discount_percent" name="aksara_bundle_discount_percent" class="aksara-discount-input" min="0" max="90" step="1" value="<?php echo esc_attr( $bundle_discount ); ?>">
 			<span class="description"><?php esc_html_e( 'Diterapkan otomatis di kalkulator saat pembeli memilih tombol "Pilih Semua" (seluruh style yang berharga untuk lisensi tersebut). Kosongkan/0 untuk menonaktifkan.', 'aksara-marketplace' ); ?></span>
 		</p>
-		<style>
-			.aksara-styles-table { width: 100%; border-collapse: collapse; }
-			.aksara-styles-table th, .aksara-styles-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
-			.aksara-styles-table input[type="text"], .aksara-styles-table input[type="number"] { width: 100%; }
-			.aksara-styles-table .aksara-price-cell { width: 90px; }
-			.aksara-styles-table .aksara-price-cell input { width: 80px; }
-		</style>
-
 		<?php if ( empty( $styles ) ) : ?>
 			<p><?php esc_html_e( 'Belum ada style. Unggah file font di bawah untuk mulai.', 'aksara-marketplace' ); ?></p>
 		<?php else : ?>
 			<table class="aksara-styles-table">
 				<thead>
 					<tr>
+						<th class="aksara-preview-cell"><?php esc_html_e( 'Pratinjau', 'aksara-marketplace' ); ?></th>
 						<th><?php esc_html_e( 'Nama Style', 'aksara-marketplace' ); ?></th>
 						<th><?php esc_html_e( 'Weight', 'aksara-marketplace' ); ?></th>
 						<th><?php esc_html_e( 'Italic', 'aksara-marketplace' ); ?></th>
@@ -122,10 +115,52 @@ class Aksara_Font_Styles_Metabox {
 					</tr>
 				</thead>
 				<tbody>
-					<?php foreach ( $styles as $style ) : ?>
-						<tr>
+					<?php
+					foreach ( $styles as $style ) :
+						/*
+						 * Sebuah style yang tidak punya harga untuk lisensi mana pun
+						 * tidak akan pernah bisa dibeli — kalkulator di halaman produk
+						 * melewatinya diam-diam. Sebelumnya kondisi ini sama sekali
+						 * tidak terlihat dari sini: tabel harga penuh kotak kosong dan
+						 * tidak ada yang membedakan "sengaja gratis di lisensi ini"
+						 * dari "seluruh barisnya lupa diisi". Ditandai eksplisit.
+						 */
+						$row_prices = $matrix[ $style->id ] ?? array();
+						$has_price  = false;
+						foreach ( $row_prices as $row_price ) {
+							if ( '' !== $row_price && null !== $row_price ) {
+								$has_price = true;
+								break;
+							}
+						}
+						?>
+						<tr class="<?php echo $has_price ? '' : 'aksara-style-unpriced'; ?>">
+							<td class="aksara-preview-cell">
+								<?php
+								/*
+								 * Pratinjau memakai mesin render yang sama dengan
+								 * etalase (PHP GD), jadi admin melihat persis apa yang
+								 * dilihat pengunjung — termasuk saat sebuah berkas
+								 * TIDAK bisa dirender (mis. diunggah sebagai .woff2,
+								 * yang tidak dibaca FreeType). Dulu kegagalan itu baru
+								 * ketahuan setelah produk terbit dan listing-nya mundur
+								 * ke teks biasa.
+								 */
+								$preview = class_exists( 'Aksara_Specimen_Image' )
+									? Aksara_Specimen_Image::get_img_tag( $style, $style->style_name, 22, 'aksara-admin-specimen' )
+									: '';
+								if ( $preview ) {
+									echo wp_kses_post( $preview );
+								} else {
+									echo '<span class="aksara-no-preview" title="' . esc_attr__( 'Berkas ini tidak bisa dirender jadi gambar (biasanya karena format .woff/.woff2). Style tetap bisa dijual & diunduh pembeli, tapi tidak akan tampil sebagai contoh huruf di listing.', 'aksara-marketplace' ) . '">' . esc_html__( 'tidak bisa dirender', 'aksara-marketplace' ) . '</span>';
+								}
+								?>
+							</td>
 							<td>
 								<input type="text" name="aksara_style[<?php echo esc_attr( $style->id ); ?>][style_name]" value="<?php echo esc_attr( $style->style_name ); ?>">
+								<?php if ( ! $has_price ) : ?>
+									<span class="aksara-unpriced-flag"><?php esc_html_e( 'Belum ada harga — style ini tidak bisa dibeli.', 'aksara-marketplace' ); ?></span>
+								<?php endif; ?>
 							</td>
 							<td>
 								<input type="number" min="100" max="900" step="100" name="aksara_style[<?php echo esc_attr( $style->id ); ?>][font_weight]" value="<?php echo esc_attr( $style->font_weight ); ?>">
@@ -139,8 +174,19 @@ class Aksara_Font_Styles_Metabox {
 									<input type="number" min="0" step="0.01" name="aksara_style_price[<?php echo esc_attr( $style->id ); ?>][<?php echo esc_attr( $license->id ); ?>]" value="<?php echo esc_attr( $matrix[ $style->id ][ $license->id ] ?? '' ); ?>">
 								</td>
 							<?php endforeach; ?>
-							<td>
-								<input type="checkbox" name="aksara_delete_style[]" value="<?php echo esc_attr( $style->id ); ?>">
+							<td class="aksara-delete-cell">
+								<label>
+									<input type="checkbox" name="aksara_delete_style[]" value="<?php echo esc_attr( $style->id ); ?>">
+									<span class="screen-reader-text">
+										<?php
+										printf(
+											/* translators: %s: nama style. */
+											esc_html__( 'Hapus style %s', 'aksara-marketplace' ),
+											esc_html( $style->style_name )
+										);
+										?>
+									</span>
+								</label>
 							</td>
 						</tr>
 					<?php endforeach; ?>
@@ -154,6 +200,24 @@ class Aksara_Font_Styles_Metabox {
 		</p>
 		<p class="description">
 			<?php esc_html_e( 'Pilih beberapa berkas font sekaligus (.ttf/.otf/.woff/.woff2). Nama style, weight, dan italic akan ditebak otomatis dari nama berkas (mis. "Grafira-SemiBoldItalic.otf") — bisa disunting lagi setelah disimpan. Atur harga per lisensi setelah style baru muncul di tabel atas.', 'aksara-marketplace' ); ?>
+		</p>
+		<p class="description">
+			<?php
+			/*
+			 * Batas ukuran server disebut di muka. Menabraknya adalah cara
+			 * paling umum bulk upload gagal, dan pesan PHP-nya sendiri tidak
+			 * pernah sampai ke admin — jadi lebih baik angkanya terlihat
+			 * sebelum berkasnya dipilih, bukan sesudah gagal.
+			 */
+			echo wp_kses_post(
+				sprintf(
+					/* translators: 1: batas ukuran per berkas, 2: format .ttf/.otf. */
+					esc_html__( 'Maksimal %1$s per berkas. Agar contoh hurufnya bisa tampil di listing, unggah dalam format %2$s — .woff/.woff2 tetap bisa dijual dan diunduh pembeli, tapi tidak bisa dirender jadi gambar spesimen.', 'aksara-marketplace' ),
+					esc_html( size_format( wp_max_upload_size() ) ),
+					'<code>.ttf</code>/<code>.otf</code>'
+				)
+			);
+			?>
 		</p>
 		<?php
 	}
@@ -267,16 +331,35 @@ class Aksara_Font_Styles_Metabox {
 		if ( ! empty( $_FILES['aksara_new_font_files']['name'][0] ) ) {
 			$existing_count = Aksara_Font_Styles_Repository::count_by_product( $post_id );
 			$files          = $_FILES['aksara_new_font_files']; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce already checked above.
+			$added          = 0;
+			$failures       = array();
 
 			foreach ( $files['name'] as $index => $original_name ) {
-				if ( UPLOAD_ERR_OK !== $files['error'][ $index ] || empty( $original_name ) ) {
+				if ( empty( $original_name ) ) {
+					continue;
+				}
+
+				/*
+				 * Kegagalan unggah dilaporkan, bukan dilewati diam-diam.
+				 * Versi sebelumnya memakai `continue` polos untuk setiap
+				 * kondisi gagal, sehingga berkas yang terlalu besar atau
+				 * ekstensinya salah menghilang tanpa jejak: admin menekan
+				 * Update, halaman tersimpan "sukses", dan style-nya tidak
+				 * ada. Sekarang setiap kegagalan punya sebab yang bisa
+				 * dibaca.
+				 */
+				if ( UPLOAD_ERR_OK !== $files['error'][ $index ] ) {
+					$failures[] = sprintf( '%s (%s)', $original_name, self::upload_error_message( $files['error'][ $index ] ) );
 					continue;
 				}
 
 				$stored_path = Aksara_File_Storage::store_uploaded_font( $files['tmp_name'][ $index ], $original_name );
 				if ( is_wp_error( $stored_path ) ) {
+					$failures[] = sprintf( '%s (%s)', $original_name, $stored_path->get_error_message() );
 					continue;
 				}
+
+				++$added;
 
 				$name_without_ext = pathinfo( $original_name, PATHINFO_FILENAME );
 				$guessed          = self::guess_weight_and_italic( $name_without_ext );
@@ -301,10 +384,74 @@ class Aksara_Font_Styles_Metabox {
 					$new_style = Aksara_Font_Styles_Repository::get( $new_style_id );
 					if ( $new_style ) {
 						Aksara_Specimen_Image::get_url( $new_style, Aksara_Specimen_Image::get_default_preview_text(), 40 );
-						Aksara_Specimen_Image::get_url( $new_style, get_the_title( $post_id ), 34 );
+						Aksara_Specimen_Image::get_url( $new_style, get_the_title( $post_id ), 115 );
+						Aksara_Specimen_Image::get_url( $new_style, $new_style->style_name, 22 );
 					}
 				}
 			}
+
+			self::report_upload_result( $added, $failures );
+		}
+	}
+
+	/**
+	 * Antrekan ringkasan hasil bulk upload sebagai notice admin.
+	 *
+	 * @param int   $added    Jumlah style yang berhasil ditambahkan.
+	 * @param array $failures Daftar pesan kegagalan per berkas.
+	 */
+	private static function report_upload_result( $added, array $failures ) {
+		if ( ! class_exists( 'Aksara_Admin_UI' ) ) {
+			return;
+		}
+
+		if ( $added > 0 ) {
+			Aksara_Admin_UI::queue_notice(
+				sprintf(
+					/* translators: %d: jumlah style yang ditambahkan. */
+					_n( '%d style font ditambahkan. Jangan lupa isi harganya per lisensi.', '%d style font ditambahkan. Jangan lupa isi harganya per lisensi.', $added, 'aksara-marketplace' ),
+					$added
+				),
+				'success'
+			);
+		}
+
+		if ( ! empty( $failures ) ) {
+			Aksara_Admin_UI::queue_notice(
+				sprintf(
+					/* translators: %s: daftar berkas yang gagal beserta sebabnya. */
+					__( 'Berkas berikut gagal diunggah: %s', 'aksara-marketplace' ),
+					implode( '; ', $failures )
+				),
+				'error'
+			);
+		}
+	}
+
+	/**
+	 * Terjemahkan kode error upload PHP jadi kalimat yang bisa ditindaklanjuti.
+	 *
+	 * @param int $code Konstanta UPLOAD_ERR_*.
+	 * @return string
+	 */
+	private static function upload_error_message( $code ) {
+		switch ( (int) $code ) {
+			case UPLOAD_ERR_INI_SIZE:
+			case UPLOAD_ERR_FORM_SIZE:
+				return sprintf(
+					/* translators: %s: batas ukuran unggah server, mis. "8 MB". */
+					__( 'melebihi batas ukuran unggah server (%s)', 'aksara-marketplace' ),
+					size_format( wp_max_upload_size() )
+				);
+			case UPLOAD_ERR_PARTIAL:
+				return __( 'terkirim sebagian, coba unggah ulang', 'aksara-marketplace' );
+			case UPLOAD_ERR_NO_TMP_DIR:
+			case UPLOAD_ERR_CANT_WRITE:
+				return __( 'server tidak bisa menulis berkas sementara — hubungi hosting', 'aksara-marketplace' );
+			case UPLOAD_ERR_EXTENSION:
+				return __( 'ditolak oleh ekstensi PHP di server', 'aksara-marketplace' );
+			default:
+				return __( 'gagal diunggah', 'aksara-marketplace' );
 		}
 	}
 }

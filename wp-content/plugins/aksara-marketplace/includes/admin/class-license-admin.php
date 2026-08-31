@@ -49,7 +49,16 @@ class Aksara_License_Admin {
 			wp_die( esc_html__( 'Anda tidak memiliki izin untuk mengakses halaman ini.', 'aksara-marketplace' ) );
 		}
 
-		self::maybe_handle_form();
+		/*
+		 * Kenapa error dikembalikan lalu dicetak inline, bukan diantrekan
+		 * seperti pesan sukses: maybe_handle_form() berjalan dari dalam
+		 * render_page(), yang di wp-admin dipanggil SETELAH hook
+		 * admin_notices selesai. Jalur yang diakhiri redirect aman (notice
+		 * tampil di pemuatan berikutnya), tapi jalur yang cuma return —
+		 * seperti validasi gagal di bawah — notice-nya akan tertunda satu
+		 * halaman dan muncul di layar yang sama sekali tidak berhubungan.
+		 */
+		$form_error = self::maybe_handle_form();
 
 		$editing = null;
 		if ( isset( $_GET['edit'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only, only selects which record to prefill.
@@ -60,10 +69,15 @@ class Aksara_License_Admin {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Lisensi Font', 'aksara-marketplace' ); ?></h1>
+
+			<?php if ( $form_error ) : ?>
+				<div class="notice notice-error"><p><?php echo esc_html( $form_error ); ?></p></div>
+			<?php endif; ?>
+
 			<p><?php esc_html_e( 'Kelola jenis lisensi (Desktop, Web, App, dst). Deskripsi di sini otomatis dirender di halaman "License" pada situs.', 'aksara-marketplace' ); ?></p>
 
-			<div style="display:flex; gap:32px; align-items:flex-start;">
-				<div style="flex:1;">
+			<div class="aksara-admin-columns">
+				<div class="aksara-admin-col-main">
 					<table class="widefat striped">
 						<thead>
 							<tr>
@@ -93,7 +107,7 @@ class Aksara_License_Admin {
 					</table>
 				</div>
 
-				<div style="width:360px;">
+				<div class="aksara-admin-col-side">
 					<h2><?php echo $editing ? esc_html__( 'Sunting Lisensi', 'aksara-marketplace' ) : esc_html__( 'Tambah Lisensi', 'aksara-marketplace' ); ?></h2>
 					<form method="post">
 						<?php wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME ); ?>
@@ -140,22 +154,28 @@ class Aksara_License_Admin {
 
 	/**
 	 * Proses submit form tambah/edit, dan aksi hapus lewat query string.
+	 *
+	 * @return string Pesan error untuk dicetak inline, atau string kosong.
 	 */
 	private static function maybe_handle_form() {
 		if ( isset( $_GET['aksara_delete_license'] ) ) {
 			$id = absint( $_GET['aksara_delete_license'] );
 			check_admin_referer( 'aksara_delete_license_' . $id );
 			Aksara_Font_Licenses_Repository::delete( $id );
+			Aksara_Admin_UI::queue_notice( __( 'Lisensi dihapus.', 'aksara-marketplace' ), 'success' );
 			wp_safe_redirect( remove_query_arg( array( 'aksara_delete_license', '_wpnonce' ) ) );
 			exit;
 		}
 
 		if ( empty( $_POST[ self::NONCE_NAME ] ) || ! wp_verify_nonce( wp_unslash( $_POST[ self::NONCE_NAME ] ), self::NONCE_ACTION ) ) {
-			return;
+			return '';
 		}
 
 		if ( empty( $_POST['name'] ) ) {
-			return;
+			// Nama kosong dulu berarti form diam saja: tidak tersimpan, tidak
+			// ada pesan, dan isian yang sudah diketik tetap terlihat — mudah
+			// disangka sudah tersimpan padahal tidak.
+			return __( 'Nama lisensi wajib diisi — belum ada yang disimpan.', 'aksara-marketplace' );
 		}
 
 		$id = ! empty( $_POST['license_id'] ) ? absint( $_POST['license_id'] ) : null;
@@ -168,6 +188,11 @@ class Aksara_License_Admin {
 				'sort_order'  => wp_unslash( $_POST['sort_order'] ?? 0 ),
 			),
 			$id
+		);
+
+		Aksara_Admin_UI::queue_notice(
+			$id ? __( 'Perubahan lisensi disimpan.', 'aksara-marketplace' ) : __( 'Lisensi baru ditambahkan.', 'aksara-marketplace' ),
+			'success'
 		);
 
 		wp_safe_redirect( remove_query_arg( 'edit' ) );

@@ -11,7 +11,7 @@ Tema marketplace font, Canva Template & Canva Element untuk Aksara. Full-custom 
 
 == Cakupan Fase 1 (fondasi) ==
 
-* Palet & tipografi sesuai mockup (Fraunces untuk heading/branding, Inter untuk UI chrome — dimuat dari Google Fonts).
+* Palet & tipografi awal mengikuti mockup (Fraunces + Inter, palet hangat). DIGANTI di v0.5.0 — lihat bagian "Sistem visual" di bawah.
 * Halaman **Home** (`front-page.php`): hero, 3 kartu kategori, daftar "Font pilihan" (statis, lihat catatan keamanan di bawah), grid Template/Element terbaru, trust section.
 * `woocommerce.php`: wrapper standar yang membungkus SEMUA halaman WooCommerce bawaan (shop, single product, cart, checkout, my account) dengan header/footer & styling tema — tanpa override template WooCommerce satu per satu.
 * Page template kustom (pilih lewat Page Attributes saat membuat Page baru):
@@ -31,7 +31,7 @@ Tema marketplace font, Canva Template & Canva Element untuk Aksara. Full-custom 
 
 Daftar "Font pilihan" di Home & halaman Fonts kini menampilkan nama font dalam font ASLINYA — tapi sebagai **gambar hasil render server** (PHP GD, lihat `aksara_font_specimen()` dari plugin), bukan dengan memuat berkas font ke browser lewat `@font-face`. Yang sampai ke pengunjung cuma piksel; berkas fontnya tidak pernah meninggalkan server.
 
-Ini berbeda dari versi awal tema yang sengaja memakai font tema (Fraunces) karena saat itu belum ada mekanisme render gambar yang aman. Yang tetap TIDAK boleh dilakukan: memasang berkas font produk lewat `@font-face` publik di listing — itu membocorkannya utuh tanpa melewati mekanisme perlindungan apa pun.
+Ini berbeda dari versi awal tema yang sengaja memakai font tema karena saat itu belum ada mekanisme render gambar yang aman. Yang tetap TIDAK boleh dilakukan: memasang berkas font produk lewat `@font-face` publik di listing — itu membocorkannya utuh tanpa melewati mekanisme perlindungan apa pun.
 
 Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang tidak terbaca FreeType, atau GD tidak tersedia di server), baris listing otomatis mundur ke teks biasa dalam font tema.
 
@@ -64,3 +64,45 @@ Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang tidak terba
 3. Buat Page baru untuk tiap listing (Fonts/Templates/Elements/License), pilih template yang sesuai di Page Attributes.
 4. Atur halaman-halaman itu di **WooCommerce > Pengaturan > Halaman Muka** / menu navigasi sesuai kebutuhan.
 5. Buat produk lewat plugin Aksara Marketplace (lihat readme plugin) — otomatis muncul di listing & Home begitu dipublikasikan.
+
+== Sistem visual (v0.5.0) — monokrom, mengikuti DESIGN.md ==
+
+Tema ini sekarang mengikuti DESIGN.md ("Studio Few — Style Reference"), yang
+menggantikan bahasa visual hangat dari mockup awal. Aturan yang dipegang:
+
+* **Tanpa warna kromatik sama sekali.** Hanya tinta (#000) & kertas (#fff),
+  ditambah abu-abu netral untuk hairline. Palet lama (indigo #33417A, ochre
+  #835420, teal, paper #EDEBE3) sudah dihapus seluruhnya — termasuk fallback
+  `var(--indigo, ...)` di CSS plugin, yang kalau dibiarkan justru akan aktif
+  dan mengembalikan warna itu karena tokennya tidak lagi didefinisikan tema.
+  Diverifikasi dengan memotret halaman di browser lalu mengaudit pikselnya:
+  0 piksel berwarna setelah antialiasing subpiksel dimatikan.
+* **Kedalaman dari hairline, bukan shadow.** Tidak ada box-shadow elevasi,
+  gradient, atau card. Baris spesimen dipisah garis 1px.
+* **Radius tepat dua nilai**: 6px untuk tombol, 2px untuk sisanya.
+* **Satu pola tombol**: `.btn-trial` (outline, tidak pernah terisi bahkan saat
+  hover) berpasangan dengan `.btn-view` (isi tinta penuh).
+* **Tipografi**: satu keluarga UI. Sterling disebut lebih dulu di `--font-ui`
+  supaya otomatis mengambil alih kalau berkasnya dipasang; Work Sans dimuat
+  sebagai failsafe sesuai perannya di DESIGN.md.
+
+Penyimpangan yang disengaja dari DESIGN.md, beserta alasannya:
+
+* Token Ash `#858585` TIDAK dipakai untuk teks kecil. Di atas kertas putih ia
+  cuma 3,69:1, sedangkan DESIGN.md menugaskannya ke label 12-14px — persis
+  kategori yang WCAG AA minta 4,5:1. Teks redup memakai `--color-ash-text`
+  (#767676 = 4,54:1); Ash tetap tersedia untuk elemen non-teks.
+* Status sukses/gagal tidak dibedakan lewat warna (DESIGN.md melarang merah &
+  hijau). Pembedanya: garis tinta di kiri + berat huruf. Ini juga yang diminta
+  WCAG 1.4.1, jadi bukan kompromi.
+* Spesimen di listing dirender 115px (token `--text-display`), bukan 158px.
+  Alasannya bukan selera: gambarnya PNG hasil render server, dan pada 158px
+  dengan skala 2x satu nama font panjang menghasilkan PNG ~4000px (≈90 KB)
+  per baris — diukur, bukan diperkirakan. Pada 115px jadi 2968px/51 KB.
+* Ukuran display memakai clamp() dengan batas bawah 40px. DESIGN.md menyebut
+  skala tetap, tapi teks hero bisa disunting admin lewat Customizer sehingga
+  panjang katanya tidak bisa dijamin; batas bawah menjaga kata terpanjang
+  tetap muat di layar sempit.
+
+Diverifikasi di browser (Chromium headless) pada lebar 375px, 768px & 1440px:
+`scrollWidth == clientWidth` di ketiganya, jadi tidak ada scroll horizontal.
