@@ -1,8 +1,19 @@
-# Aksara Font Preview Service — Fase 0 Proof of Concept
+# Aksara Font Preview Service
 
-Microservice kecil (Python + fontTools) yang menerima **1 file font + teks**, dan mengembalikan `.woff2` yang **hanya berisi glyph yang dibutuhkan** untuk merender teks tersebut. Ini yang memungkinkan typing tool di halaman produk font (lihat `mockup-font-product.html`) menampilkan pratinjau live tanpa pernah mengekspos file font lengkap sebelum dibeli.
+Microservice kecil (Python + fontTools) yang menerima **1 file font + teks**, dan mengembalikan `.woff2` yang **hanya berisi glyph yang dibutuhkan** untuk merender teks tersebut. Ini yang memungkinkan typing tool di halaman produk font menampilkan pratinjau live tanpa pernah mengekspos file font lengkap sebelum dibeli.
 
-Dibangun berdiri sendiri (tanpa dependency ke WordPress/plugin) agar bisa dites & divalidasi dulu sebagai POC sesuai Breakdown Task Fase 0, sebelum diintegrasikan ke plugin di Fase 2.
+Dibangun berdiri sendiri (tanpa dependency ke WordPress/plugin) sebagai POC Fase 0, dan sejak Fase 2 **sudah terintegrasi** ke plugin `aksara-marketplace` lewat `includes/class-preview-service-client.php` (dipanggil dari `includes/class-rest-controller.php`, endpoint `POST /wp-json/aksara/v1/font-preview` & `/font-preview-batch`).
+
+## Menjalankan bersama WordPress (Fase 2)
+
+Agar `font_path` yang dikirim plugin (path relatif seperti `fonts/xxxx.otf`, hasil upload lewat metabox Font Styles) bisa ditemukan, jalankan service ini dengan `AKSARA_FONT_STORAGE_DIR` mengarah ke folder privat WordPress yang sama — **bukan** `./fixtures` (itu cuma buat testing berdiri sendiri):
+
+```bash
+export AKSARA_FONT_STORAGE_DIR=/path/ke/wp-content/uploads/aksara-private
+python3 app.py
+```
+
+Plugin memanggil `http://127.0.0.1:5055` secara default; override lewat konstanta `AKSARA_PREVIEW_SERVICE_URL` di `wp-config.php` kalau portnya beda atau (di luar rekomendasi Starter Brief) service dipindah ke server lain.
 
 ## Keputusan arsitektur (mengikuti Starter Brief)
 
@@ -56,20 +67,20 @@ Script ini adalah demo command-line yang diminta Breakdown Task Fase 0 — memva
 
 Semua kombinasi jauh di bawah target 800ms (p95 ~150-165ms di environment ini — server produksi sebaiknya tetap diukur ulang karena beban CPU untuk subsetting cukup terasa saat konkuren).
 
-## Keamanan yang sudah ditangani di level POC ini
+## Keamanan yang sudah ditangani
 
 - **Path traversal:** `font_path` divalidasi harus tetap berada di dalam `AKSARA_FONT_STORAGE_DIR` (`_resolve_font_path` di `app.py`); path absolut atau `../..` ditolak dengan HTTP 400.
-- **Batas panjang teks:** maksimal 100 karakter per request (`MAX_TEXT_LENGTH` di `subsetter.py`), sesuai PRD Bagian 4.3 — membatasi seberapa banyak glyph bisa diekstrak per request.
+- **Batas panjang teks:** maksimal 100 karakter per request (`MAX_TEXT_LENGTH` di `subsetter.py`, dicek ulang di sisi WordPress oleh `Aksara_Rest_Controller::validate_preview_request()`), sesuai PRD Bagian 4.3.
 - **Metadata di-strip:** tabel `name` disederhanakan ke ID yang minimal perlu (font family/style name), bukan mewariskan seluruh metadata font asli.
-- **Rate limit dasar per-IP** (30 request/menit) sebagai lapisan pertahanan tambahan — **bukan** pengganti rate limiting yang sesungguhnya. Implementasi produksi (Fase 2) harus melakukan rate limiting yang persisten (bukan in-memory, hilang saat restart) di level WordPress REST endpoint/reverse proxy, terikat ke sesi/IP, sesuai catatan keamanan di PRD Bagian 8.
+- **Rate limit dasar per-IP** (30 request/menit) di level service ini sebagai backstop POC-grade — **pertahanan sesungguhnya** ada di lapisan WordPress: `Aksara_Rest_Controller::check_preview_rate_limit()` pakai transient (persisten lintas worker/restart, 40 request/menit/IP) sebelum request sampai ke service ini sama sekali.
 - **Binding ke localhost saja** — service ini dirancang tidak pernah diakses langsung dari luar server.
+- **Style hanya bisa dipratinjau kalau produknya sudah publish** — dicek di `Aksara_Rest_Controller::validate_preview_request()`, mencegah endpoint dipakai mengintip font dari produk draft/privat.
+- **Cache hasil subset (10 menit, transient WordPress)** — mengurangi beban berulang ke service ini untuk kombinasi style+teks yang sama, dibersihkan proaktif lewat cron `aksara_cleanup_preview_cache` (`Aksara_Cleanup_Jobs`).
 
-## Yang sengaja belum ada di Fase 0 ini (menyusul di fase lanjut)
+## Yang sengaja belum ada (menyusul di fase lanjut)
 
-- Signed/expiring URL untuk hasil subset (Fase 2 — jadi tanggung jawab plugin).
-- Caching hasil subset per kombinasi teks umum (disebut di Breakdown Task Fase 2).
-- Rate limiting yang persisten & terikat sesi (bukan in-memory per proses).
 - Deployment sebagai service produksi (systemd unit, WSGI server seperti gunicorn — dev server Flask bawaan **tidak boleh** dipakai di production, sudah otomatis diperingatkan oleh Flask sendiri saat dijalankan).
+- Signed/expiring URL bergaya file statis — sengaja tidak dipakai; endpoint WordPress mengembalikan data langsung (base64 dalam JSON) tanpa pernah menulis file ke direktori publik, yang secara desain lebih aman daripada URL yang bisa disalin-ulang (lihat komentar di `class-rest-controller.php`).
 
 ## Struktur
 

@@ -1,14 +1,16 @@
 <?php
 /**
- * Logika dasar tambah-ke-cart untuk produk Font: pilih 1 style + 1 lisensi,
- * harga diambil dari matriks aksara_style_prices. Belum ada kalkulator
- * multi-style/bundle — itu menyusul di Fase 2 bersama typing tool
- * (lihat mockup-font-product.html untuk UI lengkapnya nanti).
+ * Tambah-ke-cart untuk produk Font: pilih BANYAK style + 1 lisensi sekaligus,
+ * harga dijumlah dari matriks aksara_style_prices (dengan diskon paket
+ * lengkap opsional). Ini versi Fase 2 — jalur penambahan utamanya sekarang
+ * lewat endpoint REST `POST /aksara/v1/cart/add-font` yang dipanggil
+ * typing tool interaktif (assets/js/font-typing-tool.js), bukan form HTML
+ * biasa lagi seperti Fase 1.
  *
- * 1 cart item = 1 kombinasi style + lisensi, sesuai aturan di PRD Bagian 5:
- * WooCommerce otomatis memperlakukan kombinasi data custom yang berbeda
- * sebagai baris cart terpisah (lihat generate_cart_id()), jadi memilih
- * 2 lisensi berbeda untuk style yang sama otomatis jadi 2 baris invoice.
+ * 1 cart item = 1 kombinasi (array style_id + 1 license_id), sesuai aturan
+ * di PRD Bagian 5: WooCommerce otomatis memperlakukan kombinasi data custom
+ * yang berbeda sebagai baris cart terpisah (lihat generate_cart_id()), jadi
+ * memilih 2 lisensi berbeda otomatis jadi 2 baris invoice terpisah.
  *
  * @package Aksara_Marketplace
  */
@@ -27,15 +29,13 @@ class Aksara_Cart_Handler {
 	 */
 	public static function init() {
 		add_action( 'woocommerce_font_add_to_cart', array( __CLASS__, 'render_add_to_cart_form' ) );
-		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'validate_add_to_cart' ), 10, 3 );
-		add_filter( 'woocommerce_add_cart_item_data', array( __CLASS__, 'add_cart_item_data' ), 10, 3 );
 		add_action( 'woocommerce_before_calculate_totals', array( __CLASS__, 'apply_custom_price' ) );
 		add_filter( 'woocommerce_get_item_data', array( __CLASS__, 'display_item_data' ), 10, 2 );
 		add_action( 'woocommerce_checkout_create_order_line_item', array( __CLASS__, 'persist_order_item_meta' ), 10, 4 );
 	}
 
 	/**
-	 * Tampilkan form pilih style + lisensi di halaman single product font.
+	 * Render typing tool + kalkulator lisensi interaktif di halaman single product font.
 	 */
 	public static function render_add_to_cart_form() {
 		global $product;
@@ -47,6 +47,9 @@ class Aksara_Cart_Handler {
 		$styles   = Aksara_Font_Styles_Repository::get_by_product( $product->get_id() );
 		$licenses = Aksara_Font_Licenses_Repository::get_all();
 		$matrix   = Aksara_Font_Licenses_Repository::get_price_matrix_for_product( $product->get_id() );
+
+		wp_enqueue_script( 'aksara-font-typing-tool' );
+		wp_localize_script( 'aksara-font-typing-tool', 'aksaraFontTool', self::build_js_config( $product, $styles, $licenses, $matrix ) );
 
 		wc_get_template(
 			'single-product/add-to-cart/font.php',
@@ -62,96 +65,163 @@ class Aksara_Cart_Handler {
 	}
 
 	/**
-	 * Pastikan kombinasi style+lisensi valid & punya harga sebelum ditambahkan ke cart.
+	 * Siapkan data yang dibutuhkan assets/js/font-typing-tool.js: daftar
+	 * style/lisensi, matriks harga (mentah + terformat), endpoint REST,
+	 * dan pengaturan mata uang supaya JS bisa memformat harga tanpa
+	 * menduplikasi logika currency WooCommerce.
 	 *
-	 * @param bool $passed     Status validasi saat ini.
-	 * @param int  $product_id ID produk yang ditambahkan.
-	 * @param int  $quantity   Jumlah.
-	 * @return bool
+	 * @param WC_Product_Font $product  Produk font.
+	 * @param array            $styles   Baris dari aksara_font_styles.
+	 * @param array            $licenses Baris dari aksara_font_licenses.
+	 * @param array            $matrix   style_id => [license_id => price].
+	 * @return array
 	 */
-	public static function validate_add_to_cart( $passed, $product_id, $quantity ) {
-		$product = wc_get_product( $product_id );
-		if ( ! $product instanceof WC_Product_Font ) {
-			return $passed;
+	private static function build_js_config( $product, $styles, $licenses, $matrix ) {
+		$styles_payload = array();
+		foreach ( $styles as $style ) {
+			$styles_payload[] = array(
+				'id'       => (int) $style->id,
+				'name'     => $style->style_name,
+				'weight'   => (int) $style->font_weight,
+				'italic'   => (bool) $style->is_italic,
+			);
 		}
 
-		$combo = self::get_requested_combo( $product_id );
-		if ( is_wp_error( $combo ) ) {
-			wc_add_notice( $combo->get_error_message(), 'error' );
-			return false;
+		$licenses_payload = array();
+		foreach ( $licenses as $license ) {
+			$licenses_payload[] = array(
+				'id'   => (int) $license->id,
+				'name' => $license->name,
+			);
 		}
 
-		return $passed;
+		$price_payload = array();
+		foreach ( $matrix as $style_id => $by_license ) {
+			foreach ( $by_license as $license_id => $price ) {
+				$price_payload[ $style_id ][ $license_id ] = array(
+					'price'     => (float) $price,
+					'formatted' => wp_strip_all_tags( wc_price( $price ) ),
+				);
+			}
+		}
+
+		return array(
+			'productId'          => $product->get_id(),
+			'styles'             => $styles_payload,
+			'licenses'           => $licenses_payload,
+			'prices'             => $price_payload,
+			'bundleDiscount'     => (float) get_post_meta( $product->get_id(), '_aksara_bundle_discount_percent', true ),
+			'currency'           => array(
+				'symbol'            => get_woocommerce_currency_symbol(),
+				'decimals'          => wc_get_price_decimals(),
+				'decimalSeparator'  => wc_get_price_decimal_separator(),
+				'thousandSeparator' => wc_get_price_thousand_separator(),
+				'position'          => get_option( 'woocommerce_currency_pos', 'left' ),
+			),
+			'restUrl'            => esc_url_raw( rest_url( 'aksara/v1' ) ),
+			'nonce'              => wp_create_nonce( 'wp_rest' ),
+			'cartUrl'            => function_exists( 'wc_get_cart_url' ) ? wc_get_cart_url() : '',
+			'debounceMs'         => 1000, // Keputusan produk: debounce ~1 detik, bukan real-time per-karakter.
+			'maxPreviewChars'    => 100,
+			'defaultPreviewText' => __( 'Kopi pagi, ide baru, karya berani', 'aksara-marketplace' ),
+			'i18n'               => array(
+				'selectStyle'    => __( 'Pilih minimal 1 style.', 'aksara-marketplace' ),
+				'selectLicense'  => __( 'Pilih jenis lisensi.', 'aksara-marketplace' ),
+				'adding'         => __( 'Menambahkan…', 'aksara-marketplace' ),
+				'added'          => __( 'Ditambahkan ke keranjang!', 'aksara-marketplace' ),
+				'error'          => __( 'Terjadi kesalahan, coba lagi.', 'aksara-marketplace' ),
+				'selectAll'      => __( 'Pilih Semua (Paket Lengkap)', 'aksara-marketplace' ),
+				'previewUnavailable' => __( 'Pratinjau tidak tersedia', 'aksara-marketplace' ),
+				'loading'        => __( 'Memuat pratinjau…', 'aksara-marketplace' ),
+			),
+		);
 	}
 
 	/**
-	 * Ambil & validasi style_id/license_id dari request saat ini.
+	 * Validasi kombinasi style_ids + license_id, hitung total harga (dengan
+	 * diskon paket lengkap bila berlaku). Dipakai REST controller sebelum
+	 * memasukkan item ke cart — SATU-SATUNYA tempat harga final dihitung,
+	 * supaya nilai dari klien tidak pernah dipercaya langsung.
 	 *
-	 * @param int $product_id ID produk font.
-	 * @return array|WP_Error {style, license, price} atau WP_Error.
+	 * @param int   $product_id ID produk font.
+	 * @param array $style_ids  Daftar ID style yang dipilih.
+	 * @param int   $license_id ID lisensi yang dipilih.
+	 * @return array|WP_Error {style_ids,style_names,license_id,license_name,price,is_bundle} atau WP_Error.
 	 */
-	private static function get_requested_combo( $product_id ) {
-		$style_id   = isset( $_REQUEST['aksara_style_id'] ) ? absint( $_REQUEST['aksara_style_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- WooCommerce add-to-cart itself is not nonce-protected by default.
-		$license_id = isset( $_REQUEST['aksara_license_id'] ) ? absint( $_REQUEST['aksara_license_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-
-		if ( ! $style_id || ! $license_id ) {
-			return new WP_Error( 'aksara_missing_selection', __( 'Pilih style dan jenis lisensi terlebih dahulu.', 'aksara-marketplace' ) );
+	public static function validate_combo( $product_id, $style_ids, $license_id ) {
+		$product = wc_get_product( $product_id );
+		if ( ! $product instanceof WC_Product_Font ) {
+			return new WP_Error( 'aksara_invalid_product', __( 'Produk tidak valid.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
-		$style = Aksara_Font_Styles_Repository::get( $style_id );
-		if ( ! $style || (int) $style->product_id !== (int) $product_id ) {
-			return new WP_Error( 'aksara_invalid_style', __( 'Style yang dipilih tidak valid.', 'aksara-marketplace' ) );
+		$style_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $style_ids ) ) ) );
+		if ( empty( $style_ids ) ) {
+			return new WP_Error( 'aksara_missing_style', __( 'Pilih minimal 1 style.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
 		$license = Aksara_Font_Licenses_Repository::get( $license_id );
 		if ( ! $license ) {
-			return new WP_Error( 'aksara_invalid_license', __( 'Jenis lisensi yang dipilih tidak valid.', 'aksara-marketplace' ) );
+			return new WP_Error( 'aksara_invalid_license', __( 'Jenis lisensi tidak valid.', 'aksara-marketplace' ), array( 'status' => 400 ) );
 		}
 
-		$price = Aksara_Font_Licenses_Repository::get_style_price( $style_id, $license_id );
-		if ( null === $price ) {
-			return new WP_Error( 'aksara_price_unset', __( 'Kombinasi style dan lisensi ini belum memiliki harga.', 'aksara-marketplace' ) );
+		$all_styles     = Aksara_Font_Styles_Repository::get_by_product( $product_id );
+		$styles_by_id   = wp_list_pluck( $all_styles, null, 'id' );
+		$priced_all_ids = array();
+
+		$total       = 0.0;
+		$style_names = array();
+
+		foreach ( $all_styles as $style ) {
+			if ( null !== Aksara_Font_Licenses_Repository::get_style_price( $style->id, $license_id ) ) {
+				$priced_all_ids[] = (int) $style->id;
+			}
+		}
+
+		foreach ( $style_ids as $style_id ) {
+			if ( ! isset( $styles_by_id[ $style_id ] ) ) {
+				return new WP_Error( 'aksara_invalid_style', __( 'Salah satu style yang dipilih tidak valid.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+			}
+
+			$price = Aksara_Font_Licenses_Repository::get_style_price( $style_id, $license_id );
+			if ( null === $price ) {
+				return new WP_Error(
+					'aksara_price_unset',
+					sprintf(
+						/* translators: %s: nama style. */
+						__( 'Style "%s" belum memiliki harga untuk lisensi ini.', 'aksara-marketplace' ),
+						$styles_by_id[ $style_id ]->style_name
+					),
+					array( 'status' => 400 )
+				);
+			}
+
+			$total       += (float) $price;
+			$style_names[] = $styles_by_id[ $style_id ]->style_name;
+		}
+
+		// Diskon paket lengkap: hanya berlaku kalau SELURUH style yang punya
+		// harga untuk lisensi ini ikut dipilih (bukan sebagian).
+		$is_bundle = ! empty( $priced_all_ids )
+			&& empty( array_diff( $priced_all_ids, $style_ids ) )
+			&& empty( array_diff( $style_ids, $priced_all_ids ) );
+
+		$discount_percent = (float) get_post_meta( $product_id, '_aksara_bundle_discount_percent', true );
+		if ( $is_bundle && $discount_percent > 0 ) {
+			$total = $total * ( 1 - ( $discount_percent / 100 ) );
 		}
 
 		return array(
-			'style'   => $style,
-			'license' => $license,
-			'price'   => $price,
+			'style_ids'      => $style_ids,
+			'style_names'    => $style_names,
+			'license_id'     => (int) $license->id,
+			'license_name'   => $license->name,
+			'price'          => round( $total, 2 ),
+			'is_bundle'      => $is_bundle,
 		);
 	}
 
 	/**
-	 * Sisipkan style/license/price terpilih ke data cart item.
-	 *
-	 * @param array $cart_item_data Data cart item saat ini.
-	 * @param int   $product_id     ID produk.
-	 * @param int   $variation_id   ID variasi (tidak dipakai, produk font bukan variable product).
-	 * @return array
-	 */
-	public static function add_cart_item_data( $cart_item_data, $product_id, $variation_id ) {
-		$product = wc_get_product( $product_id );
-		if ( ! $product instanceof WC_Product_Font ) {
-			return $cart_item_data;
-		}
-
-		$combo = self::get_requested_combo( $product_id );
-		if ( is_wp_error( $combo ) ) {
-			return $cart_item_data;
-		}
-
-		$cart_item_data['aksara'] = array(
-			'style_id'     => (int) $combo['style']->id,
-			'style_name'   => $combo['style']->style_name,
-			'license_id'   => (int) $combo['license']->id,
-			'license_name' => $combo['license']->name,
-			'price'        => (float) $combo['price'],
-		);
-
-		return $cart_item_data;
-	}
-
-	/**
-	 * Terapkan harga kombinasi style+lisensi ke item cart (bukan harga produk default).
+	 * Terapkan harga kombinasi ke item cart (bukan harga produk default).
 	 *
 	 * @param WC_Cart $cart Objek cart WooCommerce.
 	 */
@@ -170,8 +240,8 @@ class Aksara_Cart_Handler {
 	/**
 	 * Tampilkan "Style" & "Lisensi" sebagai meta tambahan di cart/checkout.
 	 *
-	 * @param array $item_data  Data item yang sudah ada.
-	 * @param array $cart_item  Data cart item saat ini.
+	 * @param array $item_data Data item yang sudah ada.
+	 * @param array $cart_item Data cart item saat ini.
 	 * @return array
 	 */
 	public static function display_item_data( $item_data, $cart_item ) {
@@ -180,12 +250,12 @@ class Aksara_Cart_Handler {
 		}
 
 		$item_data[] = array(
-			'name'  => __( 'Style', 'aksara-marketplace' ),
-			'value' => $cart_item['aksara']['style_name'],
+			'name'  => _n( 'Style', 'Style', count( $cart_item['aksara']['style_names'] ), 'aksara-marketplace' ),
+			'value' => implode( ', ', $cart_item['aksara']['style_names'] ),
 		);
 		$item_data[] = array(
 			'name'  => __( 'Lisensi', 'aksara-marketplace' ),
-			'value' => $cart_item['aksara']['license_name'],
+			'value' => $cart_item['aksara']['license_name'] . ( ! empty( $cart_item['aksara']['is_bundle'] ) ? ' — ' . __( 'Paket Lengkap', 'aksara-marketplace' ) : '' ),
 		);
 
 		return $item_data;
@@ -206,9 +276,9 @@ class Aksara_Cart_Handler {
 			return;
 		}
 
-		$item->add_meta_data( __( 'Style', 'aksara-marketplace' ), $values['aksara']['style_name'] );
+		$item->add_meta_data( __( 'Style', 'aksara-marketplace' ), implode( ', ', $values['aksara']['style_names'] ) );
 		$item->add_meta_data( __( 'Lisensi', 'aksara-marketplace' ), $values['aksara']['license_name'] );
-		$item->add_meta_data( '_aksara_style_id', $values['aksara']['style_id'] );
+		$item->add_meta_data( '_aksara_style_ids', implode( ',', $values['aksara']['style_ids'] ) );
 		$item->add_meta_data( '_aksara_license_id', $values['aksara']['license_id'] );
 	}
 }

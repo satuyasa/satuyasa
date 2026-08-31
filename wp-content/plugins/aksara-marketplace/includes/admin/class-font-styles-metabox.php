@@ -82,15 +82,21 @@ class Aksara_Font_Styles_Metabox {
 
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
-		$styles   = Aksara_Font_Styles_Repository::get_by_product( $post->ID );
-		$licenses = Aksara_Font_Licenses_Repository::get_all();
-		$matrix   = Aksara_Font_Licenses_Repository::get_price_matrix_for_product( $post->ID );
+		$styles           = Aksara_Font_Styles_Repository::get_by_product( $post->ID );
+		$licenses         = Aksara_Font_Licenses_Repository::get_all();
+		$matrix           = Aksara_Font_Licenses_Repository::get_price_matrix_for_product( $post->ID );
+		$bundle_discount  = get_post_meta( $post->ID, '_aksara_bundle_discount_percent', true );
 
 		if ( empty( $licenses ) ) {
 			echo '<p>' . esc_html__( 'Belum ada jenis lisensi. Tambahkan dulu di menu WooCommerce > Lisensi Font.', 'aksara-marketplace' ) . '</p>';
 			return;
 		}
 		?>
+		<p>
+			<label for="aksara_bundle_discount_percent"><strong><?php esc_html_e( 'Diskon Paket Lengkap (%)', 'aksara-marketplace' ); ?></strong></label><br>
+			<input type="number" id="aksara_bundle_discount_percent" name="aksara_bundle_discount_percent" min="0" max="90" step="1" style="width:100px;" value="<?php echo esc_attr( $bundle_discount ); ?>">
+			<span class="description"><?php esc_html_e( 'Diterapkan otomatis di kalkulator saat pembeli memilih tombol "Pilih Semua" (seluruh style yang berharga untuk lisensi tersebut). Kosongkan/0 untuk menonaktifkan.', 'aksara-marketplace' ); ?></span>
+		</p>
 		<style>
 			.aksara-styles-table { width: 100%; border-collapse: collapse; }
 			.aksara-styles-table th, .aksara-styles-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
@@ -210,6 +216,11 @@ class Aksara_Font_Styles_Metabox {
 
 		if ( 'font' !== Aksara_Canva_Info_Metabox::get_current_product_type( $post_id ) ) {
 			return;
+		}
+
+		if ( isset( $_POST['aksara_bundle_discount_percent'] ) ) {
+			$discount = max( 0, min( 90, (float) $_POST['aksara_bundle_discount_percent'] ) );
+			update_post_meta( $post_id, '_aksara_bundle_discount_percent', $discount );
 		}
 
 		// 1) Hapus style yang ditandai.

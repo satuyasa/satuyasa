@@ -2,13 +2,13 @@
 
 Marketplace WordPress + WooCommerce untuk Font (per-style, lisensi bertingkat ala MyFonts), Canva Template, dan Canva Element. Lihat dokumen sumber (PRD, Starter Brief, Breakdown Task, mockup) untuk konteks lengkap — ringkasan & status implementasi ada di bawah.
 
-## Status: Fase 1 selesai (fondasi produk)
+## Status: Fase 2 selesai (preview engine & kalkulator lisensi)
 
 | Fase | Status |
 |---|---|
 | **Fase 0** — POC preview engine | ✅ Selesai — lihat `services/font-preview-service/` |
 | **Fase 1** — Fondasi produk & halaman inti | ✅ Selesai — lihat `wp-content/plugins/aksara-marketplace/` & `wp-content/themes/aksara/` |
-| **Fase 2** — Font preview engine interaktif & kalkulator lisensi | ⏳ Belum dimulai |
+| **Fase 2** — Font preview engine interaktif & kalkulator lisensi | ✅ Selesai — REST API `aksara/v1`, typing tool, kalkulator multi-style + diskon paket |
 | **Fase 3** — Download aman, invoice lisensi, wishlist | ⏳ Belum dimulai |
 | **Fase 4** — SEO, blog, polish, testing | ⏳ Belum dimulai |
 | **Fase 5** — Multi-vendor, integrasi Canva API, multi-bahasa | ⏳ Opsional, di luar keputusan saat ini |
@@ -40,13 +40,15 @@ services/
 ## Menjalankan di lokal
 
 1. **WordPress + WooCommerce**: salin `wp-content/themes/aksara` dan `wp-content/plugins/aksara-marketplace` ke instalasi WordPress, aktifkan WooCommerce lalu plugin lalu tema. Detail lengkap ada di `readme.txt` masing-masing folder.
-2. **Font preview service** (dibutuhkan mulai Fase 2, tapi bisa dites berdiri sendiri sekarang):
+2. **Font preview service** (dibutuhkan sejak Fase 2 untuk typing tool interaktif di halaman produk font):
    ```bash
    cd services/font-preview-service
    pip install -r requirements.txt
    python3 test_subsetter.py   # validasi POC
+   export AKSARA_FONT_STORAGE_DIR=/path/ke/wp-content/uploads/aksara-private
    python3 app.py              # jalankan service di localhost:5055
    ```
+   Tanpa service ini berjalan, situs tetap berfungsi (kalkulator harga & checkout tidak bergantung padanya) — hanya area pratinjau tulisan yang menampilkan pesan tidak tersedia.
 
 ## Catatan keamanan penting
 

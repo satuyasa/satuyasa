@@ -1,31 +1,183 @@
 /**
- * Style dasar untuk elemen yang ditambahkan Aksara Marketplace di frontend.
- * Palet & tipografi lengkap mengikuti tema Aksara (lihat wp-content/themes/aksara) —
- * file ini hanya menjamin form tetap rapi walau dipakai dengan tema lain.
+ * Style untuk typing tool + kalkulator lisensi interaktif (produk Font).
+ *
+ * Warna memakai CSS custom property dengan fallback (var(--indigo, #33417A)):
+ * kalau tema aktif mendefinisikan token yang sama (seperti tema Aksara,
+ * lihat wp-content/themes/aksara/style.css), widget ini otomatis mengikuti
+ * palet tema tanpa perlu dependency langsung; kalau tidak, tetap tampil
+ * rapi dengan warna default sendiri di tema lain.
  */
-
-.aksara-font-purchase-form label {
-	display: block;
-	font-weight: 600;
-	margin-bottom: 4px;
-}
-
-.aksara-font-purchase-form select {
-	width: 100%;
-	max-width: 360px;
-	padding: 8px 10px;
-	margin-bottom: 16px;
-}
-
-.aksara-selected-price {
-	font-size: 1.1em;
-}
 
 .aksara-no-styles {
 	color: #b42318;
 }
 
 .aksara-price-unset {
-	color: #5b6472;
+	color: var(--ink-soft, #5b6472);
 	font-style: italic;
 }
+
+.aksara-font-tool {
+	display: grid;
+	grid-template-columns: 1fr 320px;
+	gap: 40px;
+	align-items: start;
+	margin: 24px 0 48px;
+}
+
+@media (max-width: 900px) {
+	.aksara-font-tool { grid-template-columns: 1fr; }
+}
+
+.aksara-ft-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+.aksara-ft-weight-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.aksara-ft-weight-tab,
+.aksara-ft-italic-toggle {
+	padding: 7px 14px;
+	border: 1px solid var(--line, #D7D2C4);
+	background: var(--paper-raised, #F6F4EC);
+	font-size: 13px;
+	font-weight: 500;
+	border-radius: var(--radius, 3px);
+	cursor: pointer;
+	color: var(--ink-soft, #5b6472);
+}
+
+.aksara-ft-italic-toggle { font-style: italic; }
+
+.aksara-ft-weight-tab.is-active,
+.aksara-ft-italic-toggle.is-active {
+	background: var(--ink, #221F1A);
+	color: var(--paper, #EDEBE3);
+	border-color: var(--ink, #221F1A);
+}
+
+.aksara-ft-toolbar-right { display: flex; align-items: center; gap: 10px; }
+
+.aksara-ft-size-slider {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: var(--ink-soft, #5b6472);
+}
+
+.aksara-ft-preview-box {
+	background: var(--paper-raised, #F6F4EC);
+	border: 1px solid var(--line, #D7D2C4);
+	min-height: 180px;
+	padding: 24px 26px;
+}
+
+.aksara-ft-preview-text {
+	width: 100%;
+	min-height: 60px;
+	outline: none;
+	font-size: 52px;
+	line-height: 1.2;
+	color: var(--ink, #221F1A);
+	word-break: break-word;
+}
+
+.aksara-ft-preview-text.is-loading { opacity: .45; }
+
+.aksara-ft-preview-hint {
+	font-size: 12px;
+	color: var(--ink-soft, #5b6472);
+	margin-top: 10px;
+}
+
+#aksaraPreviewStatus { font-style: italic; }
+
+.aksara-ft-styles-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin: 36px 0 14px;
+}
+
+.aksara-ft-styles-head h3 { margin: 0; font-size: 20px; }
+
+.aksara-ft-styles-head span { font-size: 13px; color: var(--ink-soft, #5b6472); }
+
+.aksara-ft-style-list { border-left: 2px solid var(--ink, #221F1A); padding-left: 22px; }
+
+.aksara-ft-style-row {
+	display: grid;
+	grid-template-columns: 22px 160px 1fr;
+	align-items: center;
+	gap: 18px;
+	padding: 14px 0;
+	border-bottom: 1px solid var(--line, #D7D2C4);
+	cursor: pointer;
+}
+
+.aksara-ft-style-row:last-child { border-bottom: none; }
+.aksara-ft-style-row input { width: 16px; height: 16px; accent-color: var(--indigo, #33417A); }
+.aksara-ft-style-row .aksara-ft-style-name { font-size: 13.5px; font-weight: 600; }
+.aksara-ft-style-row .aksara-ft-style-sample {
+	font-size: 20px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	color: var(--ink-soft, #5b6472);
+}
+.aksara-ft-style-row .aksara-ft-style-price {
+	font-size: 12px;
+	color: var(--ochre, #BE7A2E);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.aksara-ft-select-all {
+	margin-top: 16px;
+	background: none;
+	border: 1px dashed var(--line, #D7D2C4);
+	border-radius: var(--radius, 3px);
+	padding: 8px 14px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--indigo, #33417A);
+	cursor: pointer;
+}
+
+.aksara-ft-side {
+	position: sticky;
+	top: 24px;
+	border: 1px solid var(--line, #D7D2C4);
+	background: var(--paper-raised, #F6F4EC);
+	padding: 22px;
+}
+
+.aksara-ft-side h3 { margin: 0 0 4px; font-size: 19px; }
+.aksara-ft-side-hint { font-size: 13px; color: var(--ink-soft, #5b6472); margin-bottom: 16px; }
+
+.aksara-ft-license-opt {
+	border: 1px solid var(--line, #D7D2C4);
+	border-radius: var(--radius, 3px);
+	padding: 12px 14px;
+	margin-bottom: 10px;
+	cursor: pointer;
+}
+.aksara-ft-license-opt.is-active { border-color: var(--indigo, #33417A); background: rgba(51,65,122,.06); }
+.aksara-ft-license-opt .aksara-ft-license-row { display: flex; justify-content: space-between; align-items: center; }
+.aksara-ft-license-opt b { font-size: 14px; font-weight: 600; }
+
+.aksara-ft-price-summary { border-top: 1px solid var(--line, #D7D2C4); margin-top: 16px; padding-top: 14px; }
+.aksara-ft-price-row { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--ink-soft, #5b6472); margin-bottom: 6px; }
+.aksara-ft-price-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 600; margin-top: 8px; }
+
+.aksara-ft-cta { width: 100%; margin-top: 14px; }
+.aksara-ft-cta:disabled { opacity: .5; cursor: not-allowed; }
+.aksara-ft-cta-note { font-size: 12px; text-align: center; margin-top: 10px; min-height: 1.2em; color: var(--ink-soft, #5b6472); }
+.aksara-ft-cta-note.is-error { color: #b42318; }
+.aksara-ft-cta-note.is-success { color: var(--teal, #1F5C52); }

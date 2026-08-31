@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
- * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, dan alur beli dasar.
- * Version: 0.1.0 (Fase 1 — fondasi produk)
+ * Description: Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Menambahkan product type kustom, manajemen style font, matriks harga lisensi, typing tool pratinjau interaktif, dan kalkulator lisensi.
+ * Version: 0.2.0 (Fase 2 — preview engine & kalkulator lisensi)
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.1.0' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.2.0' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );
@@ -55,7 +55,10 @@ function aksara_marketplace_load_includes() {
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-canva-info-metabox.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-font-styles-metabox.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/admin/class-license-admin.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-preview-service-client.php';
 	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-cart-handler.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-rest-controller.php';
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-cleanup-jobs.php';
 }
 
 /**
@@ -75,6 +78,8 @@ function aksara_marketplace_init() {
 	Aksara_Font_Styles_Metabox::init();
 	Aksara_License_Admin::init();
 	Aksara_Cart_Handler::init();
+	Aksara_Rest_Controller::init();
+	Aksara_Cleanup_Jobs::init();
 
 	Aksara_DB_Installer::maybe_upgrade();
 }
@@ -90,7 +95,13 @@ function aksara_marketplace_missing_woocommerce_notice() {
 }
 
 /**
- * Muat aset CSS/JS di sisi depan, hanya di halaman yang membutuhkan.
+ * Muat CSS di sisi depan, dan DAFTARKAN (belum enqueue) script typing tool.
+ *
+ * Typing tool baru benar-benar di-enqueue+localize oleh
+ * Aksara_Cart_Handler::render_add_to_cart_form() saat produk font yang
+ * sedang dilihat memang punya style — mendaftarkannya di sini (bukan di
+ * sana) supaya handle-nya sudah dikenal WordPress sebelum dipanggil dari
+ * dalam loop template WooCommerce.
  */
 function aksara_marketplace_enqueue_assets() {
 	if ( ! function_exists( 'is_product' ) ) {
@@ -104,18 +115,13 @@ function aksara_marketplace_enqueue_assets() {
 		AKSARA_MARKETPLACE_VERSION
 	);
 
-	if ( is_product() ) {
-		global $product;
-		if ( $product instanceof WC_Product_Font ) {
-			wp_enqueue_script(
-				'aksara-font-purchase-form',
-				AKSARA_MARKETPLACE_URL . 'assets/js/font-purchase-form.js',
-				array(),
-				AKSARA_MARKETPLACE_VERSION,
-				true
-			);
-		}
-	}
+	wp_register_script(
+		'aksara-font-typing-tool',
+		AKSARA_MARKETPLACE_URL . 'assets/js/font-typing-tool.js',
+		array(),
+		AKSARA_MARKETPLACE_VERSION,
+		true
+	);
 }
 add_action( 'wp_enqueue_scripts', 'aksara_marketplace_enqueue_assets' );
 
@@ -135,10 +141,14 @@ function aksara_marketplace_activate() {
 register_activation_hook( __FILE__, 'aksara_marketplace_activate' );
 
 /**
- * Saat deaktivasi: siram ulang rewrite rules. Data & tabel TIDAK dihapus
- * (uninstall data berbahaya untuk dilakukan otomatis di sini).
+ * Saat deaktivasi: siram ulang rewrite rules & batalkan jadwal cron.
+ * Data & tabel TIDAK dihapus (uninstall data berbahaya untuk dilakukan
+ * otomatis di sini).
  */
 function aksara_marketplace_deactivate() {
+	require_once AKSARA_MARKETPLACE_DIR . 'includes/class-cleanup-jobs.php';
+	Aksara_Cleanup_Jobs::unschedule();
+
 	flush_rewrite_rules();
 }
 register_deactivation_hook( __FILE__, 'aksara_marketplace_deactivate' );
