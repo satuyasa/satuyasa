@@ -1,0 +1,139 @@
+<?php
+/**
+ * Helper tema untuk terintegrasi dengan WooCommerce & plugin Aksara Marketplace.
+ *
+ * Semua akses ke class plugin dijaga dengan class_exists()/function_exists()
+ * supaya tema tidak fatal error kalau plugin Aksara Marketplace kebetulan
+ * nonaktif — tema tetap tampil (hanya kehilangan fitur spesifik marketplace).
+ *
+ * @package Aksara
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Ambil produk berdasarkan slug product_type kustom (font/canva_template/canva_element).
+ *
+ * @param string $type  Slug product_type.
+ * @param int    $limit Jumlah maksimal.
+ * @return WP_Query
+ */
+function aksara_query_products_by_type( $type, $limit = 12 ) {
+	return new WP_Query( array(
+		'post_type'      => 'product',
+		'posts_per_page' => $limit,
+		'post_status'    => 'publish',
+		'tax_query'      => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+			array(
+				'taxonomy' => 'product_type',
+				'field'    => 'slug',
+				'terms'    => $type,
+			),
+		),
+	) );
+}
+
+/**
+ * Hitung jumlah produk publish untuk satu product_type — dipakai di hero stats.
+ *
+ * @param string $type Slug product_type.
+ * @return int
+ */
+function aksara_count_products_by_type( $type ) {
+	$query = aksara_query_products_by_type( $type, -1 );
+	$count = (int) $query->found_posts;
+	wp_reset_postdata();
+	return $count;
+}
+
+/**
+ * Tampilkan info tambahan di ringkasan single product, sesuai jenisnya:
+ * jumlah style untuk Font, dimensi untuk Canva Template/Element.
+ *
+ * Tautan Canva (`_aksara_canva_link`) SENGAJA TIDAK ditampilkan di sini —
+ * itu adalah aset berbayar yang baru boleh diberikan setelah pembelian
+ * lunas. Sistem pengiriman aman (My Account > Downloads) menyusul di
+ * Fase 3; menampilkannya di halaman publik sekarang akan membocorkannya.
+ */
+function aksara_render_product_meta() {
+	global $product;
+
+	if ( ! $product instanceof WC_Product ) {
+		return;
+	}
+
+	echo '<div class="aksara-product-meta">';
+
+	if ( $product instanceof WC_Product_Font && class_exists( 'Aksara_Font_Styles_Repository' ) ) {
+		$styles = Aksara_Font_Styles_Repository::get_by_product( $product->get_id() );
+		printf(
+			'<span>%s</span>',
+			esc_html(
+				sprintf(
+					/* translators: %d: jumlah style. */
+					_n( '%d style', '%d style', count( $styles ), 'aksara' ),
+					count( $styles )
+				)
+			)
+		);
+	}
+
+	if ( in_array( $product->get_type(), array( 'canva_template', 'canva_element' ), true ) ) {
+		$dimensions = get_post_meta( $product->get_id(), '_aksara_dimensions', true );
+		if ( $dimensions ) {
+			echo '<span>' . esc_html( $dimensions ) . '</span>';
+		}
+	}
+
+	$categories = wc_get_product_category_list( $product->get_id() );
+	if ( $categories ) {
+		echo '<span>' . wp_kses_post( $categories ) . '</span>';
+	}
+
+	echo '</div>';
+}
+add_action( 'woocommerce_single_product_summary', 'aksara_render_product_meta', 6 );
+
+/**
+ * Wrapper aman untuk cek apakah sebuah produk bertipe 'font'.
+ *
+ * @param WC_Product|null $product Produk WooCommerce.
+ * @return bool
+ */
+function aksara_is_font_product( $product ) {
+	return $product instanceof WC_Product && 'font' === $product->get_type();
+}
+
+/**
+ * Cari URL halaman berdasarkan page template kustom yang dipakainya
+ * (mis. 'fonts' -> page-templates/template-fonts.php). Halaman itu sendiri
+ * dibuat manual oleh admin lewat wp-admin (Pages > Add New > pilih Page
+ * Attributes > Template) — fungsi ini hanya mencari URL-nya secara dinamis
+ * supaya tidak hardcode slug/page ID di seluruh tema.
+ *
+ * @param string $slug 'fonts' | 'templates' | 'elements' | 'license'.
+ * @return string URL halaman, atau '#' jika halaman belum dibuat.
+ */
+function aksara_get_listing_url( $slug ) {
+	static $cache = array();
+
+	if ( isset( $cache[ $slug ] ) ) {
+		return $cache[ $slug ];
+	}
+
+	$template_file = 'page-templates/template-' . $slug . '.php';
+
+	$pages = get_posts( array(
+		'post_type'      => 'page',
+		'posts_per_page'   => 1,
+		'post_status'      => 'publish',
+		'meta_key'         => '_wp_page_template', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		'meta_value'       => $template_file, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+	) );
+
+	$cache[ $slug ] = ! empty( $pages ) ? get_permalink( $pages[0] ) : '#';
+
+	return $cache[ $slug ];
+}

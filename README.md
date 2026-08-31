@@ -1,50 +1,53 @@
-# Satuyasa — Theme & Plugin WordPress
+# Aksara Marketplace
 
-Repo ini berisi sepasang tema dan plugin WordPress custom, murni PHP tanpa build step (tidak perlu `npm install` / compiler).
+Marketplace WordPress + WooCommerce untuk Font (per-style, lisensi bertingkat ala MyFonts), Canva Template, dan Canva Element. Lihat dokumen sumber (PRD, Starter Brief, Breakdown Task, mockup) untuk konteks lengkap — ringkasan & status implementasi ada di bawah.
 
-## Struktur
+## Status: Fase 1 selesai (fondasi produk)
+
+| Fase | Status |
+|---|---|
+| **Fase 0** — POC preview engine | ✅ Selesai — lihat `services/font-preview-service/` |
+| **Fase 1** — Fondasi produk & halaman inti | ✅ Selesai — lihat `wp-content/plugins/aksara-marketplace/` & `wp-content/themes/aksara/` |
+| **Fase 2** — Font preview engine interaktif & kalkulator lisensi | ⏳ Belum dimulai |
+| **Fase 3** — Download aman, invoice lisensi, wishlist | ⏳ Belum dimulai |
+| **Fase 4** — SEO, blog, polish, testing | ⏳ Belum dimulai |
+| **Fase 5** — Multi-vendor, integrasi Canva API, multi-bahasa | ⏳ Opsional, di luar keputusan saat ini |
+
+## Keputusan arsitektur yang sudah ditetapkan
+
+| Keputusan | Pilihan |
+|---|---|
+| Model bisnis | Single-vendor |
+| Integrasi Canva | Link/file statis (bukan Canva API resmi) |
+| Skema harga web license | Flat price (bukan tier per-pageview) |
+| Payment gateway | PayPal |
+| Base tema | Full-custom dari nol |
+| Preview typing tool | Debounce ~1 detik saat diimplementasikan di Fase 2 |
+| Volume katalog awal | Menengah (ratusan produk) — bulk-upload style font diprioritaskan sejak Fase 1 |
+| Storage file privat | Disk lokal + permission ketat (`.htaccess`) |
+| Lokasi microservice | Server sama, port internal (localhost) |
+
+## Struktur repo
 
 ```
 wp-content/
-├── themes/
-│   └── satuyasa/            # Tema serbaguna (bisnis, portofolio, blog)
-└── plugins/
-    └── satuyasa-toolkit/    # Plugin pendamping: CPT Portofolio, form kontak, sosial media
+├── themes/aksara/                    # Tema frontend (lihat readme.txt di dalamnya)
+└── plugins/aksara-marketplace/       # Plugin: product type, DB, metabox admin, cart (lihat readme.txt)
+services/
+└── font-preview-service/             # POC Fase 0: microservice subsetting font (Python + fontTools)
 ```
 
-## Tema: Satuyasa
+## Menjalankan di lokal
 
-Tema klasik (bukan full-site editing) yang ringan dan mudah dikustom lewat Customizer:
+1. **WordPress + WooCommerce**: salin `wp-content/themes/aksara` dan `wp-content/plugins/aksara-marketplace` ke instalasi WordPress, aktifkan WooCommerce lalu plugin lalu tema. Detail lengkap ada di `readme.txt` masing-masing folder.
+2. **Font preview service** (dibutuhkan mulai Fase 2, tapi bisa dites berdiri sendiri sekarang):
+   ```bash
+   cd services/font-preview-service
+   pip install -r requirements.txt
+   python3 test_subsetter.py   # validasi POC
+   python3 app.py              # jalankan service di localhost:5055
+   ```
 
-- Halaman depan (`front-page.php`) dengan hero yang bisa diatur judul/subjudul/tombolnya lewat **Tampilan > Kustomisasi**.
-- Grid portofolio otomatis muncul di halaman depan jika plugin Satuyasa Toolkit aktif.
-- Mendukung custom logo, menu utama & footer, widget sidebar + 3 kolom widget footer.
-- Navigasi mobile responsif, dukungan komentar bertingkat, pagination.
-- Tautan sosial media & teks footer diambil dari pengaturan plugin (opsional).
+## Catatan keamanan penting
 
-## Plugin: Satuyasa Toolkit
-
-Menambahkan fitur yang biasanya dibutuhkan situs bisnis/portofolio:
-
-- Custom Post Type **Portofolio** + taksonomi **Kategori Portofolio**.
-- Meta box: nama klien, tautan proyek, tahun pengerjaan.
-- Shortcode `[satuyasa_portfolio limit="6" columns="3" category="slug"]`.
-- Shortcode `[satuyasa_contact]` — formulir kontak dengan honeypot anti-spam, mengirim email via `wp_mail()`.
-- Halaman **Pengaturan > Satuyasa Toolkit**: email tujuan kontak, URL Facebook/Instagram, nomor WhatsApp, teks footer.
-
-Plugin ini berdiri sendiri — tetap berfungsi walau memakai tema WordPress lain.
-
-## Instalasi (lokal/staging)
-
-1. Salin folder `wp-content/themes/satuyasa` ke instalasi WordPress Anda di `wp-content/themes/`.
-2. Salin folder `wp-content/plugins/satuyasa-toolkit` ke `wp-content/plugins/`.
-3. Di wp-admin: aktifkan plugin **Satuyasa Toolkit**, lalu aktifkan tema **Satuyasa**.
-4. Atur menu, logo, dan hero lewat **Tampilan > Kustomisasi**.
-5. Isi kontak & sosial media lewat **Pengaturan > Satuyasa Toolkit**.
-6. Tambahkan konten pada menu **Portofolio**.
-
-## Catatan pengembangan
-
-- Semua file PHP sudah divalidasi dengan `php -l` (tanpa error sintaks).
-- Kode mengikuti praktik keamanan WordPress standar: nonce untuk form, `esc_html()`/`esc_url()`/`esc_attr()` untuk output, `sanitize_*()` untuk input.
-- Teks domain: `satuyasa` (tema) dan `satuyasa-toolkit` (plugin) — siap diterjemahkan (translation-ready).
+File font/template asli **tidak pernah** diekspos lewat URL publik — baik di halaman Home (yang sengaja tidak merender font asli produk, lihat `readme.txt` tema) maupun di microservice preview (yang hanya mengirim subset glyph terbatas dengan token kedaluwarsa, bukan file lengkap). Detail lengkap ada di PRD Bagian 8 (Keamanan) dan `services/font-preview-service/README.md`.
