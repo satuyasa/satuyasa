@@ -1,0 +1,31 @@
+/**
+ * Style dasar untuk elemen yang ditambahkan Aksara Marketplace di frontend.
+ * Palet & tipografi lengkap mengikuti tema Aksara (lihat wp-content/themes/aksara) —
+ * file ini hanya menjamin form tetap rapi walau dipakai dengan tema lain.
+ */
+
+.aksara-font-purchase-form label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.aksara-font-purchase-form select {
+	width: 100%;
+	max-width: 360px;
+	padding: 8px 10px;
+	margin-bottom: 16px;
+}
+
+.aksara-selected-price {
+	font-size: 1.1em;
+}
+
+.aksara-no-styles {
+	color: #b42318;
+}
+
+.aksara-price-unset {
+	color: #5b6472;
+	font-style: italic;
+}
