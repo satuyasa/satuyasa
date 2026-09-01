@@ -298,6 +298,8 @@ Yang DILAPORKAN, belum diubah, karena butuh keputusan:
   dibersihkan, tanpa gejala lain. Perbaikannya menyangkut postur keamanan
   endpoint render (mis. melepas nonce untuk preview katalog publik, atau
   menyegarkan nonce lewat endpoint ringan), jadi itu keputusan Anda.
+  -> DITUTUP di v1.0.2 dengan cara ketiga: umur nonce diperpanjang khusus
+  untuk action ini, tanpa melepas nonce sama sekali.
 
 == v1.0.1 — dua celah preview teks ditutup ==
 
@@ -323,3 +325,86 @@ belum punya kini punya:
 
 Blok baru ini ikut terdaftar di inserter (kategori Aksara), jadi bisa
 dipindah atau dipakai ulang lewat Site Editor seperti blok tema lainnya.
+
+
+== v1.0.2 - umur nonce preview & perbaikan clobber AthSpecimen ==
+
+Dua perbaikan, keduanya sepenuhnya di sisi tema. Tidak ada file plugin
+Authentype yang disentuh, supaya update plugin tidak menimpanya.
+
+**1. Preview katalog gagal di situs dengan full-page cache.**
+
+Ini temuan terakhir dari audit v1.0.1 yang tadinya hanya dilaporkan.
+renderNonce dicetak ke dalam HTML halaman. Nonce WordPress default berumur
+1 hari dan efektifnya 12-24 jam (verifikasi menerima tick sekarang + tick
+sebelumnya). Full-page cache seperti WP Rocket, LiteSpeed, Varnish, atau
+Cloudflare APO menyajikan HTML yang sama jauh lebih lama dari itu, sehingga
+setiap canvas preview di katalog gagal dengan "Preview unavailable" sampai
+cache dibersihkan manual - tanpa error lain yang terlihat.
+
+Perbaikannya satu filter nonce_life di inc/authentype-integration.php yang
+menyaring berdasarkan $action:
+
+* ath_specimen_render_preview -> 30 hari (jaminan minimum 15 hari), bisa
+  diubah lewat filter aksara_specimen_nonce_ttl.
+* ath_specimen_cart -> 7 hari, bisa diubah lewat filter
+  aksara_specimen_cart_nonce_ttl. Nonce keranjang kena masalah cache yang
+  sama: tombol Add to cart gagal diam-diam di halaman produk yang di-cache.
+  Umurnya sengaja jauh lebih pendek karena ini action yang mengubah state.
+* Action lain (wp_rest, nonce admin, dan seterusnya) tidak tersentuh.
+
+Kenapa memperpanjang umur nonce render aman: nonce itu sudah dicetak di HTML
+publik pada setiap halaman katalog, jadi ia tidak pernah rahasia; endpointnya
+read-only (hanya menghasilkan PNG); dan endpoint tetap punya pertahanan yang
+tidak bergantung nonce, yaitu rate limit per-IP plus pemeriksaan post bertipe
+ath_font berstatus publish. Yang melebar hanya jendela replay endpoint gambar
+publik.
+
+Kenapa filternya harus berlaku untuk pembuatan DAN verifikasi: ada dua tempat
+pembuatan nonce render (tema, dan shortcode plugin) dan tiga tempat
+verifikasi. Kalau umurnya hanya dilonggarkan saat request AJAX, pembuatan
+tetap pakai umur default sementara verifikasi pakai umur panjang; ticknya
+tidak akan pernah cocok dan SEMUA preview langsung gagal. Simulasi tick
+mengonfirmasi ini gagal pada hari ke-0. Karena filter nonce_life bersifat
+global dan hanya disaring lewat $action, kedua tempat pembuatan dan ketiga
+tempat verifikasi otomatis sepakat.
+
+Catatan versi WordPress, disebut apa adanya: $action baru diteruskan ke
+filter nonce_life pada WordPress yang wp_nonce_tick()-nya menerima argumen.
+Versi persisnya tidak bisa diverifikasi dari lingkungan kerja ini (akses
+wordpress.org diblokir), jadi kodenya tidak menebak nomor versi - ia
+memeriksa runtime lewat ReflectionFunction. Pada WordPress lama filter ini
+mengembalikan umur apa adanya (fail-safe: tidak ada yang rusak, tapi bug
+cache di atas juga belum tertutup). Statusnya dilaporkan di
+Tools > Site Health > Info > Aksara theme, lengkap dengan saran menurunkan
+TTL page cache di bawah 12 jam kalau tidak didukung.
+
+**2. Data AthSpecimen milik plugin tertimpa oleh tema (regresi v1.0.1).**
+
+Ditemukan saat menelusuri jalur nonce di atas. wp_localize_script() tidak
+menggabungkan data: ia merangkai ulang blok sebelumnya lalu menambahkan
+"var AthSpecimen = {...};" yang baru, jadi deklarasi terakhir menang.
+
+Di halaman produk font, shortcode [authentype_font_specimen] melokalisasi
+lebih dulu (blok authentype-single baris 62), lalu kartu "Related font
+families" (baris 63) - yang baru ditambahkan di v1.0.1 - memanggil
+aksara_authentype_enqueue_preview() dan melokalisasi lagi. Objek tema hanya
+berisi ajaxUrl, renderNonce, dan i18n preview, sehingga nonce keranjang,
+cartUrl, format mata uang, batas multi-style, dan seluruh i18n keranjang
+milik plugin ikut hilang. Akibatnya tombol Add to cart gagal di SETIAP
+halaman produk font.
+
+Sekarang tema memeriksa dulu apakah AthSpecimen sudah dilokalisasi pada
+handle skrip itu; kalau sudah, tema tidak menyentuhnya (data plugin sudah
+memuat renderNonce yang dibutuhkan). Di halaman katalog, arsip, dan hasil
+pencarian - tempat plugin tidak ikut jalan - tema tetap mengisinya sendiri.
+
+**Verifikasi.** Keduanya diuji dengan harness PHP yang meniru mekanika
+aslinya: simulasi tick nonce membuktikan preview bertahan 20 hari lalu
+kedaluwarsa di hari ke-31, nonce keranjang bertahan 3 hari lalu kedaluwarsa
+di hari ke-8, action lain tetap 1 hari, dan pemanggilan tanpa $action tidak
+mengubah apa pun. Simulasi semantik WP_Scripts::localize() membuktikan nonce
+keranjang memang HILANG tanpa guard dan kembali utuh dengannya, pada ketiga
+urutan pemanggilan. Yang belum bisa diuji dari sini tetap sama seperti
+sebelumnya: tidak ada runtime WordPress/WooCommerce/MySQL, jadi render
+sebenarnya masih perlu dicek di staging.

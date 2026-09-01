@@ -188,6 +188,141 @@ function aksara_authentype_styles( $font_id ) {
 	} ) );
 }
 
+/**
+ * Umur nonce preview specimen.
+ *
+ * Masalahnya: renderNonce ditanam ke dalam HTML halaman. Umur nonce WordPress
+ * default 1 hari, dan efektifnya hanya 12-24 jam karena verifikasi menerima
+ * tick sekarang + tick sebelumnya. Di situs dengan full-page cache (WP Rocket,
+ * LiteSpeed, Varnish, Cloudflare APO) HTML katalog bisa disajikan jauh lebih
+ * lama dari itu, sehingga setiap canvas preview gagal dengan "Preview
+ * unavailable" sampai cache dibersihkan manual.
+ *
+ * Kenapa memperpanjang umur nonce ini aman:
+ *   - Nonce ini sudah dicetak di HTML publik pada setiap halaman katalog, jadi
+ *     siapa pun yang bisa membuka halaman sudah memilikinya. Ia tidak pernah
+ *     menjadi rahasia dan tidak melindungi apa pun yang bernilai.
+ *   - Endpoint-nya read-only: ia hanya me-render PNG specimen.
+ *   - Endpoint tetap punya pertahanan sendiri yang tidak bergantung nonce:
+ *     rate limit per-IP (ath_specimen_render_rate_limit_ok) plus pemeriksaan
+ *     bahwa post bertipe ath_font dan berstatus publish.
+ * Yang hilang hanyalah jendela replay, dan replay dari endpoint gambar publik
+ * bukan ancaman.
+ *
+ * PENTING - filter ini harus berlaku untuk PEMBUATAN dan VERIFIKASI sekaligus.
+ * Ada dua tempat pembuatan nonce dengan action yang sama: tema (fungsi di
+ * bawah) dan plugin Authentype (shortcode-specimen.php). Kalau umur nonce
+ * hanya dilonggarkan saat request AJAX, pembuatan tetap memakai umur default
+ * sementara verifikasi memakai umur panjang; tick-nya tidak akan pernah cocok
+ * dan SEMUA preview langsung gagal. Karena filter nonce_life ini global dan
+ * hanya menyaring lewat $action, kedua tempat pembuatan dan ketiga tempat
+ * verifikasi otomatis memakai umur yang sama.
+ *
+ * Catatan versi WordPress: parameter $action baru diteruskan ke filter
+ * nonce_life pada WordPress yang wp_nonce_tick()-nya menerima argumen. Pada
+ * WordPress lama argumen kedua tidak dikirim, $action tetap '' , dan fungsi
+ * ini mengembalikan $life apa adanya - fail-safe: tidak ada yang rusak, tapi
+ * bug cache di atas juga belum tertutup. Status dukungan itu dilaporkan di
+ * Site Health (lihat aksara_nonce_life_is_action_scoped) supaya operator tahu
+ * harus menurunkan TTL page cache di bawah 12 jam.
+ */
+function aksara_specimen_nonce_life( $life, $action = '' ) {
+	if ( 'ath_specimen_render_preview' === $action ) {
+		$ttl = (int) apply_filters( 'aksara_specimen_nonce_ttl', 30 * DAY_IN_SECONDS );
+		return $ttl > 0 ? $ttl : $life;
+	}
+
+	// Nonce add-to-cart pada halaman produk kena masalah cache yang sama:
+	// kalau HTML produk disajikan dari cache lebih lama dari umur nonce,
+	// tombol "Add to cart" gagal diam-diam. Umurnya sengaja dibuat jauh lebih
+	// pendek daripada nonce preview karena ini action yang mengubah state.
+	// Trade-off-nya kecil: pengunjung anonim sudah menerima nonce ini di HTML
+	// publik (jadi bukan rahasia), sedangkan pengunjung yang login umumnya
+	// mem-bypass page cache sehingga selalu dapat nonce baru. Yang melebar
+	// hanyalah jendela CSRF add-to-cart, dan dampak terburuknya adalah item
+	// tambahan di keranjang korban - bukan pembayaran atau perubahan data.
+	// Turunkan ke 0 lewat filter di bawah untuk mengembalikan umur default.
+	if ( 'ath_specimen_cart' === $action ) {
+		$ttl = (int) apply_filters( 'aksara_specimen_cart_nonce_ttl', 7 * DAY_IN_SECONDS );
+		return $ttl > 0 ? $ttl : $life;
+	}
+
+	return $life;
+}
+add_filter( 'nonce_life', 'aksara_specimen_nonce_life', 10, 2 );
+
+/**
+ * Apakah WordPress ini meneruskan $action ke filter nonce_life?
+ *
+ * Dijawab dari runtime, bukan dari tebakan nomor versi: kalau wp_nonce_tick()
+ * punya parameter, WordPress meneruskan action-nya ke filter.
+ */
+function aksara_nonce_life_is_action_scoped() {
+	static $supported = null;
+	if ( null !== $supported ) {
+		return $supported;
+	}
+	$supported = false;
+	if ( function_exists( 'wp_nonce_tick' ) ) {
+		try {
+			$reflection = new ReflectionFunction( 'wp_nonce_tick' );
+			$supported  = $reflection->getNumberOfParameters() > 0;
+		} catch ( ReflectionException $e ) {
+			$supported = false;
+		}
+	}
+	return $supported;
+}
+
+/** Laporkan status umur nonce preview di Tools > Site Health > Info. */
+function aksara_specimen_debug_information( $info ) {
+	$scoped = aksara_nonce_life_is_action_scoped();
+	$ttl    = (int) apply_filters( 'aksara_specimen_nonce_ttl', 30 * DAY_IN_SECONDS );
+
+	$info['aksara'] = array(
+		'label'  => __( 'Aksara theme', 'aksara' ),
+		'fields' => array(
+			'specimen_nonce_ttl' => array(
+				'label' => __( 'Font preview nonce lifetime', 'aksara' ),
+				'value' => $scoped
+					/* translators: %d: number of days. */
+					? sprintf( _n( '%d day', '%d days', (int) round( $ttl / DAY_IN_SECONDS ), 'aksara' ), (int) round( $ttl / DAY_IN_SECONDS ) )
+					: __( 'WordPress default (about 1 day)', 'aksara' ),
+			),
+			'specimen_nonce_scoped' => array(
+				'label' => __( 'Page cache safe for font previews', 'aksara' ),
+				'value' => $scoped
+					? __( 'Yes', 'aksara' )
+					: __( 'No — this WordPress version cannot scope nonce lifetime per action. Keep the full-page cache lifetime under 12 hours, or font previews will fail on cached pages.', 'aksara' ),
+			),
+		),
+	);
+	return $info;
+}
+add_filter( 'debug_information', 'aksara_specimen_debug_information' );
+
+/**
+ * Pasang aset specimen Authentype untuk kartu/baris preview milik tema.
+ *
+ * Tema dan plugin sama-sama mengisi objek global AthSpecimen pada handle
+ * skrip yang sama. wp_localize_script() TIDAK menggabungkan data: ia
+ * merangkai ulang blok sebelumnya lalu menambahkan "var AthSpecimen = {...};"
+ * yang baru, jadi deklarasi terakhirlah yang menang.
+ *
+ * Di halaman produk font urutannya adalah shortcode [authentype_font_specimen]
+ * dulu (blok authentype-single baris 62), baru kartu "Related font families"
+ * (baris 63) yang memanggil fungsi ini. Kalau tema ikut melokalisasi di sana,
+ * objek milik plugin - yang berisi nonce keranjang, cartUrl, format mata uang,
+ * batas multi-style, dan seluruh i18n keranjang - tertimpa oleh objek tema
+ * yang hanya punya renderNonce. Akibatnya tombol Add to cart gagal di SETIAP
+ * halaman produk font.
+ *
+ * Karena itu: kalau plugin sudah melokalisasi AthSpecimen, jangan sentuh.
+ * Datanya sudah memuat renderNonce yang kita butuhkan. Kalau tema yang jalan
+ * lebih dulu (halaman katalog, arsip, hasil pencarian - plugin tidak ikut di
+ * sana) barulah tema mengisinya sendiri; bila plugin menyusul belakangan,
+ * datanya adalah superset sehingga aman tertimpa.
+ */
 function aksara_authentype_enqueue_preview() {
 	static $done = false;
 	if ( $done || ! aksara_authentype_available() ) {
@@ -196,6 +331,12 @@ function aksara_authentype_enqueue_preview() {
 	$done = true;
 	wp_enqueue_style( 'authentype-font-specimen' );
 	wp_enqueue_script( 'authentype-font-specimen' );
+
+	$existing = wp_scripts()->get_data( 'authentype-font-specimen', 'data' );
+	if ( is_string( $existing ) && false !== strpos( $existing, 'AthSpecimen' ) ) {
+		return;
+	}
+
 	wp_localize_script( 'authentype-font-specimen', 'AthSpecimen', array(
 		'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
 		'renderNonce' => wp_create_nonce( 'ath_specimen_render_preview' ),
