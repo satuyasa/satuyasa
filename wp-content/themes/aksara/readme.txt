@@ -228,3 +228,73 @@ Halaman WooCommerce (cart, checkout, My Account) kini dilayani template blok
 milik WooCommerce sendiri, bukan `woocommerce.php`. CSS commerce dari 0.9.1
 tetap berlaku karena berbasis class WooCommerce, tapi ini WAJIB dicek di
 staging — ini perubahan perilaku terbesar dari konversi ini.
+
+== Audit preview teks (per halaman) ==
+
+Peta siapa yang merender preview sekarang: Authentype. Tema TIDAK lagi
+memakai mesin GD di plugin aksara-marketplace (Aksara_Specimen_Image) —
+mesin itu kini tidak dipanggil dari tema sama sekali. Baris spesimen memakai
+<canvas class="ath-server-canvas"> yang diisi specimen.js lewat satu POST
+ke admin-ajax (action ath_specimen_render_preview) yang mengembalikan PNG.
+
+Halaman yang PUNYA preview teks:
+
+| Halaman              | Mekanisme                          | Status |
+|----------------------|------------------------------------|--------|
+| Home                 | blok Font specimen list -> canvas  | ada    |
+| Font library/archive | blok Font library -> canvas        | ada    |
+| Halaman font tunggal | shortcode authentype_font_specimen | ada    |
+
+Halaman yang BUTUH tapi BELUM punya:
+
+* **Related font families** (di halaman font tunggal). font-product-card.php
+  cuma menampilkan gambar galeri, atau judul biasa kalau tidak ada gambar.
+  Di halaman produk font, justru di situlah pembeli membandingkan wujud
+  huruf — dan tidak ada satu pun huruf yang ditampilkan.
+* **Hasil pencarian.** CPT ath_font public dan ikut terindeks pencarian,
+  tapi templates/search.html memakai blok core (judul + kutipan), jadi
+  mencari nama font menghasilkan daftar teks polos tanpa wujud hurufnya.
+
+Yang sudah diverifikasi BENAR (diperiksa, bukan diasumsikan):
+
+* Handle aset 'authentype-font-specimen' yang di-enqueue tema memang handle
+  yang didaftarkan Authentype.
+* Konfigurasi AthSpecimen versi tema jauh lebih kecil daripada versi
+  shortcode (4 kunci vs 13), dan itu TIDAK masalah: jalur render canvas di
+  specimen.js hanya membaca ajaxUrl, renderNonce, i18n.loading,
+  i18n.renderFailed, dan i18n.failed — persis yang disediakan tema. Kunci
+  harga/keranjang hanya dipakai widget di halaman produk, tempat Authentype
+  melokalkan konfigurasinya sendiri.
+* Render malas aktif (canvasNearViewport, margin 420px), jadi arsip berisi
+  20 baris tidak menembakkan 20 request sekaligus.
+* Tinggi canvas dipesan lebih dulu (112px desktop, 84px mobile), jadi
+  pergeseran tata letak saat render selesai terbatas.
+
+Yang diperbaiki di sini:
+
+* **Tanpa JavaScript, baris spesimen benar-benar kosong.** Cadangan
+  <span class="sp-specimen-fallback"> hanya dirender kalau font tidak punya
+  token — bukan kalau JS gagal. Karena spesimen adalah satu-satunya isi
+  visual baris itu, JS yang diblokir membuat seluruh daftar font tampak
+  kosong. Ditambahkan cadangan <noscript>. (Versi sebelum Authentype memakai
+  <img> hasil render server yang selalu tampil; ketergantungan pada JS ini
+  hal baru.)
+* **Warna tinta menyimpang.** Baris spesimen mengirim
+  data-text-color="#111111", padahal DESIGN.md menetapkan tinta hanya
+  #000000 — dan cadangan .sp-specimen-fallback memakai var(--ink) = #000.
+  Jadi saat canvas gagal dan cadangan muncul, warnanya berubah. Disamakan
+  ke #000000.
+* **CSS mati yang menyesatkan.** Aturan .sp-specimen img beserta komentar
+  panjangnya masih menjelaskan Aksara_Specimen_Image::get_img_tag() yang
+  tidak lagi dipakai; !important-nya melawan height inline yang sudah tidak
+  ada. Diluruskan.
+
+Yang DILAPORKAN, belum diubah, karena butuh keputusan:
+
+* **renderNonce + cache halaman penuh.** Nonce ditanam di HTML dan berumur
+  12-24 jam. Di situs dengan page cache (lazim untuk toko WooCommerce), HTML
+  yang di-cache bertahan lebih lama daripada nonce-nya — begitu kedaluwarsa,
+  SETIAP preview katalog gagal dengan "Preview unavailable" sampai cache
+  dibersihkan, tanpa gejala lain. Perbaikannya menyangkut postur keamanan
+  endpoint render (mis. melepas nonce untuk preview katalog publik, atau
+  menyegarkan nonce lewat endpoint ringan), jadi itu keputusan Anda.

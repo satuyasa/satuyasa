@@ -20,7 +20,7 @@ aksara_authentype_enqueue_preview();
 ?>
 <article class="specimen-row ath-specimen ath-specimen-v7 aksara-catalog-specimen"
 	data-font-post-id="<?php echo esc_attr( $font_id ); ?>"
-	data-text-color="#111111"
+	data-text-color="#000000"
 	data-bg-color="#ffffff">
 	<div class="sp-controls">
 		<div class="sp-label">
@@ -46,6 +46,19 @@ aksara_authentype_enqueue_preview();
 				data-font-size="112"
 				data-fit-single-line="1"
 				aria-label="<?php echo esc_attr( sprintf( __( '%s font preview', 'aksara' ), get_the_title( $font_id ) ) ); ?>"></canvas>
+			<?php
+			/*
+			 * Cadangan tanpa JavaScript. Preview katalog kini 100% bergantung
+			 * pada specimen.js: <canvas> diisi lewat satu POST ke admin-ajax.
+			 * Kalau JS diblokir, gagal dimuat, atau error, canvas tetap kotak
+			 * putih setinggi 112px — tanpa nama font, tanpa apa pun. Baris
+			 * spesimen adalah SATU-SATUNYA isi visual baris ini, jadi
+			 * kegagalannya berarti daftar font terlihat kosong sama sekali.
+			 * (Versi sebelum Authentype memakai <img> hasil render server yang
+			 * selalu tampil; ketergantungan pada JS ini adalah hal baru.)
+			 */
+			?>
+			<noscript><span class="sp-specimen-fallback"><?php the_title(); ?></span></noscript>
 		<?php else : ?>
 			<span class="sp-specimen-fallback"><?php the_title(); ?></span>
 		<?php endif; ?>

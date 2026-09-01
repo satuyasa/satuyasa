@@ -576,15 +576,16 @@ button[type="submit"], input[type="submit"],
 	padding: var(--spacing-24) 0;
 	overflow: hidden;
 }
-/* !important di sini disengaja dan perlu: Aksara_Specimen_Image::get_img_tag()
- * menulis height inline (style="height:115px;width:auto") supaya gambar
- * tetap benar di tema lain yang tidak punya CSS ini. Tanpa override,
- * max-width:100% akan mempersempit lebar sementara height inline bertahan
- * — gambarnya jadi gepeng di layar sempit. */
+/* Aturan ini dulu menangani <img> hasil Aksara_Specimen_Image (mesin GD di
+ * plugin aksara-marketplace). Sejak Authentype mengambil alih rendering,
+ * baris spesimen memakai <canvas>, bukan <img> — jadi selektor ini tidak
+ * pernah cocok dengan apa pun. Dipertahankan HANYA sebagai jaring pengaman
+ * kalau ada gambar disisipkan ke dalam .sp-specimen (mis. lewat pattern),
+ * tanpa !important yang tadinya dipasang untuk melawan height inline yang
+ * kini tidak ada lagi. */
 .sp-specimen img {
 	display: block;
-	height: auto !important;
-	width: auto;
+	height: auto;
 	max-width: 100%;
 	border-radius: 0;
 }
