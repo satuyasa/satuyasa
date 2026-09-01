@@ -152,3 +152,79 @@ woocommerce_content() dan TIDAK ada template WooCommerce yang di-fork
 Diverifikasi di Chromium headless dengan markup WooCommerce asli:
 `scrollWidth == clientWidth` untuk cart, checkout, dan blog pada 375px,
 768px, dan 1440px. Palet tetap 0 warna kromatik.
+
+== v1.0.0 — konversi penuh ke block theme (FSE) ==
+
+Tema ini sekarang block theme. Struktur halaman pindah dari template PHP ke
+`templates/*.html` + `parts/*.html`, token desain ke `theme.json`, dan bagian
+yang isinya query jadi blok dinamis. Home, Page, Single, Archive, Search, 404,
+serta halaman font Authentype semuanya bisa disusun lewat Site Editor.
+
+=== Yang membuat konversi ini tidak merusak desain ===
+
+`theme.json` mengunci sistem desainnya, bukan sekadar mendeklarasikannya:
+`color.custom`, `customGradient`, `customDuotone`, dan `defaultPalette`
+semuanya `false`, dan palet hanya berisi tujuh nilai akromatik. Artinya
+Site Editor TIDAK bisa menyisipkan warna di luar palet — aturan "0% warna
+kromatik" dari DESIGN.md jadi ditegakkan oleh sistem, bukan hanya oleh CSS
+yang bisa ditimpa. `customFontSize` dan preset shadow juga dimatikan.
+
+CSS 2.000 baris yang sudah diuji di browser TIDAK ditulis ulang. Template blok
+memakai `className` yang sama persis dengan template PHP lama (`.wrap`,
+`.hero`, `.specimen-list`, `.section-head`, `.entry-card`, dst.), jadi seluruh
+gaya — termasuk perbaikan cart/checkout/blog di 0.9.1 — langsung berlaku.
+
+=== Blok dinamis (inc/blocks.php) ===
+
+Bagian yang isinya berasal dari query tidak bisa jadi blok statis. Delapan
+blok merendernya di server, jadi bisa disisipkan lewat inserter tapi datanya
+selalu terkini:
+
+* Aksara: Hero — judul/subjudul kini atribut blok (bisa disunting di editor,
+  menggantikan get_theme_mod() yang hanya bisa lewat Customizer), hitungan
+  katalog tetap dinamis
+* Aksara: Category row, Font specimen list, Canva asset grid
+* Aksara: Font library (katalog Authentype + pencarian + paginasi)
+* Aksara: Font product body (halaman font tunggal)
+* Aksara: License list, Header actions (keranjang dengan jumlah item)
+
+Markup render part-nya dipindahkan APA ADANYA dari template PHP lama, bukan
+ditulis ulang — supaya tidak ada perilaku yang diam-diam berubah.
+
+Sisi editornya (`assets/js/blocks.js`) ditulis dalam JavaScript biasa memakai
+global `wp.*` — tanpa JSX, webpack, atau npm — konsisten dengan konvensi
+proyek ini yang tidak memakai build step. Pratinjau di editor memakai
+ServerSideRender, jadi yang terlihat adalah hasil render sesungguhnya.
+
+=== Satu bug yang ditemukan saat konversi ===
+
+`aksara_get_listing_url()` mencari halaman lewat meta `_wp_page_template`,
+dan bentuk nilainya BERBEDA antara classic dan block theme
+(`page-templates/template-elements.php` vs `page-elements`). Situs yang sudah
+berjalan masih menyimpan nilai lama, dan nilai itu tidak ikut berubah saat
+tema dikonversi — tanpa penanganan, seluruh tautan listing di hero dan kartu
+kategori berubah jadi `#` setelah upgrade, rusak tanpa pesan error apa pun.
+Sekarang kedua bentuk diterima.
+
+=== Yang dihapus ===
+
+Seluruh template PHP klasik (header/footer/index/single/page/archive/search/
+404/comments/sidebar/woocommerce/front-page/single-ath_font/archive-ath_font),
+`page-templates/`, `template-parts/content*.php`, `inc/template-tags.php`, dan
+`assets/js/navigation.js`. WordPress mengabaikan semuanya begitu `templates/`
+ada, jadi meninggalkannya hanya menyesatkan pembaca berikutnya.
+`register_nav_menus()` dan `register_sidebar()` juga dilepas — menu kini blok
+Navigation, widget kini blok biasa.
+
+=== Belum bisa diuji di sini ===
+
+Tanpa WordPress aktif, render sesungguhnya belum bisa dibuktikan. Yang sudah
+diverifikasi otomatis: seluruh PHP & JS lolos lint, `theme.json` valid, markup
+blok di 15 berkas template seimbang pasangan buka/tutupnya dengan JSON atribut
+yang valid, seluruh `customTemplates` & `templateParts` punya berkas yang
+sesuai, dan tidak ada referensi menggantung ke berkas yang dihapus.
+
+Halaman WooCommerce (cart, checkout, My Account) kini dilayani template blok
+milik WooCommerce sendiri, bukan `woocommerce.php`. CSS commerce dari 0.9.1
+tetap berlaku karena berbasis class WooCommerce, tapi ini WAJIB dicek di
+staging — ini perubahan perilaku terbesar dari konversi ini.

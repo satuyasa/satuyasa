@@ -1,10 +1,21 @@
 <?php
-/** Professional canonical font product page backed by Authentype + Woo. */
-if ( ! defined( 'ABSPATH' ) ) { exit; }
-get_header();
-while ( have_posts() ) :
-	the_post();
-	$font_id    = get_the_ID();
+/**
+ * Blok: halaman produk font Authentype (breadcrumb, header, galeri,
+ * ringkasan, specimen, font terkait).
+ *
+ * Dipindahkan apa adanya dari single-ath_font.php versi classic theme.
+ * Yang dilepas: get_header()/get_footer() (jadi template part di block
+ * theme) dan loop while(have_posts()) — di block theme, post yang sedang
+ * dilihat sudah menjadi konteks blok, jadi get_the_ID() langsung benar.
+ *
+ * @package Aksara
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+$font_id    = get_the_ID();
 	$styles     = function_exists( 'aksara_authentype_styles' ) ? aksara_authentype_styles( $font_id ) : array();
 	$product    = function_exists( 'aksara_authentype_linked_product' ) ? aksara_authentype_linked_product( $font_id ) : null;
 	$gallery    = function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 3 ) : array();
@@ -52,4 +63,3 @@ while ( have_posts() ) :
 			<section class="related-fonts"><div class="product-section-heading"><p class="eyebrow"><?php esc_html_e( 'Keep exploring', 'aksara' ); ?></p><h2><?php esc_html_e( 'Related font families', 'aksara' ); ?></h2></div><div class="related-font-grid"><?php while ( $related->have_posts() ) : $related->the_post(); get_template_part( 'template-parts/font-product-card' ); endwhile; wp_reset_postdata(); ?></div></section>
 		<?php endif; ?>
 	</div></main>
-<?php endwhile; get_footer(); ?>

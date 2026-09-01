@@ -2,6 +2,12 @@
 /**
  * Fungsi & definisi utama tema Aksara.
  *
+ * Sejak 1.0.0 ini BLOCK THEME (FSE): struktur halaman ada di templates/*.html
+ * dan parts/*.html, token desain di theme.json, dan bagian yang isinya query
+ * jadi blok dinamis di inc/blocks.php. Template PHP versi classic sudah
+ * dihapus — WordPress mengabaikannya begitu templates/ ada, jadi
+ * meninggalkannya hanya akan menyesatkan pembaca berikutnya.
+ *
  * @package Aksara
  */
 
@@ -9,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '0.9.1' );
+define( 'AKSARA_THEME_VERSION', '1.0.0' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -42,12 +48,13 @@ function aksara_setup() {
 	add_image_size( 'aksara-preview-md', 910, 607, true );
 	add_image_size( 'aksara-preview-sm', 600, 400, true );
 
-	register_nav_menus( array(
-		'primary' => __( 'Primary Menu', 'aksara' ),
-		'footer_shop'  => __( 'Footer — Shop', 'aksara' ),
-		'footer_help'  => __( 'Footer — Help', 'aksara' ),
-		'footer_about' => __( 'Footer — Company', 'aksara' ),
-	) );
+	/*
+	 * Tidak ada register_nav_menus() maupun register_sidebar() lagi: di block
+	 * theme, menu dikelola lewat blok Navigation di parts/header.html dan
+	 * parts/footer.html, dan widget digantikan blok biasa. Mendaftarkannya
+	 * hanya akan memunculkan panel Menus/Widgets yang tidak berpengaruh
+	 * apa pun terhadap tampilan.
+	 */
 }
 add_action( 'after_setup_theme', 'aksara_setup' );
 
@@ -92,7 +99,11 @@ function aksara_scripts() {
 
 	wp_enqueue_style( 'aksara-style', get_stylesheet_uri(), array(), AKSARA_THEME_VERSION );
 
-	wp_enqueue_script( 'aksara-navigation', AKSARA_THEME_URI . '/assets/js/navigation.js', array(), AKSARA_THEME_VERSION, true );
+	// navigation.js sudah dilepas: ia hanya menangani .menu-toggle milik
+	// header PHP versi classic. Di block theme, blok Navigation membawa
+	// overlay & tombol hamburger-nya sendiri, jadi skrip itu tidak akan
+	// pernah menemukan elemennya — memuatnya berarti satu request sia-sia
+	// di setiap halaman.
 
 	if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
 		wp_enqueue_script( 'comment-reply' );
@@ -100,42 +111,30 @@ function aksara_scripts() {
 }
 add_action( 'wp_enqueue_scripts', 'aksara_scripts' );
 
-/**
- * Daftarkan area widget.
- */
-function aksara_widgets_init() {
-	register_sidebar( array(
-		'name'          => __( 'Blog Sidebar', 'aksara' ),
-		'id'            => 'sidebar-1',
-		'before_widget' => '<div id="%1$s" class="widget %2$s">',
-		'after_widget'  => '</div>',
-		'before_title'  => '<h2 class="widget-title">',
-		'after_title'   => '</h2>',
-	) );
-}
-add_action( 'widgets_init', 'aksara_widgets_init' );
-
-require AKSARA_THEME_DIR . '/inc/template-tags.php';
 require AKSARA_THEME_DIR . '/inc/template-functions.php';
 require AKSARA_THEME_DIR . '/inc/woocommerce-helpers.php';
 require AKSARA_THEME_DIR . '/inc/authentype-integration.php';
 require AKSARA_THEME_DIR . '/inc/seo.php';
+require AKSARA_THEME_DIR . '/inc/blocks.php';
 
 /**
- * Fallback menu jika belum ada menu Utama yang diatur.
+ * Kategori sendiri di inserter, supaya blok tema tidak tercecer di antara
+ * blok core dan sulit ditemukan.
+ *
+ * @param array $categories Kategori yang sudah ada.
+ * @return array
  */
-function aksara_fallback_menu() {
-	echo '<ul id="primary-menu" class="menu">';
-	printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( home_url( '/' ) ), esc_html__( 'Home', 'aksara' ) );
-	if ( function_exists( 'aksara_authentype_archive_url' ) ) {
-		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_authentype_archive_url() ), esc_html__( 'Fonts', 'aksara' ) );
-	}
-	if ( function_exists( 'aksara_get_listing_url' ) ) {
-		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_get_listing_url( 'templates' ) ), esc_html__( 'Templates', 'aksara' ) );
-		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_get_listing_url( 'elements' ) ), esc_html__( 'Elements', 'aksara' ) );
-	}
-	echo '</ul>';
+function aksara_block_category( $categories ) {
+	array_unshift(
+		$categories,
+		array(
+			'slug'  => 'aksara',
+			'title' => __( 'Aksara', 'aksara' ),
+		)
+	);
+	return $categories;
 }
+add_filter( 'block_categories_all', 'aksara_block_category' );
 
 /** Show a clear setup warning instead of silently rendering an empty catalog. */
 function aksara_dependency_notice() {
