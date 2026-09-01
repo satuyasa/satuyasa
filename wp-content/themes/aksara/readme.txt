@@ -1,6 +1,6 @@
 === Aksara ===
 Contributors: aksara
-Requires at least: 6.0
+Requires at least: 6.6
 Tested up to: 6.6
 Requires PHP: 7.4
 Requires Plugins: woocommerce
@@ -408,3 +408,55 @@ keranjang memang HILANG tanpa guard dan kembali utuh dengannya, pada ketiga
 urutan pemanggilan. Yang belum bisa diuji dari sini tetap sama seperti
 sebelumnya: tidak ada runtime WordPress/WooCommerce/MySQL, jadi render
 sebenarnya masih perlu dicek di staging.
+
+
+== v1.0.3 - hasil audit menyeluruh ==
+
+Audit seluruh repo di delapan dimensi. Yang bersih dan tidak disentuh:
+escaping (nol echo tanpa esc_* di seluruh tema), SQL (semua nilai dinamis
+lewat $wpdb->prepare), palet monokrom (dua hex non-akromatik yang tersisa
+cuma ada di dalam komentar), string UI (tema sudah penuh Inggris), registrasi
+blok (9 blok cocok persis antara PHP, blocks.js, dan templates), referensi
+template-part, invalidasi transient (keempatnya punya hook), dan izin REST.
+
+Yang diperbaiki di tema:
+
+* **Requires at least dinaikkan 6.0 -> 6.6.** theme.json memakai version 3,
+  yang baru dimengerti WordPress 6.6. Menyatakan 6.0 berarti tema ini boleh
+  dipasang di WordPress yang tidak akan menerapkan sebagian sistem desainnya.
+  Diubah di style.css dan readme.txt ini; Tested up to memang sudah 6.6.
+* **Kategori pattern 'aksara' tidak pernah didaftarkan.** patterns/section.php
+  dan patterns/trust.php sama-sama mendeklarasikan "Categories: aksara", tapi
+  yang ada di functions.php cuma filter block_categories_all - registry
+  kategori BLOK, bukan kategori PATTERN. Keduanya registry terpisah, jadi
+  kedua pattern tidak pernah muncul sebagai tab tersendiri di inserter.
+  Ditambahkan register_block_pattern_category() di hook init.
+* **Tombol "Sign in" tetap muncul untuk pengunjung yang sudah login.**
+  header-actions.php sekarang menampilkan "My account" bila sudah login.
+* **Komentar cache di header-actions.php keliru.** Ia mengklaim jumlah item
+  keranjang "tidak boleh ikut ter-cache halaman penuh" karena jadi blok
+  dinamis. Blok dinamis dirender di server dan hasilnya TETAP masuk HTML yang
+  di-cache; menjadi dinamis sama sekali tidak melindunginya. Yang benar-benar
+  menjaga angka itu adalah cookie WooCommerce yang membuat page cache
+  di-bypass - dan itu syarat konfigurasi, bukan sifat bawaan. Komentarnya
+  diganti dengan penjelasan yang benar beserta konsekuensinya di
+  Varnish/Nginx/Cloudflare yang aturannya harus ditulis sendiri.
+
+Satu temuan audit DIBATALKAN setelah diperiksa ulang: dugaan "tidak ada skip
+link". Setiap template punya tepat satu landmark <main> - termasuk
+archive-ath_font.html, single-ath_font.html, dan page-fonts.html yang
+mendapatkannya dari blok font-library/authentype-single - dan WordPress
+menyuntikkan skip link sendiri untuk block theme. Menambahkan skip link tema
+justru akan menggandakannya, jadi tidak ada yang diubah.
+
+Satu temuan DILAPORKAN, belum diubah, karena butuh verifikasi staging:
+
+* **Cart & Checkout belum ditata untuk blok WooCommerce.** style.css punya 25
+  selektor .shop_table, 8 .cart-collaterals, dan 17 .checkout - semuanya
+  markup KLASIK. Selektor .wc-block-* / .wp-block-woocommerce-*: nol. Sejak
+  tema jadi block theme dan WooCommerce 8.3+ memakai blok Cart/Checkout
+  secara default untuk instalasi baru, dua halaman terpenting toko berpotensi
+  tampil di luar sistem desain. Perlu dicek dulu di staging: halaman Cart dan
+  Checkout Anda isinya shortcode [woocommerce_cart]/[woocommerce_checkout]
+  atau blok. Kalau blok, ini pekerjaan CSS baru yang tidak kecil.
+

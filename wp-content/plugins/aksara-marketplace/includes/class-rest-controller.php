@@ -77,69 +77,73 @@ class Aksara_Rest_Controller {
 	 * Daftarkan seluruh route.
 	 */
 	public static function register_routes() {
+		// Endpoint font milik Aksara hanya didaftarkan saat Authentype TIDAK
+		// aktif. Dalam mode Authentype, Authentype yang memiliki preview,
+		// harga, dan add-to-cart font; mendaftarkan endpoint ini juga akan
+		// membuat dua mesin font bersaing di permukaan HTTP yang sama.
 		if ( ! function_exists( 'aksara_marketplace_uses_authentype' ) || ! aksara_marketplace_uses_authentype() ) {
-		register_rest_route(
-			self::NAMESPACE_,
-			'/font-preview',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( __CLASS__, 'handle_font_preview' ),
-				'permission_callback' => array( __CLASS__, 'check_preview_rate_limit' ),
-				'args'                => array(
-					'style_id' => array( 'required' => true, 'type' => 'integer' ),
-					'text'     => array( 'required' => true, 'type' => 'string' ),
-				),
-			)
-		);
+			register_rest_route(
+				self::NAMESPACE_,
+				'/font-preview',
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( __CLASS__, 'handle_font_preview' ),
+					'permission_callback' => array( __CLASS__, 'check_preview_rate_limit' ),
+					'args'                => array(
+						'style_id' => array( 'required' => true, 'type' => 'integer' ),
+						'text'     => array( 'required' => true, 'type' => 'string' ),
+					),
+				)
+			);
 
-		// Batch, bukan bagian literal dari daftar endpoint di PRD — ditambahkan
-		// supaya grid daftar style (tiap baris render preview sendiri) tidak
-		// perlu N request HTTP terpisah tiap kali user berhenti mengetik.
-		register_rest_route(
-			self::NAMESPACE_,
-			'/font-preview-batch',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( __CLASS__, 'handle_font_preview_batch' ),
-				'permission_callback' => array( __CLASS__, 'check_preview_rate_limit' ),
-				'args'                => array(
-					'style_ids' => array( 'required' => true, 'type' => 'array' ),
-					'text'      => array( 'required' => true, 'type' => 'string' ),
-				),
-			)
-		);
+			// Batch, bukan bagian literal dari daftar endpoint di PRD — ditambahkan
+			// supaya grid daftar style (tiap baris render preview sendiri) tidak
+			// perlu N request HTTP terpisah tiap kali user berhenti mengetik.
+			register_rest_route(
+				self::NAMESPACE_,
+				'/font-preview-batch',
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( __CLASS__, 'handle_font_preview_batch' ),
+					'permission_callback' => array( __CLASS__, 'check_preview_rate_limit' ),
+					'args'                => array(
+						'style_ids' => array( 'required' => true, 'type' => 'array' ),
+						'text'      => array( 'required' => true, 'type' => 'string' ),
+					),
+				)
+			);
 
-		register_rest_route(
-			self::NAMESPACE_,
-			'/admin/style-prices',
-			array(
-				'methods'             => WP_REST_Server::EDITABLE,
-				'callback'            => array( __CLASS__, 'handle_update_style_price' ),
-				'permission_callback' => function () {
-					return current_user_can( 'manage_woocommerce' );
-				},
-				'args'                => array(
-					'style_id'   => array( 'required' => true, 'type' => 'integer' ),
-					'license_id' => array( 'required' => true, 'type' => 'integer' ),
-					'price'      => array( 'required' => true, 'type' => 'number' ),
-				),
-			)
-		);
+			register_rest_route(
+				self::NAMESPACE_,
+				'/admin/style-prices',
+				array(
+					'methods'             => WP_REST_Server::EDITABLE,
+					'callback'            => array( __CLASS__, 'handle_update_style_price' ),
+					'permission_callback' => function () {
+						return current_user_can( 'manage_woocommerce' );
+					},
+					'args'                => array(
+						'style_id'   => array( 'required' => true, 'type' => 'integer' ),
+						'license_id' => array( 'required' => true, 'type' => 'integer' ),
+						'price'      => array( 'required' => true, 'type' => 'number' ),
+					),
+				)
+			);
 
-		register_rest_route(
-			self::NAMESPACE_,
-			'/cart/add-font',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( __CLASS__, 'handle_add_font_to_cart' ),
-				'permission_callback' => '__return_true',
-				'args'                => array(
-					'product_id' => array( 'required' => true, 'type' => 'integer' ),
-					'style_ids'  => array( 'required' => true, 'type' => 'array' ),
-					'license_id' => array( 'required' => true, 'type' => 'integer' ),
-				),
-			)
-		);
+			register_rest_route(
+				self::NAMESPACE_,
+				'/cart/add-font',
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( __CLASS__, 'handle_add_font_to_cart' ),
+					'permission_callback' => '__return_true',
+					'args'                => array(
+						'product_id' => array( 'required' => true, 'type' => 'integer' ),
+						'style_ids'  => array( 'required' => true, 'type' => 'array' ),
+						'license_id' => array( 'required' => true, 'type' => 'integer' ),
+					),
+				)
+			);
 		}
 
 		register_rest_route(
@@ -558,8 +562,11 @@ class Aksara_Rest_Controller {
 
 		nocache_headers();
 		header( 'Content-Type: application/pdf' );
-		header( 'Content-Disposition: attachment; filename="sertifikat-order-' . $order_id . '.pdf"' );
+		header( 'Content-Disposition: attachment; filename="license-certificate-order-' . $order_id . '.pdf"' );
 		header( 'Content-Length: ' . filesize( $path ) );
+		// Sama seperti endpoint download: cegah browser menebak-nebak tipe isi
+		// berkas yang kita sajikan sendiri.
+		header( 'X-Content-Type-Options: nosniff' );
 		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_readfile
 		exit;
 	}

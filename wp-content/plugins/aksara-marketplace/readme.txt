@@ -5,7 +5,7 @@ Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 Requires Plugins: woocommerce
-Stable tag: 0.8.0
+Stable tag: 0.8.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -281,3 +281,32 @@ Diuji dengan stub WordPress + reflection: redaksi token untuk rute unduhan
 (200+umpan, 403, 404, 200 isi lain, loopback gagal), serta perilaku cache.
 Penjaga traversal di get_absolute_path() versi 0.8.0 ikut diuji dan lolos
 untuk empat pola path.
+
+
+== v0.8.2 - hasil audit menyeluruh ==
+
+* **Sertifikat lisensi PDF masih berbahasa Indonesia.** Terlewat dari pass
+  terjemahan v0.6.0. Tiga baris di class-invoice-generator.php - "Nomor
+  Order:", "Tanggal:", "Pembeli:" - bahkan tidak dibungkus __() sama sekali,
+  jadi tidak muncul di pemindaian string yang diterjemahkan. Ini dokumen yang
+  diterima pembeli. Ketiganya kini "Order number:", "Date:", "Buyer:" dan
+  sudah bisa diterjemahkan (placeholder Buyer dinomori %1$s/%2$s supaya bisa
+  ditukar urutannya oleh penerjemah).
+* **Nama berkas sertifikat.** Unduhannya bernama "sertifikat-order-123.pdf",
+  sekarang "license-certificate-order-123.pdf".
+* **Stable tag tertinggal.** readme.txt menyebut 0.8.0 sementara header
+  plugin sudah 0.8.1. Disamakan.
+* **X-Content-Type-Options: nosniff pada endpoint sertifikat.** Endpoint
+  /download/ sudah mengirimnya, /certificate/ belum. Disamakan.
+* **Indentasi register_routes() rusak.** Badan blok "if ( ! mode Authentype )"
+  yang membungkus empat endpoint font sama sekali tidak ter-indent, sehingga
+  tidak terlihat bahwa keempatnya digerbangi. Dirapikan dan ditambahi
+  komentar yang menjelaskan kenapa gerbang itu ada.
+
+Yang diperiksa dan terbukti bersih (tidak disentuh): seluruh nilai dinamis
+pada query database lewat $wpdb->prepare; permission_callback tiap endpoint
+REST (endpoint font digerbangi mode Authentype, /certificate/ memeriksa
+kepemilikan order, /download/ memakai token sebagai kredensial, /wishlist/
+terlindungi nonce REST bawaan WordPress); dan sisa string UI - selain tiga
+baris PDF di atas, tidak ada lagi teks Indonesia yang sampai ke pengguna.
+

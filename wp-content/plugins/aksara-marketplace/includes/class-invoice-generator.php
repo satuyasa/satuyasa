@@ -127,11 +127,14 @@ class Aksara_Invoice_Generator {
 
 		$paid_date = $order->get_date_paid() ? $order->get_date_paid() : $order->get_date_created();
 
-		$pdf->text( 60, $y, sprintf( 'Nomor Order: #%s', $order->get_order_number() ), 11 );
+		/* translators: %s: order number. */
+		$pdf->text( 60, $y, sprintf( __( 'Order number: #%s', 'aksara-marketplace' ), $order->get_order_number() ), 11 );
 		$y -= 18;
-		$pdf->text( 60, $y, sprintf( 'Tanggal: %s', $paid_date ? $paid_date->date_i18n( 'j F Y' ) : '-' ), 11 );
+		/* translators: %s: payment date. */
+		$pdf->text( 60, $y, sprintf( __( 'Date: %s', 'aksara-marketplace' ), $paid_date ? $paid_date->date_i18n( 'j F Y' ) : '-' ), 11 );
 		$y -= 18;
-		$pdf->text( 60, $y, sprintf( 'Pembeli: %s (%s)', $buyer_name, $order->get_billing_email() ), 11 );
+		/* translators: 1: buyer name, 2: buyer email address. */
+		$pdf->text( 60, $y, sprintf( __( 'Buyer: %1$s (%2$s)', 'aksara-marketplace' ), $buyer_name, $order->get_billing_email() ), 11 );
 		$y -= 32;
 
 		$pdf->text( 60, $y, __( 'License Details', 'aksara-marketplace' ), 13, true );

@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '1.0.2' );
+define( 'AKSARA_THEME_VERSION', '1.0.3' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -135,6 +135,24 @@ function aksara_block_category( $categories ) {
 	return $categories;
 }
 add_filter( 'block_categories_all', 'aksara_block_category' );
+
+/**
+ * Daftarkan kategori PATTERN 'aksara'.
+ *
+ * Kategori blok (di atas) dan kategori pattern adalah dua registry terpisah.
+ * patterns/section.php dan patterns/trust.php sama-sama mendeklarasikan
+ * "Categories: aksara"; tanpa pendaftaran ini kategorinya tidak ada, jadi
+ * kedua pattern tidak pernah muncul sebagai tab tersendiri di inserter.
+ */
+function aksara_register_pattern_category() {
+	if ( ! function_exists( 'register_block_pattern_category' ) ) {
+		return;
+	}
+	register_block_pattern_category( 'aksara', array(
+		'label' => __( 'Aksara', 'aksara' ),
+	) );
+}
+add_action( 'init', 'aksara_register_pattern_category' );
 
 /** Show a clear setup warning instead of silently rendering an empty catalog. */
 function aksara_dependency_notice() {

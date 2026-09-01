@@ -2,7 +2,36 @@
 
 Marketplace WordPress + WooCommerce untuk Font (per-style, lisensi bertingkat ala MyFonts), Canva Template, dan Canva Element. Lihat dokumen sumber (PRD, Starter Brief, Breakdown Task, mockup) untuk konteks lengkap — ringkasan & status implementasi ada di bawah.
 
-## Status: Fase 4 selesai + UI dirombak ke sistem visual monokrom (v0.5.0)
+## Status
+
+Tema `aksara` **v1.0.2** (block theme / FSE), plugin `aksara-marketplace`
+**v0.8.2**, berjalan berdampingan dengan plugin **Authentype Font Specimen
+Commerce** v1.0.6 yang memegang seluruh commerce font.
+
+> **Baca ini dulu — arsitektur saat ini berbeda dari Fase 0-4 di bawah.**
+>
+> **1. Mode Authentype.** Sejak v0.8.0, kalau plugin Authentype aktif,
+> `aksara-marketplace` mematikan sendiri seluruh jalur font-commerce miliknya
+> untuk mencegah dua mesin font bersaing. Yang menjadi **dorman**: metabox
+> Font Styles, License Admin, Cart Handler, Dashboard Widget, Status Layanan,
+> endpoint REST `/font-preview`, `/font-preview-batch` & `/cart/add-font`,
+> `assets/js/font-typing-tool.js`, template `add-to-cart/font.php`, dan
+> **seluruh `services/font-preview-service/`**. Dalam konfigurasi produksi,
+> microservice Python itu tidak pernah dipanggil — jangan deploy kecuali Anda
+> memang menjalankan tanpa Authentype. Yang tetap aktif dari plugin ini:
+> produk Canva, token unduh, sertifikat lisensi, wishlist, email order, dan
+> cleanup cron.
+>
+> **2. Block theme (FSE).** Sejak tema v1.0.0, `aksara` adalah block theme
+> penuh: `templates/*.html`, `parts/*.html`, `patterns/*.php`, dan 9 blok
+> dinamis (`inc/blocks.php`). Tidak ada lagi `header.php`/`footer.php`.
+> `theme.json` memakai **version 3**, jadi tema ini butuh **WordPress 6.6+**.
+> Konsekuensi yang belum diverifikasi di staging: kalau halaman Cart/Checkout
+> toko Anda memakai **blok** WooCommerce (default WooCommerce 8.3+ untuk
+> instalasi baru) dan bukan shortcode, CSS tema saat ini belum menatanya —
+> `style.css` baru menata markup cart/checkout klasik.
+
+## Riwayat: Fase 4 selesai + UI dirombak ke sistem visual monokrom (v0.5.0)
 
 | Fase | Status |
 |---|---|
@@ -63,10 +92,11 @@ dasbor tetap memakai bahasa visual WordPress yang sudah dikenal admin.
 
 ```
 wp-content/
-├── themes/aksara/                    # Tema frontend (lihat readme.txt di dalamnya)
-└── plugins/aksara-marketplace/       # Plugin: product type, DB, metabox admin, cart (lihat readme.txt)
+├── themes/aksara/                    # Block theme / FSE (lihat readme.txt di dalamnya)
+├── plugins/aksara-marketplace/       # Produk Canva, unduhan, sertifikat, wishlist (lihat readme.txt)
+└── plugins/authentype-font-specimen-commerce/   # Pihak ketiga: seluruh commerce font
 services/
-└── font-preview-service/             # POC Fase 0: microservice subsetting font (Python + fontTools)
+└── font-preview-service/             # POC Fase 0 — DORMAN dalam mode Authentype (lihat Status)
 content/
 └── blog/                             # Fase 4: draft artikel blog siap-terbit
 docs/
@@ -77,7 +107,7 @@ docs/
 ## Menjalankan di lokal
 
 1. **WordPress + WooCommerce**: salin `wp-content/themes/aksara` dan `wp-content/plugins/aksara-marketplace` ke instalasi WordPress, aktifkan WooCommerce lalu plugin lalu tema. Detail lengkap ada di `readme.txt` masing-masing folder.
-2. **Font preview service** — dibutuhkan **hanya** untuk typing tool interaktif (ketik teks sendiri) di halaman produk font. Ini proses Python berdiri sendiri, **bukan** plugin: salin foldernya ke luar web-root di server yang sama (mis. `/opt/aksara-font-preview/`), jangan ke `wp-content/`. Butuh VPS dengan akses sudo & Python 3.10+; di shared hosting langkah ini dilewati saja. Pasang sekali sebagai layanan systemd:
+2. **Font preview service** — **lewati langkah ini kalau Anda memakai Authentype** (lihat Status di atas: dalam mode Authentype layanan ini tidak pernah dipanggil). Hanya relevan untuk typing tool interaktif (ketik teks sendiri) di halaman produk font. Ini proses Python berdiri sendiri, **bukan** plugin: salin foldernya ke luar web-root di server yang sama (mis. `/opt/aksara-font-preview/`), jangan ke `wp-content/`. Butuh VPS dengan akses sudo & Python 3.10+; di shared hosting langkah ini dilewati saja. Pasang sekali sebagai layanan systemd:
    ```bash
    sudo mkdir -p /opt/aksara-font-preview
    sudo cp -r services/font-preview-service/. /opt/aksara-font-preview/
@@ -90,7 +120,11 @@ docs/
 
 ## Catatan keamanan penting
 
-File font/template asli **tidak pernah** diekspos lewat URL publik. Tiga cara font ditampilkan, semuanya tanpa mengirim berkas fontnya:
+File font/template asli **tidak pernah** diekspos lewat URL publik. Tiga cara
+font ditampilkan, semuanya tanpa mengirim berkas fontnya. Perhatikan mana yang
+aktif: dalam mode Authentype, preview (poin 1 & 2) dilayani Authentype sebagai
+PNG hasil render server, sedangkan jalur subset `.woff2` milik Aksara (poin 2)
+dorman bersama microservice-nya.
 
 1. **Listing/Home** — gambar PNG hasil render server (PHP GD). Yang dikirim cuma piksel; gambar raster tidak bisa dipasang balik jadi font.
 2. **Typing tool** — subset `.woff2` berisi hanya glyph yang diketik, dibatasi 100 karakter/permintaan, dengan rate limit per-IP.
