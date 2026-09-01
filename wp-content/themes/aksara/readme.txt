@@ -298,3 +298,28 @@ Yang DILAPORKAN, belum diubah, karena butuh keputusan:
   dibersihkan, tanpa gejala lain. Perbaikannya menyangkut postur keamanan
   endpoint render (mis. melepas nonce untuk preview katalog publik, atau
   menyegarkan nonce lewat endpoint ringan), jadi itu keputusan Anda.
+
+== v1.0.1 — dua celah preview teks ditutup ==
+
+Menindaklanjuti audit preview teks, dua halaman yang butuh preview tapi
+belum punya kini punya:
+
+* **Related font families** (halaman font tunggal). Kartu di
+  `font-product-card.php` sebelumnya cuma menampilkan gambar galeri, atau
+  judul dalam font TEMA kalau gambar itu tidak ada — jadi tidak ada satu pun
+  huruf keluarga terkait yang benar-benar terlihat, padahal di situlah
+  pembeli membandingkan. Ditambahkan baris spesimen ringkas memakai mesin
+  render yang sama dengan katalog (canvas + token Authentype), dengan tinggi
+  dipesan lebih dulu supaya kartu tidak melompat. Canvas diberi
+  `aria-hidden` karena nama keluarganya sudah dibacakan lewat `<h3>` di
+  atasnya.
+
+* **Hasil pencarian.** Blok Query Loop bawaan merender satu markup yang sama
+  untuk semua hasil, jadi mencari nama font menghasilkan daftar teks polos.
+  Blok baru `aksara/search-results` memakai query utama lalu memilih markup
+  per jenis: font memakai baris spesimen yang sama dengan katalog, sisanya
+  kartu entri biasa, dengan judul pengelompokan dan paginasi yang tetap
+  mengikuti hitungan query utama.
+
+Blok baru ini ikut terdaftar di inserter (kategori Aksara), jadi bisa
+dipindah atau dipakai ulang lewat Site Editor seperti blok tema lainnya.

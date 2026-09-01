@@ -73,6 +73,7 @@ function aksara_register_blocks() {
 		'aksara/license-list'      => array( 'attributes' => array() ),
 		'aksara/authentype-single' => array( 'attributes' => array() ),
 		'aksara/header-actions'    => array( 'attributes' => array() ),
+		'aksara/search-results'    => array( 'attributes' => array() ),
 	);
 
 	foreach ( $blocks as $name => $config ) {

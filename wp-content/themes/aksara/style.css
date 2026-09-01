@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 1.0.0
+Version: 1.0.1
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -1204,6 +1204,15 @@ ul.page-numbers {
 }
 .font-product-card__body h3 { margin: 0; font-size: 18px; }
 .font-product-card__body p { margin: 5px 0 0; font-size: 12px; color: var(--muted); }
+/* Tinggi dipesan lebih dulu supaya kartu tidak melompat saat canvas selesai
+ * dirender — pola yang sama dengan .aksara-row-canvas. */
+.font-product-card__specimen {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+	margin-top: 8px;
+	background: var(--paper);
+}
 .font-product-card__price { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; white-space: nowrap; }
 
 /* Native WooCommerce products (Canva and other catalog items). */
@@ -2087,3 +2096,15 @@ form.hero-search input[type="search"]:focus-visible {
 	.woocommerce-cart table.cart td.actions .coupon .input-text { min-width: 0; flex: 1; }
 	.woocommerce ul.order_details { gap: var(--spacing-20); }
 }
+
+/* Judul pengelompokan di halaman hasil pencarian (font vs sisanya). */
+.search-group-title {
+	font-size: var(--text-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	padding-bottom: var(--spacing-12);
+	margin: var(--section-rhythm) 0 var(--component-rhythm);
+	border-bottom: 1px solid var(--ink);
+}
+.search-group-title:first-child { margin-top: 0; }

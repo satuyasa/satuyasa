@@ -88,6 +88,12 @@
 		'editor-textcolor'
 	);
 	registerSimple(
+		'aksara/search-results',
+		__( 'Aksara: Search results', 'aksara' ),
+		__( 'Search results grouped by type: font families render as specimen rows, everything else as plain entries.', 'aksara' ),
+		'search'
+	);
+	registerSimple(
 		'aksara/header-actions',
 		__( 'Aksara: Header actions', 'aksara' ),
 		__( 'Sign in link and cart with a live item count.', 'aksara' ),
