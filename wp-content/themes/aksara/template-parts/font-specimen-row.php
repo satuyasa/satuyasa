@@ -1,92 +1,67 @@
 <?php
-/**
- * Satu baris di daftar font (Home & halaman Fonts) — unit konten inti
- * sistem visual ini (DESIGN.md > Components > "Font Specimen Row").
- *
- * Strukturnya: strip kontrol tipis di atas (nama, meta, harga, tombol
- * Trial/View), lalu huruf raksasa di bawahnya edge-to-edge. Dipisahkan
- * dari baris berikutnya oleh satu hairline — tanpa card, tanpa kotak,
- * tanpa shadow.
- *
- * CATATAN KEAMANAN: nama font di sini ditampilkan dalam font ASLINYA,
- * tapi sebagai GAMBAR hasil render server (PHP GD), bukan dengan memuat
- * berkas font ke browser lewat @font-face. Yang sampai ke pengunjung
- * hanya piksel — berkas fontnya tidak pernah meninggalkan server. Ini
- * persis pendekatan yang diminta PRD Bagian 4.3 poin 3 untuk mode
- * display/listing, dan berbeda dari typing tool di halaman produk yang
- * memang butuh subset .woff2 sungguhan lewat microservice.
- *
- * Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang
- * tidak terbaca FreeType, GD tidak tersedia, atau plugin nonaktif),
- * baris ini otomatis mundur ke teks biasa dalam font tema pada ukuran
- * display yang sama — jadi tata letaknya tidak berubah, cuma hurufnya.
- *
- * @package Aksara
- */
-
+/** Authentype-backed font specimen row. Font bytes never reach the browser. */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$product = wc_get_product( get_the_ID() );
-if ( ! $product ) {
+$font_id = get_the_ID();
+if ( 'ath_font' !== get_post_type( $font_id ) || ! function_exists( 'aksara_authentype_styles' ) ) {
 	return;
 }
 
-$style_count = class_exists( 'Aksara_Font_Styles_Repository' )
-	? count( Aksara_Font_Styles_Repository::get_by_product( $product->get_id() ) )
-	: 0;
-
-$categories = wc_get_product_category_list( $product->get_id() );
-
-/*
- * Ukuran spesimen = 115px, token --text-display di DESIGN.md.
- *
- * DESIGN.md menyebut dua ukuran kanonik (115px & 158px) dan melarang nilai
- * di luar rentang itu. Untuk baris listing dipilih yang 115px karena di
- * sini gambarnya adalah PNG hasil render, bukan teks: pada 158px dengan
- * SCALE 2x, nama font yang panjang menghasilkan PNG selebar beberapa ribu
- * piksel per baris, dikali 6 baris di Home. 115px tetap "spesimen, bukan
- * logo" sesuai filosofi DESIGN.md, dengan berat berkas yang masuk akal.
- * Skala 158px dipakai di halaman produk tunggal, tempat cuma ada satu.
- */
-$specimen = function_exists( 'aksara_font_specimen' )
-	? aksara_font_specimen( $product->get_id(), get_the_title(), 115 )
-	: '';
+$styles  = aksara_authentype_styles( $font_id );
+$default = ! empty( $styles[0] ) ? $styles[0] : null;
+$product = aksara_authentype_linked_product( $font_id );
+$ready   = $product && $product->is_purchasable();
+$gallery = is_front_page() && function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 3 ) : array();
+$archive_gallery = is_post_type_archive( 'ath_font' ) && function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 1 ) : array();
+$archive_image_id = $archive_gallery ? absint( $archive_gallery[0] ) : ( is_post_type_archive( 'ath_font' ) ? absint( get_post_thumbnail_id( $font_id ) ) : 0 );
+aksara_authentype_enqueue_preview();
 ?>
-<div class="specimen-row">
+<article class="specimen-row ath-specimen ath-specimen-v7 aksara-catalog-specimen"
+	data-font-post-id="<?php echo esc_attr( $font_id ); ?>"
+	data-text-color="#111111"
+	data-bg-color="#ffffff">
 	<div class="sp-controls">
 		<div class="sp-label">
 			<span class="sp-name-text"><?php the_title(); ?></span>
 			<span class="sp-meta">
-				<?php
-				printf(
-					/* translators: %d: jumlah style. */
-					esc_html( _n( '%d style', '%d styles', $style_count, 'aksara' ) ),
-					absint( $style_count )
-				);
-				if ( $categories ) {
-					echo ' · ' . wp_kses_post( $categories );
-				}
-				?>
+				<?php printf( esc_html( _n( '%d style', '%d styles', count( $styles ), 'aksara' ) ), count( $styles ) ); ?>
+				<?php if ( $default && ! empty( $default['name'] ) ) : ?> · <?php echo esc_html( $default['name'] ); ?><?php endif; ?>
 			</span>
 		</div>
-
 		<div class="sp-actions">
-			<span class="sp-price"><?php echo wp_kses_post( $product->get_price_html() ); ?></span>
-			<?php if ( function_exists( 'aksara_wishlist_button' ) ) : ?>
-				<?php aksara_wishlist_button( $product->get_id() ); ?>
-			<?php endif; ?>
-			<a class="btn-trial" href="<?php echo esc_url( get_permalink() . '#aksara-font-tool' ); ?>"><?php esc_html_e( 'Try', 'aksara' ); ?></a>
-			<a class="btn-view" href="<?php the_permalink(); ?>"><?php esc_html_e( 'View', 'aksara' ); ?></a>
+			<span class="sp-price-group"><span class="sp-price"><?php echo $product ? wp_kses_post( $product->get_price_html() ) : esc_html__( 'Preparing price', 'aksara' ); ?></span><?php echo $product && function_exists( 'aksara_product_discount_badge' ) ? wp_kses_post( aksara_product_discount_badge( $product ) ) : ''; ?></span>
+			<?php if ( $product && function_exists( 'aksara_wishlist_button' ) ) { aksara_wishlist_button( $product->get_id() ); } ?>
+			<a class="btn-trial" href="<?php echo esc_url( get_permalink( $font_id ) . '#font-specimen' ); ?>"><?php esc_html_e( 'Try', 'aksara' ); ?></a>
+			<a class="btn-view<?php echo $ready ? '' : ' is-preparing'; ?>" href="<?php echo esc_url( get_permalink( $font_id ) ); ?>"><?php esc_html_e( 'View', 'aksara' ); ?></a>
 		</div>
 	</div>
-
-	<a class="sp-specimen" href="<?php the_permalink(); ?>" aria-hidden="true" tabindex="-1">
-		<?php if ( $specimen ) : ?>
-			<?php echo wp_kses_post( $specimen ); ?>
+	<a class="sp-specimen" href="<?php echo esc_url( get_permalink( $font_id ) ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'View %s', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
+		<?php if ( $default && ! empty( $default['token'] ) ) : ?>
+			<canvas class="ath-server-canvas aksara-row-canvas"
+				data-font-token="<?php echo esc_attr( $default['token'] ); ?>"
+				data-mode="style-text"
+				data-text="<?php echo esc_attr( get_the_title( $font_id ) ); ?>"
+				data-font-size="112"
+				data-fit-single-line="1"
+				aria-label="<?php echo esc_attr( sprintf( __( '%s font preview', 'aksara' ), get_the_title( $font_id ) ) ); ?>"></canvas>
 		<?php else : ?>
 			<span class="sp-specimen-fallback"><?php the_title(); ?></span>
 		<?php endif; ?>
 	</a>
-</div>
+	<?php if ( $archive_image_id ) : ?>
+		<a class="font-archive-image" href="<?php echo esc_url( get_permalink( $font_id ) ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'View %s product images', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
+			<?php echo wp_get_attachment_image( $archive_image_id, 'aksara-preview-md', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 960px) calc(100vw - 32px), 50vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		</a>
+	<?php endif; ?>
+	<?php if ( $gallery ) : ?>
+		<div class="font-product-gallery" aria-label="<?php echo esc_attr( sprintf( __( '%s image gallery', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
+			<?php foreach ( $gallery as $image_id ) : ?>
+				<a href="<?php echo esc_url( get_permalink( $font_id ) ); ?>">
+					<?php echo wp_get_attachment_image( $image_id, 'aksara-preview-xl', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 760px) calc(100vw - 32px), 33vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				</a>
+			<?php endforeach; ?>
+		</div>
+	<?php endif; ?>
+</article>

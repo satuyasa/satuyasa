@@ -21,6 +21,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return WP_Query
  */
 function aksara_query_products_by_type( $type, $limit = 12 ) {
+	if ( 'font' === $type && function_exists( 'aksara_authentype_available' ) && aksara_authentype_available() ) {
+		return aksara_query_authentype_fonts( $limit );
+	}
 	return new WP_Query( array(
 		'post_type'      => 'product',
 		'posts_per_page' => $limit,
@@ -46,15 +49,17 @@ function aksara_query_products_by_type( $type, $limit = 12 ) {
  * @return int
  */
 function aksara_count_products_by_type( $type ) {
+	if ( 'font' === $type && function_exists( 'aksara_authentype_available' ) && aksara_authentype_available() ) {
+		return aksara_authentype_font_count();
+	}
 	$cache_key = 'aksara_product_count_' . $type;
 	$cached    = get_transient( $cache_key );
 	if ( false !== $cached ) {
 		return (int) $cached;
 	}
 
-	$query = aksara_query_products_by_type( $type, -1 );
-	$count = (int) $query->found_posts;
-	wp_reset_postdata();
+	$term  = get_term_by( 'slug', $type, 'product_type' );
+	$count = $term && ! is_wp_error( $term ) ? (int) $term->count : 0;
 
 	set_transient( $cache_key, $count, HOUR_IN_SECONDS );
 
@@ -164,6 +169,9 @@ function aksara_is_font_product( $product ) {
  * @return string URL halaman, atau '#' jika halaman belum dibuat.
  */
 function aksara_get_listing_url( $slug ) {
+	if ( 'fonts' === $slug && function_exists( 'aksara_authentype_available' ) && aksara_authentype_available() ) {
+		return aksara_authentype_archive_url();
+	}
 	static $request_cache = array();
 
 	if ( isset( $request_cache[ $slug ] ) ) {

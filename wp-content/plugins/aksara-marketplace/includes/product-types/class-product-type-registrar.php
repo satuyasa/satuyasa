@@ -21,7 +21,9 @@ class Aksara_Product_Type_Registrar {
 	 * Pasang hook.
 	 */
 	public static function init() {
-		require_once AKSARA_MARKETPLACE_DIR . 'includes/product-types/class-wc-product-font.php';
+		if ( ! function_exists( 'aksara_marketplace_uses_authentype' ) || ! aksara_marketplace_uses_authentype() ) {
+			require_once AKSARA_MARKETPLACE_DIR . 'includes/product-types/class-wc-product-font.php';
+		}
 		require_once AKSARA_MARKETPLACE_DIR . 'includes/product-types/class-wc-product-canva-template.php';
 		require_once AKSARA_MARKETPLACE_DIR . 'includes/product-types/class-wc-product-canva-element.php';
 
@@ -44,7 +46,9 @@ class Aksara_Product_Type_Registrar {
 	 * @return array
 	 */
 	public static function add_to_type_selector( $types ) {
-		$types['font']           = __( 'Font (Aksara)', 'aksara-marketplace' );
+		if ( ! function_exists( 'aksara_marketplace_uses_authentype' ) || ! aksara_marketplace_uses_authentype() ) {
+			$types['font'] = __( 'Font (Aksara)', 'aksara-marketplace' );
+		}
 		$types['canva_template'] = __( 'Canva Template (Aksara)', 'aksara-marketplace' );
 		$types['canva_element']  = __( 'Canva Element (Aksara)', 'aksara-marketplace' );
 		return $types;
@@ -59,10 +63,12 @@ class Aksara_Product_Type_Registrar {
 	 */
 	public static function map_product_class( $classname, $product_type ) {
 		$map = array(
-			'font'           => 'WC_Product_Font',
 			'canva_template' => 'WC_Product_Canva_Template',
 			'canva_element'  => 'WC_Product_Canva_Element',
 		);
+		if ( ! function_exists( 'aksara_marketplace_uses_authentype' ) || ! aksara_marketplace_uses_authentype() ) {
+			$map['font'] = 'WC_Product_Font';
+		}
 
 		return isset( $map[ $product_type ] ) ? $map[ $product_type ] : $classname;
 	}

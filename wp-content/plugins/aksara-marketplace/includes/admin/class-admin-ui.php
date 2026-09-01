@@ -27,6 +27,34 @@ class Aksara_Admin_UI {
 		add_action( 'post_edit_form_tag', array( __CLASS__, 'add_multipart_enctype' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'print_queued_notices' ) );
+		add_action( 'save_post_product', array( __CLASS__, 'validate_publish_state' ), 100, 3 );
+	}
+
+	/** Prevent incomplete digital products from being exposed for sale. */
+	public static function validate_publish_state( $post_id, $post, $update ) {
+		static $validating = false;
+		if ( $validating || ! $post instanceof WP_Post || 'publish' !== $post->post_status || wp_is_post_revision( $post_id ) ) {
+			return;
+		}
+		$type = Aksara_Canva_Info_Metabox::get_current_product_type( $post_id );
+		$message = '';
+		if ( ( ! function_exists( 'aksara_marketplace_uses_authentype' ) || ! aksara_marketplace_uses_authentype() ) && 'font' === $type && null === Aksara_Font_Licenses_Repository::get_min_price_for_product( $post_id ) ) {
+			$message = __( 'Product kept as a draft: upload at least one font style and set at least one license price before publishing.', 'aksara-marketplace' );
+		}
+		if ( in_array( $type, array( 'canva_template', 'canva_element' ), true ) ) {
+			$link  = trim( (string) get_post_meta( $post_id, '_aksara_canva_link', true ) );
+			$price = get_post_meta( $post_id, '_price', true );
+			if ( '' === $link || '' === (string) $price || (float) $price < 0 ) {
+				$message = __( 'Product kept as a draft: set a valid price and Canva delivery link before publishing.', 'aksara-marketplace' );
+			}
+		}
+		if ( '' === $message ) {
+			return;
+		}
+		$validating = true;
+		wp_update_post( array( 'ID' => $post_id, 'post_status' => 'draft' ) );
+		$validating = false;
+		self::queue_notice( $message, 'error' );
 	}
 
 	/**

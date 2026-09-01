@@ -26,7 +26,7 @@ if ( ! $product ) {
 		</div>
 		<div class="asset-info">
 			<h4><?php the_title(); ?></h4>
-			<span><?php echo wp_kses_post( $product->get_price_html() ); ?></span>
+			<div class="asset-price-row"><span><?php echo wp_kses_post( $product->get_price_html() ); ?></span><?php echo function_exists( 'aksara_product_discount_badge' ) ? wp_kses_post( aksara_product_discount_badge( $product ) ) : ''; ?></div>
 		</div>
 	</a>
 </div>

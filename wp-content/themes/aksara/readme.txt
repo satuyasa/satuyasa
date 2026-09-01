@@ -54,16 +54,16 @@ Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang tidak terba
 
 * Halaman Cart/Checkout TERSTYLE lewat CSS bawaan `woocommerce.php`, belum ada template override kustom per halaman.
 * Customizer UI untuk hero (saat ini teks hero memakai default dari mockup lewat `get_theme_mod()` — sudah bisa diubah lewat kode/nanti Customizer, belum ada panel UI).
-* Typing tool butuh `services/font-preview-service/` berjalan (lihat readme-nya) — tanpa itu, area pratinjau akan menampilkan pesan "pratinjau tidak tersedia" tapi kalkulator harga & tambah-ke-keranjang tetap berfungsi (keduanya tidak bergantung pada microservice).
+* Produk font dan preview membutuhkan plugin Authentype. Preview archive dikirim sebagai raster PNG/canvas; font asli tidak dimuat oleh theme.
 * Testing end-to-end sungguhan di browser (responsive, keyboard, screen reader) — lihat checklist di `docs/QA-TEST-PLAN.md` (perlu staging WordPress aktif, tidak bisa dijalankan otomatis di environment development ini).
 
 == Instalasi ==
 
-1. Aktifkan WooCommerce dan plugin **Aksara Marketplace** terlebih dahulu.
+1. Aktifkan WooCommerce, Authentype, dan plugin **Aksara Marketplace** terlebih dahulu.
 2. Unggah folder `aksara` ke `/wp-content/themes/`, lalu aktifkan.
-3. Buat Page baru untuk tiap listing (Fonts/Templates/Elements/License), pilih template yang sesuai di Page Attributes.
+3. Archive font dibuat otomatis oleh CPT Authentype (default `/font-shop/`). Page manual hanya diperlukan untuk Templates/Elements/License.
 4. Atur halaman-halaman itu di **WooCommerce > Pengaturan > Halaman Muka** / menu navigasi sesuai kebutuhan.
-5. Buat produk lewat plugin Aksara Marketplace (lihat readme plugin) — otomatis muncul di listing & Home begitu dipublikasikan.
+5. Buat font lewat Authentype; buat Canva Template/Element lewat Aksara Marketplace. Keduanya otomatis muncul di storefront yang sesuai.
 
 == Sistem visual (v0.5.0) — monokrom, mengikuti DESIGN.md ==
 

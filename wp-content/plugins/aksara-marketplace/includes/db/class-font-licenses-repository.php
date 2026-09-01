@@ -162,6 +162,14 @@ class Aksara_Font_Licenses_Repository {
 		}
 	}
 
+	public static function delete_style_price( $style_id, $license_id ) {
+		global $wpdb;
+		return $wpdb->delete(
+			$wpdb->prefix . 'aksara_style_prices',
+			array( 'style_id' => (int) $style_id, 'license_id' => (int) $license_id )
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	}
+
 	/**
 	 * Ambil harga satu kombinasi style x lisensi, atau null jika belum diatur.
 	 *

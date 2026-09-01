@@ -364,3 +364,11 @@
 .asset-card .aksara-wishlist-toggle { position: absolute; top: 8px; right: 8px; z-index: 2; }
 
 .aksara-product-summary .aksara-wishlist-toggle { margin-top: 12px; }
+.aksara-ft-style-row.is-unavailable {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.aksara-ft-style-row.is-unavailable input {
+	cursor: not-allowed;
+}

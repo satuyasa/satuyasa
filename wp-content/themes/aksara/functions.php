@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '0.6.0' );
+define( 'AKSARA_THEME_VERSION', '0.9.0' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -36,6 +36,12 @@ function aksara_setup() {
 	add_theme_support( 'wc-product-gallery-lightbox' );
 	add_theme_support( 'wc-product-gallery-slider' );
 
+	// Consistent 3:2 product-preview crops. WordPress keeps responsive
+	// variants so archives do not download the full 1820px source per card.
+	add_image_size( 'aksara-preview-xl', 1820, 1214, true );
+	add_image_size( 'aksara-preview-md', 910, 607, true );
+	add_image_size( 'aksara-preview-sm', 600, 400, true );
+
 	register_nav_menus( array(
 		'primary' => __( 'Primary Menu', 'aksara' ),
 		'footer_shop'  => __( 'Footer — Shop', 'aksara' ),
@@ -44,6 +50,17 @@ function aksara_setup() {
 	) );
 }
 add_action( 'after_setup_theme', 'aksara_setup' );
+
+/** Match WooCommerce product image crops to Aksara's 3:2 preview system. */
+function aksara_woocommerce_single_image_size( $size ) {
+	return array( 'width' => 1820, 'height' => 1214, 'crop' => 1 );
+}
+add_filter( 'woocommerce_get_image_size_single', 'aksara_woocommerce_single_image_size' );
+
+function aksara_woocommerce_thumbnail_image_size( $size ) {
+	return array( 'width' => 910, 'height' => 607, 'crop' => 1 );
+}
+add_filter( 'woocommerce_get_image_size_thumbnail', 'aksara_woocommerce_thumbnail_image_size' );
 
 /**
  * Enqueue webfont UI, style.css, dan JS navigasi.
@@ -101,6 +118,7 @@ add_action( 'widgets_init', 'aksara_widgets_init' );
 require AKSARA_THEME_DIR . '/inc/template-tags.php';
 require AKSARA_THEME_DIR . '/inc/template-functions.php';
 require AKSARA_THEME_DIR . '/inc/woocommerce-helpers.php';
+require AKSARA_THEME_DIR . '/inc/authentype-integration.php';
 require AKSARA_THEME_DIR . '/inc/seo.php';
 
 /**
@@ -108,9 +126,31 @@ require AKSARA_THEME_DIR . '/inc/seo.php';
  */
 function aksara_fallback_menu() {
 	echo '<ul id="primary-menu" class="menu">';
-	wp_list_pages( array( 'title_li' => '' ) );
+	printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( home_url( '/' ) ), esc_html__( 'Home', 'aksara' ) );
+	if ( function_exists( 'aksara_authentype_archive_url' ) ) {
+		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_authentype_archive_url() ), esc_html__( 'Fonts', 'aksara' ) );
+	}
+	if ( function_exists( 'aksara_get_listing_url' ) ) {
+		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_get_listing_url( 'templates' ) ), esc_html__( 'Templates', 'aksara' ) );
+		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_get_listing_url( 'elements' ) ), esc_html__( 'Elements', 'aksara' ) );
+	}
 	echo '</ul>';
 }
+
+/** Show a clear setup warning instead of silently rendering an empty catalog. */
+function aksara_dependency_notice() {
+	if ( ! current_user_can( 'activate_plugins' ) || ! function_exists( 'get_current_screen' ) ) {
+		return;
+	}
+	if ( ! class_exists( 'WooCommerce' ) ) {
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Aksara requires WooCommerce.', 'aksara' ) . '</strong></p></div>';
+		return;
+	}
+	if ( ! defined( 'AUTHENTYPE_SPECIMEN_VERSION' ) ) {
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Aksara font pages require Authentype Font Specimen Commerce.', 'aksara' ) . '</strong> ' . esc_html__( 'Activate Authentype, then save Settings > Permalinks once.', 'aksara' ) . '</p></div>';
+	}
+}
+add_action( 'admin_notices', 'aksara_dependency_notice' );
 
 /**
  * Lebar konten default.

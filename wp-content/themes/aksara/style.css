@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.6.0
+Version: 0.9.0
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -90,8 +90,12 @@ Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
 	--spacing-136: 136px;
 	--spacing-160: 160px;
 
-	--section-gap: 112px;
+	--section-gap: 80px;
 	--gutter: 24px;
+	--page-top: 64px;
+	--page-bottom: 80px;
+	--section-rhythm: 80px;
+	--component-rhythm: 36px;
 
 	/* --- Radius: tepat dua nilai, tidak pernah tiga --- */
 	--radius-sm: 2px;
@@ -314,11 +318,12 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    3. Hero
 ------------------------------------------------------------------------ */
-.hero { padding: var(--spacing-112) 0 var(--spacing-36); border-bottom: 1px solid var(--hairline); }
+.hero { padding: 76px 0 44px; border-bottom: 1px solid var(--hairline); }
+.hero-eyebrow { margin-bottom: 20px; }
 .hero-headline {
-	font-size: clamp(40px, 11vw, 158px);
-	line-height: 1;
-	letter-spacing: -0.02em;
+	font-size: clamp(52px, 8vw, 112px);
+	line-height: .94;
+	letter-spacing: -.045em;
 	font-weight: var(--font-weight-regular);
 	margin: 0;
 	max-width: 18ch;
@@ -334,18 +339,22 @@ button[type="submit"], input[type="submit"],
 
 /* Kotak cari: hairline saja, tanpa isian abu-abu. */
 .hero-search {
-	margin-top: var(--spacing-36);
+	margin: var(--spacing-36) auto 0;
 	display: flex;
-	max-width: 520px;
-	border: 1px solid var(--ink);
-	border-radius: var(--radius-md);
-	overflow: hidden;
+	max-width: 760px;
+	gap: 6px;
+	padding: 6px;
+	border: 1px solid var(--hairline-strong);
+	border-radius: 999px;
+	background: var(--paper);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, .06);
 }
 .hero-search input {
 	flex: 1;
 	border: none;
 	background: transparent;
-	padding: var(--spacing-12) var(--spacing-16);
+	min-width: 0;
+	padding: 0 20px;
 	font-family: var(--font-ui);
 	font-size: var(--text-body-sm);
 	letter-spacing: var(--tracking-body-sm);
@@ -354,17 +363,52 @@ button[type="submit"], input[type="submit"],
 	border-radius: 0;
 }
 .hero-search input:focus { outline: none; }
-.hero-search input:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); }
+.hero-search input:focus-visible { box-shadow: none; }
+.hero-search:focus-within { border-color: var(--ink); }
 .hero-search button {
 	background: var(--ink);
 	color: var(--paper);
 	border: none;
-	border-radius: 0;
+	border-radius: 999px;
+	min-width: 132px;
+	height: 52px;
 	padding: 0 var(--spacing-24);
 	font-family: var(--font-ui);
 	font-size: var(--text-body-sm);
 	font-weight: var(--font-weight-medium);
 	cursor: pointer;
+}
+.hero-links {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 16px;
+}
+.home .hero { text-align: center; }
+.home .hero-headline,
+.home .hero-sub { margin-left: auto; margin-right: auto; }
+.home .hero-stats { justify-content: center; }
+.home .stat { min-width: 140px; text-align: center; }
+.home .cat-card { align-items: center; text-align: center; }
+.home .cat-card p { margin-left: auto; margin-right: auto; }
+.home .cat-card .go { align-self: center; }
+.home .section-head { flex-direction: column; align-items: center; text-align: center; }
+.home .sp-controls { justify-content: space-between; text-align: left; }
+.home .sp-label { justify-content: flex-start; }
+.home .sp-actions { justify-content: flex-end; margin-left: auto; }
+.hero-links a {
+	border: 1px solid var(--hairline);
+	border-radius: 999px;
+	padding: 7px 13px;
+	font-size: 12px;
+	color: var(--muted);
+}
+.hero-links a:hover,
+.hero-links a:focus-visible {
+	border-color: var(--ink);
+	color: var(--ink);
+	text-decoration: none;
 }
 
 .hero-stats {
@@ -553,6 +597,28 @@ button[type="submit"], input[type="submit"],
 	word-break: break-word;
 }
 
+.font-product-gallery {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin-top: 24px;
+}
+.font-product-gallery a {
+	display: block;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+	border-radius: 2px;
+}
+.font-product-gallery img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+	transition: transform 240ms ease;
+}
+.font-product-gallery a:hover img { transform: scale(1.015); }
+
 @media (max-width: 640px) {
 	.sp-controls { align-items: flex-start; flex-direction: column; }
 	.sp-actions { width: 100%; }
@@ -578,7 +644,7 @@ button[type="submit"], input[type="submit"],
 	position: relative;
 }
 .asset-thumb, ul.products li.product img {
-	aspect-ratio: 4/5;
+	aspect-ratio: 3/2;
 	object-fit: cover;
 	width: 100%;
 	background: var(--color-foam-gray);
@@ -628,12 +694,31 @@ button[type="submit"], input[type="submit"],
 .filter-bar a.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
 /* -----------------------------------------------------------------------
-   8. Trust section — blok tonal gelap (surface level 2/3)
+   8. Trust section — light editorial proof points
 ------------------------------------------------------------------------ */
-.trust { background: var(--ink); color: var(--paper); padding: var(--spacing-112) 0; }
+.trust {
+	background: var(--paper);
+	color: var(--ink);
+	padding: 72px 0;
+	border-top: 1px solid var(--hairline);
+	border-bottom: 1px solid var(--hairline);
+}
 .trust .wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-36); }
+.trust .wrap > div { text-align: center; padding: 0 24px; }
+.trust-index {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	margin-bottom: 20px;
+	border: 1px solid var(--hairline-strong);
+	border-radius: 50%;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
 .trust h3 {
-	color: var(--paper);
+	color: var(--ink);
 	font-size: var(--text-caption);
 	font-weight: var(--font-weight-regular);
 	letter-spacing: var(--tracking-caption);
@@ -644,7 +729,7 @@ button[type="submit"], input[type="submit"],
 	font-size: var(--text-body-sm);
 	line-height: var(--leading-body-sm);
 	letter-spacing: var(--tracking-body-sm);
-	color: var(--color-concrete-gray); /* 8,3:1 di atas tinta — lolos AA */
+	color: var(--muted);
 	margin: 0;
 }
 @media (max-width: 782px) { .trust .wrap { grid-template-columns: 1fr; } }
@@ -652,7 +737,7 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    9. Footer
 ------------------------------------------------------------------------ */
-.site-footer { padding: var(--spacing-112) 0 var(--spacing-36); border-top: 1px solid var(--hairline); }
+.site-footer { padding: 72px 0 32px; border-top: 1px solid var(--hairline); }
 .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: var(--spacing-36); }
 .footer-tagline {
 	font-size: var(--text-caption);
@@ -694,7 +779,7 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    10. Konten generik (blog, page, single, komentar) — pakai lebar baca
 ------------------------------------------------------------------------ */
-.content-area { padding: var(--spacing-112) 0; }
+.content-area { padding: var(--page-top) 0 var(--page-bottom); }
 .entry-card, article.post, article.page {
 	margin-bottom: var(--spacing-36);
 	padding-bottom: var(--spacing-36);
@@ -740,7 +825,7 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 /* -----------------------------------------------------------------------
    11. Single product & WooCommerce
 ------------------------------------------------------------------------ */
-.aksara-product-summary { padding: var(--spacing-36) 0 var(--spacing-112); }
+.aksara-product-summary { padding: var(--page-top) 0 var(--page-bottom); }
 .aksara-product-summary .product_title {
 	font-size: clamp(40px, 8vw, 115px);
 	line-height: 1;
@@ -812,5 +897,460 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 .license-page-item > div { max-width: var(--measure); font-size: var(--text-body-sm); line-height: var(--leading-body-sm); }
 
 @media (max-width: 600px) {
-	:root { --section-gap: 64px; --gutter: 16px; }
+	:root { --section-gap: 56px; --gutter: 16px; }
+}
+
+/* -----------------------------------------------------------------------
+   12. Authentype catalog integration — Google Fonts-inspired utility UI
+------------------------------------------------------------------------ */
+.font-library { padding: var(--page-top) 0 var(--page-bottom); }
+.font-library-header,
+.font-detail-header {
+	display: grid;
+	grid-template-columns: minmax(0, 1.6fr) minmax(260px, .7fr);
+	gap: 48px;
+	align-items: end;
+	padding-bottom: 36px;
+	border-bottom: 1px solid var(--hairline);
+}
+.font-library-header h1,
+.font-detail-header h1 {
+	font-size: clamp(48px, 8vw, 112px);
+	line-height: .94;
+	letter-spacing: -.045em;
+	font-weight: 400;
+	margin: 0;
+}
+.font-library-header > p,
+.font-description {
+	max-width: 48ch;
+	font-size: 15px;
+	line-height: 1.55;
+	color: var(--muted);
+}
+.eyebrow {
+	font-size: 11px;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	margin: 0 0 18px;
+}
+.catalog-toolbar {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: 10px;
+	padding: 28px 0;
+	border-bottom: 1px solid var(--hairline);
+}
+.catalog-toolbar input[type="search"] {
+	margin: 0;
+	height: 48px;
+	border-radius: 999px;
+	padding: 0 20px;
+}
+.catalog-toolbar button {
+	height: 48px;
+	padding: 0 24px;
+	border: 1px solid var(--ink);
+	border-radius: 999px;
+	background: var(--ink);
+	color: var(--paper);
+	font: inherit;
+	cursor: pointer;
+}
+.catalog-count {
+	padding-left: 16px;
+	font-size: 12px;
+	color: var(--muted);
+	white-space: nowrap;
+}
+.font-library .specimen-list { margin-top: 28px; }
+.aksara-catalog-specimen { padding-bottom: 20px; margin-bottom: 24px; }
+.aksara-row-canvas {
+	display: block;
+	width: 100%;
+	min-height: 112px;
+	background: var(--paper);
+}
+.aksara-row-canvas.is-loading { opacity: .55; }
+.btn-view.is-preparing { opacity: .55; }
+.page-numbers ul,
+ul.page-numbers {
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	list-style: none;
+	padding: 40px 0 0;
+	margin: 0;
+}
+.catalog-empty { padding: 96px 0; text-align: center; }
+.font-breadcrumb {
+	display: flex;
+	gap: 10px;
+	padding: 24px 0;
+	font-size: 12px;
+	color: var(--muted);
+}
+.authentype-single { padding-bottom: var(--page-bottom); }
+.font-detail-header { padding: 48px 0 36px; }
+.font-detail-meta {
+	display: flex;
+	justify-content: flex-end;
+	gap: 24px;
+	flex-wrap: wrap;
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+.font-rating { display: inline-flex; align-items: center; gap: 7px; }
+.font-rating .star-rating { margin: 0; }
+.font-cover { margin: 36px 0; }
+.font-cover img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.font-description { margin: 40px 0 64px; }
+.authentype-specimen-shell { border-top: 1px solid var(--hairline); padding-top: 36px; }
+
+@media (max-width: 760px) {
+	.font-library-header,
+	.font-detail-header { grid-template-columns: 1fr; gap: 24px; }
+	.catalog-toolbar { grid-template-columns: 1fr auto; }
+	.catalog-count { grid-column: 1 / -1; padding: 4px 0 0; }
+	.font-detail-meta { justify-content: flex-start; }
+	.aksara-row-canvas { min-height: 84px; }
+	.font-product-gallery { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+	.hero-search { border-radius: 24px; padding: 5px; }
+	.hero-search button { min-width: 104px; }
+	.home .sp-label,
+	.home .sp-actions { width: 100%; flex-wrap: wrap; }
+	.home .sp-actions { justify-content: flex-start; margin-left: 0; }
+}
+
+/* Product discount labels. Coupons are intentionally excluded: these labels
+ * describe product/variation sale prices only, never a conditional cart deal. */
+.aksara-discount-label,
+.woocommerce span.onsale {
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
+	padding: 3px 9px;
+	border: 1px solid var(--ink);
+	border-radius: 999px;
+	background: var(--ink);
+	color: var(--paper);
+	font-size: 11px;
+	font-weight: var(--font-weight-medium);
+	line-height: 1;
+	letter-spacing: .03em;
+	white-space: nowrap;
+}
+.sp-price-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+.asset-price-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.asset-price-row .aksara-discount-label {
+	display: inline-flex;
+	margin-top: 4px;
+	padding: 3px 9px;
+	color: var(--paper);
+	text-transform: none;
+}
+.font-detail-meta .aksara-discount-label { align-self: center; }
+
+/* Authentype ships colored sale badges; the Aksara storefront keeps the
+ * meaning but normalizes them to the theme's monochrome badge language. */
+.ath-specimen-v7 .ath-discount-badge,
+.ath-specimen-v7 .ath-license-discount,
+.ath-specimen-v7 [data-summary-discount],
+.ath-specimen-v7 .ath-selected-styles-discount {
+	background: var(--ink) !important;
+	color: var(--paper) !important;
+	border: 1px solid var(--ink) !important;
+	border-radius: 999px !important;
+	font-weight: var(--font-weight-medium) !important;
+}
+
+/* =======================================================================
+   PRODUCT ARCHIVE + SINGLE PRODUCT AUDIT 0.9.0
+======================================================================= */
+.font-archive-image {
+	display: block;
+	width: min(100%, 920px);
+	margin-top: 16px;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+}
+.font-archive-image img {
+	width: 100%;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+}
+
+.font-detail-lead {
+	max-width: 58ch;
+	margin-top: 24px;
+	font-size: 16px;
+	line-height: 1.55;
+	color: var(--muted);
+}
+.font-detail-lead > :last-child { margin-bottom: 0; }
+.font-single-gallery {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	padding-block: 32px;
+}
+.font-single-gallery a {
+	display: block;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+}
+.font-single-gallery img {
+	width: 100%;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+}
+.font-overview {
+	display: grid;
+	grid-template-columns: minmax(0, 1.7fr) minmax(280px, .7fr);
+	gap: 64px;
+	padding-block: 56px;
+	border-top: 1px solid var(--hairline);
+}
+.font-overview__content {
+	max-width: var(--measure);
+	font-size: 16px;
+	line-height: 1.65;
+}
+.font-overview__content > :last-child { margin-bottom: 0; }
+.font-overview__meta {
+	padding-left: 32px;
+	border-left: 1px solid var(--hairline);
+}
+.font-overview__meta h2 {
+	font-size: 13px;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+.font-overview__meta dl { margin: 24px 0 0; }
+.font-overview__meta dl > div {
+	display: grid;
+	grid-template-columns: 92px minmax(0, 1fr);
+	gap: 16px;
+	padding-block: 12px;
+	border-top: 1px solid var(--hairline);
+}
+.font-overview__meta dt,
+.font-overview__meta dd { margin: 0; font-size: 13px; }
+.font-overview__meta dt { color: var(--muted); }
+.font-overview__meta dd a { text-decoration: underline; text-underline-offset: 3px; }
+.product-section-heading { margin-bottom: 32px; }
+.product-section-heading h2 {
+	font-size: clamp(32px, 5vw, 64px);
+	font-weight: var(--font-weight-regular);
+	margin: 0;
+}
+.related-fonts {
+	padding-top: var(--section-rhythm);
+	margin-top: var(--section-rhythm);
+	border-top: 1px solid var(--hairline);
+}
+.related-font-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 24px;
+}
+.font-product-card__image {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 220px;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+}
+.font-product-card__image img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.font-product-card__image > span { font-size: clamp(28px, 4vw, 54px); }
+.font-product-card__body {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	padding-top: 16px;
+}
+.font-product-card__body h3 { margin: 0; font-size: 18px; }
+.font-product-card__body p { margin: 5px 0 0; font-size: 12px; color: var(--muted); }
+.font-product-card__price { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; white-space: nowrap; }
+
+/* Native WooCommerce products (Canva and other catalog items). */
+.woocommerce-products-header {
+	margin-bottom: 32px;
+	padding-bottom: 28px;
+	border-bottom: 1px solid var(--hairline);
+}
+.woocommerce-products-header__title.page-title {
+	font-size: clamp(44px, 7vw, 88px);
+	font-weight: var(--font-weight-regular);
+}
+.woocommerce .woocommerce-result-count,
+.woocommerce .woocommerce-ordering { margin-bottom: 32px; }
+.woocommerce ul.products { clear: both; }
+.woocommerce ul.products li.product { margin-bottom: 16px; }
+.woocommerce ul.products li.product .onsale { top: 12px; right: 12px; left: auto; margin: 0; }
+.single-product .woocommerce-product-gallery { margin-bottom: 48px !important; }
+.single-product .summary .woocommerce-product-details__short-description {
+	max-width: 54ch;
+	margin-block: 24px;
+	color: var(--muted);
+}
+.single-product .product_meta {
+	margin-top: 32px;
+	padding-top: 20px;
+	border-top: 1px solid var(--hairline);
+	font-size: 13px;
+	line-height: 1.8;
+}
+.single-product .woocommerce-tabs {
+	clear: both;
+	padding-top: 64px;
+}
+.single-product .woocommerce-tabs ul.tabs { margin-bottom: 32px !important; }
+.single-product .woocommerce-tabs .panel { max-width: var(--measure); }
+.single-product .related.products,
+.single-product .up-sells.products {
+	clear: both;
+	padding-top: 72px;
+}
+.single-product .related.products > h2,
+.single-product .up-sells.products > h2 {
+	margin-bottom: 32px;
+	font-size: clamp(30px, 4vw, 52px);
+	font-weight: var(--font-weight-regular);
+}
+
+@media (max-width: 782px) {
+	.font-single-gallery,
+	.related-font-grid { grid-template-columns: 1fr; }
+	.font-overview { grid-template-columns: 1fr; gap: 36px; padding-block: 40px; }
+	.font-overview__meta { padding: 0; border-left: 0; }
+	.font-product-card__image { min-height: 180px; }
+	.single-product .woocommerce-tabs { padding-top: 48px; }
+	.single-product .related.products,
+	.single-product .up-sells.products { padding-top: 56px; }
+}
+
+/* Must stay after the generic form-control rules. The generic selector has
+ * higher specificity than `.hero-search input` and otherwise draws a second
+ * rectangular border inside the pill. */
+form.hero-search input[type="search"],
+form.hero-search input[type="search"]:focus,
+form.hero-search input[type="search"]:focus-visible {
+	border: 0 !important;
+	outline: 0 !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+/* =======================================================================
+   SPACING AUDIT 0.8.4
+   One rhythm shared by generic pages, product pages and catalog pages.
+   Context-specific values replace the previous blanket 112px spacing.
+======================================================================= */
+.section { padding-block: var(--section-rhythm); }
+.content-area { padding-block: var(--page-top) var(--page-bottom); }
+.aksara-product-summary { padding-block: var(--page-top) var(--page-bottom); }
+.single-product .aksara-product-summary { padding-top: 40px; }
+.font-library { padding-block: var(--page-top) var(--page-bottom); }
+.authentype-single { padding-bottom: var(--page-bottom); }
+.site-footer { padding-block: 72px 32px; }
+.home .site-footer { border-top: 0; }
+
+.content-area .page-header,
+.content-area .archive-header {
+	margin-bottom: var(--component-rhythm);
+	padding-bottom: 24px;
+	border-bottom: 1px solid var(--hairline);
+}
+.content-area .page-title,
+.content-area .archive-title {
+	margin: 0;
+	font-size: clamp(40px, 6vw, 72px);
+	line-height: 1;
+	font-weight: var(--font-weight-regular);
+}
+.archive-description {
+	max-width: var(--measure);
+	margin-top: 16px;
+	color: var(--muted);
+}
+.archive-description > :last-child,
+.entry-content > :last-child,
+.page-content > :last-child { margin-bottom: 0; }
+
+.content-area article:last-of-type,
+.content-area .entry-card:last-of-type {
+	margin-bottom: 0;
+}
+.content-area > .filter-bar { margin-top: -8px; }
+.content-area > .pagination { margin-bottom: 0; }
+.no-results,
+.error-404 {
+	max-width: var(--measure);
+	padding-block: 24px;
+}
+.no-results .page-content,
+.error-404 .page-content { margin-top: 20px; }
+
+.font-library-header { padding-bottom: 32px; }
+.font-library .specimen-list { margin-top: 24px; }
+.catalog-empty { padding-block: 64px; }
+.font-detail-header { padding-block: 36px 32px; }
+.font-cover { margin-block: 32px; }
+.font-description { margin-block: 32px 48px; }
+.authentype-specimen-shell { padding-top: 32px; }
+
+.woocommerce-cart .aksara-product-summary,
+.woocommerce-checkout .aksara-product-summary,
+.woocommerce-account .aksara-product-summary,
+.post-type-archive-product .aksara-product-summary,
+.tax-product_cat .aksara-product-summary,
+.tax-product_tag .aksara-product-summary {
+	padding-top: var(--page-top);
+}
+.woocommerce .woocommerce-breadcrumb { margin-bottom: 24px; }
+.woocommerce form.checkout,
+.woocommerce .woocommerce-MyAccount-content,
+.woocommerce .cart-collaterals { margin-top: 32px; }
+
+@media (max-width: 782px) {
+	:root {
+		--page-top: 44px;
+		--page-bottom: 56px;
+		--section-rhythm: 56px;
+		--component-rhythm: 28px;
+	}
+	.hero { padding-block: 56px 36px; }
+	.hero-search { margin-top: 28px; }
+	.hero-stats { margin-top: 28px; gap: 24px; }
+	.cat-card { min-height: 0; padding-block: 28px; }
+	.trust { padding-block: 56px; }
+	.trust .wrap { gap: 40px; }
+	.site-footer { padding-block: 56px 28px; }
+	.footer-grid { row-gap: 32px; }
+	.font-breadcrumb { padding-block: 18px; }
+	.font-detail-header { padding-block: 28px; }
+	.font-description { margin-block: 28px 40px; }
+	.authentype-specimen-shell { padding-top: 28px; }
+}
+
+@media (max-width: 560px) {
+	.footer-grid { grid-template-columns: 1fr; }
+	.footer-bottom { margin-top: 28px; }
+	.content-area .page-header,
+	.content-area .archive-header { padding-bottom: 20px; }
 }

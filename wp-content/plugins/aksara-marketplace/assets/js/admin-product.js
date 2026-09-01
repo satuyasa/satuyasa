@@ -27,6 +27,8 @@
 		 * makes it unpurchasable.
 		 */
 		$( '.options_group.pricing' ).addClass( 'show_if_canva_template show_if_canva_element' );
+		$( '.general_options' ).addClass( 'show_if_canva_template show_if_canva_element show_if_font' );
+		$( '#general_product_data' ).addClass( 'show_if_canva_template show_if_canva_element show_if_font' );
 
 		// WooCommerce evaluates the classes above on 'change'; fire it once
 		// now so the correct panels are visible on first page load too,

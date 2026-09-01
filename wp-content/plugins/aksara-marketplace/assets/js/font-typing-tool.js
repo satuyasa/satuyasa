@@ -60,6 +60,7 @@
 		renderWeightTabs( config, state, el );
 		renderStyleList( config, state, el );
 		renderLicenseList( config, state, el );
+		updateStylePrices( config, state, el );
 
 		el.italicToggle.addEventListener( 'click', function () {
 			state.italic = ! state.italic;
@@ -127,7 +128,7 @@
 		}
 		return Object.keys( config.prices )
 			.filter( function ( styleId ) {
-				return config.prices[ styleId ] && config.prices[ styleId ][ licenseId ];
+				return config.prices[ styleId ] && Object.prototype.hasOwnProperty.call( config.prices[ styleId ], licenseId );
 			} )
 			.map( Number );
 	}
@@ -200,6 +201,9 @@
 			row.appendChild( price );
 
 			row.addEventListener( 'click', function ( evt ) {
+				if ( checkbox.disabled ) {
+					return;
+				}
 				if ( evt.target !== checkbox ) {
 					checkbox.checked = ! checkbox.checked;
 				}
@@ -258,12 +262,22 @@
 	function updateStylePrices( config, state, el ) {
 		config.styles.forEach( function ( style ) {
 			var priceEl = el.styleList.querySelector( '.aksara-ft-style-price[data-style-id="' + style.id + '"]' );
+			var row = el.styleList.querySelector( '.aksara-ft-style-row[data-style-id="' + style.id + '"]' );
 			if ( ! priceEl ) {
 				return;
 			}
 			var entry = state.selectedLicense && config.prices[ style.id ] ? config.prices[ style.id ][ state.selectedLicense ] : null;
 			priceEl.textContent = entry ? entry.formatted : '—';
+			if ( row ) {
+				var checkbox = row.querySelector( 'input[type="checkbox"]' );
+				checkbox.disabled = ! entry;
+				row.classList.toggle( 'is-unavailable', ! entry );
+				if ( ! entry ) {
+					state.selectedStyles.delete( style.id );
+				}
+			}
 		} );
+		updateSelectedCount( config, el, state );
 	}
 
 	function updateSelectedCount( config, el, state ) {
@@ -361,6 +375,10 @@
 					return; // Teks sudah berubah lagi sebelum respons ini datang — abaikan (hasil basi).
 				}
 
+				if ( ! results || ! Object.keys( results ).length ) {
+					return Promise.reject( new Error( 'Empty preview response' ) );
+				}
+
 				var loaders = Object.keys( results ).map( function ( styleId ) {
 					return loadFontFace( state, styleId, results[ styleId ] );
 				} );
@@ -439,11 +457,10 @@
 		} );
 
 		var active = findStyleFor( config, state.weight, state.italic );
-		if ( active && active.specimen ) {
-			el.previewText.textContent = '';
-			el.previewText.appendChild( buildSpecimenImg( active, 52 ) );
-			el.previewText.setAttribute( 'contenteditable', 'false' );
-		}
+		/* Keep the typing surface editable. Static specimens belong in the
+		 * style rows; replacing user text with an image made the editor
+		 * impossible to recover without reloading the page. */
+		el.previewText.setAttribute( 'contenteditable', 'true' );
 
 		el.previewStatus.textContent = anySpecimen
 			? config.i18n.previewFallback

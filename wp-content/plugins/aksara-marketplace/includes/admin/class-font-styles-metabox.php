@@ -51,6 +51,7 @@ class Aksara_Font_Styles_Metabox {
 	public static function init() {
 		add_action( 'add_meta_boxes', array( __CLASS__, 'register' ) );
 		add_action( 'save_post_product', array( __CLASS__, 'save' ) );
+		add_action( 'before_delete_post', array( __CLASS__, 'delete_product_data' ), 10, 2 );
 	}
 
 	/**
@@ -343,10 +344,11 @@ class Aksara_Font_Styles_Metabox {
 					continue;
 				}
 				foreach ( $prices_by_license as $license_id => $price ) {
-					if ( '' === $price ) {
-						continue;
+					if ( '' === trim( (string) $price ) ) {
+						Aksara_Font_Licenses_Repository::delete_style_price( $style_id, $license_id );
+					} else {
+						Aksara_Font_Licenses_Repository::set_style_price( $style_id, $license_id, max( 0, (float) $price ) );
 					}
-					Aksara_Font_Licenses_Repository::set_style_price( $style_id, $license_id, $price );
 				}
 			}
 		}
@@ -383,8 +385,6 @@ class Aksara_Font_Styles_Metabox {
 					continue;
 				}
 
-				++$added;
-
 				$name_without_ext = pathinfo( $original_name, PATHINFO_FILENAME );
 				$guessed          = self::guess_weight_and_italic( $name_without_ext );
 
@@ -398,6 +398,12 @@ class Aksara_Font_Styles_Metabox {
 						'sort_order'  => $existing_count + $index,
 					)
 				);
+				if ( ! $new_style_id ) {
+					Aksara_File_Storage::delete( $stored_path );
+					$failures[] = sprintf( '%s (%s)', $original_name, __( 'database insert failed', 'aksara-marketplace' ) );
+					continue;
+				}
+				++$added;
 
 				// Buat specimen sekarang, saat admin mengunggah — bukan nanti
 				// saat pengunjung pertama membuka halaman produk. Render GD
@@ -415,6 +421,20 @@ class Aksara_Font_Styles_Metabox {
 			}
 
 			self::report_upload_result( $added, $failures );
+		}
+	}
+
+	/** Remove private files and custom rows when a product is permanently deleted. */
+	public static function delete_product_data( $post_id, $post = null ) {
+		if ( ! $post instanceof WP_Post || 'product' !== $post->post_type ) {
+			return;
+		}
+		foreach ( Aksara_Font_Styles_Repository::get_by_product( $post_id ) as $style ) {
+			Aksara_File_Storage::delete( $style->file_path );
+			if ( class_exists( 'Aksara_Specimen_Image' ) ) {
+				Aksara_Specimen_Image::purge_for_style( $style->id );
+			}
+			Aksara_Font_Styles_Repository::delete( $style->id );
 		}
 	}
 

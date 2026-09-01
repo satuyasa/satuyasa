@@ -34,7 +34,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 function aksara_meta_description() {
 	$description = '';
 
-	if ( is_singular( 'product' ) ) {
+	if ( is_singular( 'ath_font' ) ) {
+		$description = has_excerpt() ? get_the_excerpt() : get_the_content();
+		if ( ! $description && function_exists( 'aksara_authentype_styles' ) ) {
+			$description = sprintf(
+				/* translators: %s: font family name. */
+				__( 'Preview styles, licenses and prices for the %s font family.', 'aksara' ),
+				get_the_title()
+			);
+		}
+	} elseif ( is_singular( 'product' ) ) {
 		$product = wc_get_product( get_the_ID() );
 		if ( $product ) {
 			$description = $product->get_short_description();
@@ -74,7 +83,7 @@ function aksara_open_graph_tags() {
 
 	$title = wp_get_document_title();
 	$url   = aksara_get_current_url();
-	$type  = is_singular( 'product' ) ? 'product' : ( is_singular() ? 'article' : 'website' );
+	$type  = ( is_singular( 'product' ) || is_singular( 'ath_font' ) ) ? 'product' : ( is_singular() ? 'article' : 'website' );
 
 	printf( '<meta property="og:type" content="%s">' . "\n", esc_attr( $type ) );
 	printf( '<meta property="og:title" content="%s">' . "\n", esc_attr( $title ) );
@@ -94,6 +103,12 @@ function aksara_open_graph_tags() {
 	if ( is_singular( 'product' ) ) {
 		$product = wc_get_product( get_the_ID() );
 		if ( $product ) {
+			printf( '<meta property="product:price:amount" content="%s">' . "\n", esc_attr( $product->get_price() ) );
+			printf( '<meta property="product:price:currency" content="%s">' . "\n", esc_attr( get_woocommerce_currency() ) );
+		}
+	} elseif ( is_singular( 'ath_font' ) && function_exists( 'aksara_authentype_linked_product' ) ) {
+		$product = aksara_authentype_linked_product( get_the_ID() );
+		if ( $product && '' !== $product->get_price() ) {
 			printf( '<meta property="product:price:amount" content="%s">' . "\n", esc_attr( $product->get_price() ) );
 			printf( '<meta property="product:price:currency" content="%s">' . "\n", esc_attr( get_woocommerce_currency() ) );
 		}

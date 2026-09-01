@@ -5,13 +5,13 @@ Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 Requires Plugins: woocommerce
-Stable tag: 0.4.0
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Marketplace WooCommerce untuk Font (per-style, lisensi bertingkat), Canva Template, dan Canva Element. Status saat ini: **Fase 4 — SEO, performa, aksesibilitas, monitoring** (lihat Breakdown Task Development Aksara).
+Marketplace WooCommerce pendamping Authentype untuk Canva Template, Canva Element, wishlist, akun, dan storefront bersama. Sejak 0.8.0, Authentype adalah satu-satunya pemilik katalog, preview, harga, variation, cart, dan delivery produk font.
 
-Microservice Python (`services/font-preview-service/`) **hanya** dibutuhkan untuk typing tool interaktif di halaman produk font. Sisanya — termasuk gambar contoh font di listing — dirender PHP sendiri lewat GD, jadi kalau microservice mati, situs tetap menampilkan wujud font aslinya dan tetap bisa menerima pesanan. Status layanan bisa dipantau di **WooCommerce > Status Layanan Aksara**.
+Engine font lama Aksara tetap tersimpan untuk kompatibilitas data historis, tetapi tidak dimuat pada mode default 0.8.0. Ini mencegah dua generator font mengelola produk yang sama. Python Font Preview Service tidak diperlukan pada mode Authentype karena preview dirender menjadi PNG oleh Authentype di server.
 
 == Cakupan Fase 1 (fondasi produk) ==
 
@@ -76,16 +76,22 @@ Sebelumnya seluruh tampilan font bergantung pada microservice Python; kalau mati
 
 == Instalasi ==
 
-1. Pastikan WooCommerce aktif terlebih dahulu.
-2. Unggah folder `aksara-marketplace` ke `/wp-content/plugins/`.
-3. Aktifkan plugin — tabel database & folder privat (termasuk `certificates/`) dibuat otomatis saat aktivasi.
-4. Jalankan `services/font-preview-service/` (lihat readme-nya) dengan `AKSARA_FONT_STORAGE_DIR` mengarah ke `wp-content/uploads/aksara-private` situs ini — tanpa ini, typing tool akan menampilkan pesan "pratinjau tidak tersedia".
-5. Buka **WooCommerce > Lisensi Font** untuk memeriksa/menyunting 5 jenis lisensi default yang sudah diisi otomatis (Desktop, Web, Aplikasi, E-book, Komersial Lanjutan).
-6. Tambah produk baru → set **Product type** ke "Font (Aksara)" → isi style lewat metabox **Font Styles** → atur harga per lisensi → (opsional) atur diskon paket lengkap.
-7. Untuk Canva Template/Element: set **Product type** sesuai, isi harga seperti simple product biasa, lalu lengkapi metabox **Info Canva**.
-8. Setelah plugin diperbarui dari versi sebelumnya (bukan instalasi baru), buka **Pengaturan > Permalink** sekali dan klik Simpan supaya tab My Account baru (Unduhan Saya, dst.) langsung bisa diakses tanpa 404 — plugin sudah mencoba melakukan ini otomatis, langkah ini cuma jaring pengaman.
+1. Aktifkan WooCommerce.
+2. Instal dan aktifkan **Authentype Font Specimen Commerce**.
+3. Instal dan aktifkan **Aksara Marketplace 0.8.0**.
+4. Instal dan aktifkan **Aksara Theme 0.8.0**.
+5. Buat semua produk font melalui menu **Athtyp** dan gunakan Build/Pricing/Woo Sync Authentype.
+6. Buat produk Canva melalui WooCommerce dengan type Canva Template/Element (Aksara).
+7. Simpan ulang **Settings > Permalinks** sekali. Katalog font canonical tersedia pada archive `ath_font` (default `/font-shop/`).
+8. Jangan membuat produk baru dengan legacy type `Font (Aksara)`; type tersebut sengaja tidak didaftarkan pada mode Authentype.
 
 == Changelog ==
+
+= 0.8.0 =
+* Added automatic Authentype mode: Authentype becomes the sole font catalog/commerce/preview owner while Aksara continues Canva commerce, preventing duplicate font product types and admin workflows.
+
+= 0.7.0 =
+* Product editor fixes, publish-readiness validation, verified font uploads, recoverable preview fallback, explicit preview-service errors, atomic download limits, reliable token generation, Canva host validation, and product-file lifecycle cleanup.
 
 = 0.4.0 =
 * Fase 4: SEO (meta description/OG, verifikasi schema & sitemap bawaan), cache performa, perbaikan aksesibilitas (kontras, focus-visible, keyboard), tabel responsif, logging monitoring dengan titik ekstensi Sentry, load test microservice, draft konten blog, rencana uji manual.
@@ -244,82 +250,3 @@ sekali:
 
 Juga: panel Product data untuk type Font kini menjelaskan bahwa harga font
 memang tidak diatur di situ, melainkan dari matriks style x lisensi di bawah.
-
-== v0.6.1 — hasil audit menyeluruh ==
-
-=== Kritis ===
-
-* **Seluruh pengiriman produk Canva rusak.** `handle_download()` memakai
-  `wp_safe_redirect()`, yang menjalankan `wp_validate_redirect()` dan hanya
-  mengizinkan host situs sendiri — tujuan eksternal DIGANTI diam-diam dengan
-  `admin_url()`. Tautan Canva selalu eksternal, jadi setiap pembeli produk
-  Canva yang mengklik tautan unduhnya mendarat di `/wp-admin/` (atau layar
-  login, karena pembeli bukan admin). Uang masuk, barang tidak pernah sampai,
-  tanpa error apa pun. Diganti `wp_redirect()` dengan validasi
-  `wp_http_validate_url()`, yang tetap menolak skema `javascript:` dan alamat
-  jaringan internal sehingga endpoint ini tidak bisa dijadikan open redirect.
-
-=== Tinggi ===
-
-* **Token unduhan tertulis ke log.** `Aksara_Error_Logger` mencatat rute REST
-  apa adanya, dan rute unduhan berisi token bearer 48-hex — kredensial yang
-  cukup untuk mengunduh berkas. Ini bukan hanya soal token mati: error
-  `aksara_missing_resource` justru terjadi pada token yang MASIH berlaku.
-  Token kini diredaksi sebelum masuk `debug.log` maupun hook `aksara_error`
-  (yang biasanya tersambung ke Sentry).
-
-* **Harga & ketersediaan cart tidak pernah divalidasi ulang.** Harga item font
-  dihitung sekali saat ditambahkan lalu disimpan di session; cart WooCommerce
-  bisa bertahan berhari-hari. Mengubah harga di admin tidak berpengaruh pada
-  cart yang sudah terisi, dan menghapus style/lisensi meninggalkan item yang
-  menunjuk data hilang — checkout tetap berhasil, token dibuat untuk resource
-  yang tidak ada, pembeli yang sudah membayar hanya menerima "File not found".
-  `revalidate_cart_items()` kini dijalankan di `woocommerce_check_cart_items`
-  (halaman cart & sebelum checkout diproses): item yang tidak valid dikeluarkan
-  dengan penjelasan, harga yang berubah diperbarui dengan pemberitahuan.
-
-=== Menengah ===
-
-* **Folder privat tidak terlindungi di Nginx — sekarang benar-benar diuji.**
-  Proteksinya hanya `.htaccess`, yang Nginx abaikan sepenuhnya. Di stack Nginx
-  (sangat umum), berkas font berbayar bisa diunduh siapa saja yang menebak
-  URL-nya, dan tidak ada gejala apa pun dari dalam WordPress — kondisi paling
-  merusak di sistem ini sekaligus yang paling sunyi. Mendokumentasikannya
-  tidak cukup: `Aksara_Service_Health::is_private_dir_exposed()` kini menulis
-  berkas umpan berisi teks yang sudah diketahui lalu MENGAMBILNYA lewat URL
-  publik. Kalau kembali, folder itu memang terbuka — dan admin diberi notice
-  error di seluruh layar wp-admin plus aturan Nginx siap salin di halaman
-  Status. Kalau loopback gagal, hasilnya dilaporkan "tidak bisa dipastikan",
-  bukan "aman".
-
-* **Nama berkas sertifikat masih Indonesia** (`sertifikat-order-N.pdf`) —
-  luput dari terjemahan v0.6.0 karena bukan gettext. Kini
-  `license-certificate-order-N.pdf`.
-
-* **`get_absolute_path()` tanpa penjaga traversal.** Belum bisa dieksploitasi
-  hari ini (`update_meta()` mem-whitelist kolomnya; `file_path` cuma ditulis
-  kode kita sendiri), tapi satu jalur tulis baru ke kolom itu langsung
-  mengubah endpoint unduhan bertoken jadi pembaca berkas arbitrer. Ditutup
-  dengan pemeriksaan realpath.
-
-=== Dicatat, tidak diubah ===
-
-* Kuota unduhan berkurang sebelum berkas benar-benar terkirim
-  (`increment_download_count()` dipanggil sebelum `readfile()`), jadi koneksi
-  putus di tengah menghanguskan satu jatah. Memindahkannya ke sesudah stream
-  berisiko sebaliknya (unduhan sukses tidak terhitung kalau proses mati), dan
-  batas defaultnya longgar.
-* `/cart/add-font` memakai `permission_callback => '__return_true'` tanpa
-  nonce. Dampak CSRF-nya terbatas pada menambahkan item ke keranjang
-  pengunjung; add-to-cart bawaan WooCommerce sendiri juga tanpa nonce.
-* `maybe_upgrade()` berjalan tiap request, tapi hanya membaca satu option
-  yang autoloaded.
-
-=== Yang diperiksa dan ternyata sudah benar ===
-
-Seluruh query `$wpdb` memakai `prepare()` (termasuk placeholder `IN ()` yang
-dibangun dari `array_fill`); `update_meta()` mem-whitelist kolom; token
-memakai `random_bytes(24)`; endpoint sertifikat memeriksa kepemilikan order;
-harga selalu dihitung ulang di server dari DB (klien tidak pernah bisa
-mengirim harga); `dbDelta` didahului `require_once` upgrade.php; HPOS sudah
-dideklarasikan; tidak ada output tanpa escape di template tema.

@@ -28,11 +28,6 @@ class Aksara_Service_Health {
 	const TRANSIENT_KEY = 'aksara_preview_service_health';
 	const CACHE_TTL     = 5 * MINUTE_IN_SECONDS;
 
-	const EXPOSURE_TRANSIENT = 'aksara_private_dir_exposed';
-	const EXPOSURE_TTL       = 12 * HOUR_IN_SECONDS;
-	const CANARY_FILENAME    = 'exposure-check.txt';
-	const CANARY_CONTENT     = 'aksara-private-dir-exposure-canary';
-
 	/**
 	 * Pasang hook.
 	 */
@@ -47,97 +42,6 @@ class Aksara_Service_Health {
 	 * @param bool $force Abaikan cache dan cek ulang sekarang.
 	 * @return bool
 	 */
-	/**
-	 * Apakah folder privat benar-benar bisa diambil lewat HTTP publik?
-	 *
-	 * Seluruh model keamanan bertumpu pada folder ini tidak bisa dibaca dari
-	 * web: berkas font asli ada di dalamnya, dan satu-satunya penghalang
-	 * yang dipasang plugin adalah .htaccess. Nginx TIDAK PERNAH membaca
-	 * .htaccess — jadi di stack Nginx (yang sangat umum) berkas font berbayar
-	 * bisa diunduh langsung oleh siapa saja yang menebak URL-nya, tanpa
-	 * membeli, dan tidak ada satu pun gejala yang terlihat dari dalam
-	 * WordPress. Kondisi paling merusak yang mungkin terjadi di sistem ini
-	 * juga yang paling sunyi.
-	 *
-	 * Karena itu tidak cukup mendokumentasikannya: di sini kondisinya
-	 * benar-benar DIUJI. Sebuah berkas umpan berisi teks yang sudah diketahui
-	 * (bukan rahasia apa pun) ditulis ke folder itu, lalu diambil lewat URL
-	 * publiknya. Kalau isinya kembali, berarti folder itu memang terbuka.
-	 *
-	 * @param bool $force Abaikan cache.
-	 * @return bool|null true = terbuka, false = aman, null = tidak bisa dipastikan.
-	 */
-	public static function is_private_dir_exposed( $force = false ) {
-		if ( ! $force ) {
-			$cached = get_transient( self::EXPOSURE_TRANSIENT );
-			if ( false !== $cached ) {
-				return 'unknown' === $cached ? null : ( 'exposed' === $cached );
-			}
-		}
-
-		$result = self::probe_private_dir();
-
-		set_transient(
-			self::EXPOSURE_TRANSIENT,
-			null === $result ? 'unknown' : ( $result ? 'exposed' : 'safe' ),
-			self::EXPOSURE_TTL
-		);
-
-		return $result;
-	}
-
-	/**
-	 * Tulis berkas umpan lalu coba ambil lewat HTTP.
-	 *
-	 * @return bool|null
-	 */
-	private static function probe_private_dir() {
-		if ( ! class_exists( 'Aksara_File_Storage' ) ) {
-			return null;
-		}
-
-		$dir = Aksara_File_Storage::ensure_protected_dir();
-		if ( ! is_dir( $dir ) ) {
-			return null;
-		}
-
-		$canary_path = trailingslashit( $dir ) . self::CANARY_FILENAME;
-
-		if ( ! file_exists( $canary_path ) ) {
-			$written = file_put_contents( $canary_path, self::CANARY_CONTENT ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-			if ( false === $written ) {
-				return null;
-			}
-		}
-
-		$uploads = wp_upload_dir();
-		if ( empty( $uploads['baseurl'] ) ) {
-			return null;
-		}
-
-		$url = trailingslashit( $uploads['baseurl'] ) . Aksara_File_Storage::SUBDIR . '/' . self::CANARY_FILENAME;
-
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout'   => 5,
-				'sslverify' => false, // Situs staging sering memakai sertifikat self-signed; yang diuji di sini akses berkasnya, bukan rantai TLS-nya.
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			// Tidak bisa memanggil diri sendiri (loopback diblokir, DNS internal
-			// aneh). Itu bukan bukti aman — jadi jangan laporkan sebagai aman.
-			return null;
-		}
-
-		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			return false;
-		}
-
-		return false !== strpos( wp_remote_retrieve_body( $response ), self::CANARY_CONTENT );
-	}
-
 	public static function is_up( $force = false ) {
 		if ( ! $force ) {
 			$cached = get_transient( self::TRANSIENT_KEY );
@@ -167,34 +71,6 @@ class Aksara_Service_Health {
 		$screen = get_current_screen();
 		if ( ! $screen ) {
 			return;
-		}
-
-		/*
-		 * Keterbukaan folder privat diperiksa lebih dulu, dan TIDAK dibatasi
-		 * ke layar-layar tertentu seperti notice layanan pratinjau di bawah.
-		 * Layanan pratinjau mati hanya menurunkan satu fitur; folder privat
-		 * yang terbuka berarti seluruh katalog font berbayar bisa diunduh
-		 * siapa saja. Itu harus terlihat di mana pun admin sedang berada.
-		 */
-		if ( true === self::is_private_dir_exposed() ) {
-			?>
-			<div class="notice notice-error">
-				<p>
-					<strong><?php esc_html_e( 'Aksara: your font files are publicly downloadable.', 'aksara-marketplace' ); ?></strong>
-				</p>
-				<p>
-					<?php esc_html_e( 'The private uploads folder can be fetched directly over HTTP, so anyone who guesses a file URL can download your paid font files without buying them. This was verified by requesting a test file from the folder, not merely assumed.', 'aksara-marketplace' ); ?>
-				</p>
-				<p>
-					<?php esc_html_e( 'This usually means the site runs on Nginx, which ignores .htaccess entirely. Add a matching deny rule to your server configuration.', 'aksara-marketplace' ); ?>
-				</p>
-				<p>
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=aksara-service-status' ) ); ?>">
-						<?php esc_html_e( 'Show me the rule to add →', 'aksara-marketplace' ); ?>
-					</a>
-				</p>
-			</div>
-			<?php
 		}
 
 		$relevant = in_array( $screen->id, array( 'product', 'edit-product', 'dashboard' ), true )
@@ -245,7 +121,6 @@ class Aksara_Service_Health {
 
 		// Membuka halaman ini dianggap sebagai permintaan cek ulang.
 		$is_up       = self::is_up( true );
-		$exposed = self::is_private_dir_exposed( true );
 		$service_url = class_exists( 'Aksara_Preview_Service_Client' )
 			? Aksara_Preview_Service_Client::get_base_url()
 			: '-';
@@ -283,34 +158,8 @@ class Aksara_Service_Health {
 							<?php endif; ?>
 						</td>
 					</tr>
-					<tr>
-						<td><strong><?php esc_html_e( 'Private file protection', 'aksara-marketplace' ); ?></strong><br>
-							<span class="description"><?php esc_html_e( 'Whether the folder holding your original font files can be reached directly over HTTP.', 'aksara-marketplace' ); ?></span>
-						</td>
-						<td>
-							<?php if ( true === $exposed ) : ?>
-								<span class="aksara-status-down">● <?php esc_html_e( 'Publicly readable', 'aksara-marketplace' ); ?></span>
-								<br><span class="description"><?php esc_html_e( 'Verified by fetching a test file from the folder over HTTP.', 'aksara-marketplace' ); ?></span>
-							<?php elseif ( false === $exposed ) : ?>
-								<span class="aksara-status-up">● <?php esc_html_e( 'Blocked', 'aksara-marketplace' ); ?></span>
-							<?php else : ?>
-								<span class="description"><?php esc_html_e( 'Could not be checked — this site could not make an HTTP request to itself. Verify manually before going live.', 'aksara-marketplace' ); ?></span>
-							<?php endif; ?>
-						</td>
-					</tr>
 				</tbody>
 			</table>
-
-			<?php if ( true === $exposed ) : ?>
-				<h2><?php esc_html_e( 'Fix: block direct access to the private folder', 'aksara-marketplace' ); ?></h2>
-				<p><?php esc_html_e( 'The plugin writes an .htaccess file, which Apache honours but Nginx ignores completely. On Nginx, add this inside your server block and reload:', 'aksara-marketplace' ); ?></p>
-				<pre class="aksara-code-block">location ~* /wp-content/uploads/<?php echo esc_html( Aksara_File_Storage::SUBDIR ); ?>/ {
-    deny all;
-    return 403;
-}</pre>
-				<p><?php esc_html_e( 'On Apache, check that AllowOverride is enabled for the uploads directory — otherwise the .htaccess file is ignored there too.', 'aksara-marketplace' ); ?></p>
-				<p><?php esc_html_e( 'Until this is fixed, anyone who guesses a file URL can download your paid font files without buying them.', 'aksara-marketplace' ); ?></p>
-			<?php endif; ?>
 
 			<?php if ( ! $is_up ) : ?>
 				<h2><?php esc_html_e( 'How to bring it back up', 'aksara-marketplace' ); ?></h2>

@@ -23,13 +23,20 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 
 <section class="hero">
 	<div class="wrap">
+		<p class="eyebrow hero-eyebrow"><?php esc_html_e( 'Independent font marketplace', 'aksara' ); ?></p>
 		<h1 class="hero-headline"><?php echo esc_html( get_theme_mod( 'aksara_hero_title', __( 'The right type for your work.', 'aksara' ) ) ); ?></h1>
 		<p class="hero-sub"><?php echo esc_html( get_theme_mod( 'aksara_hero_subtitle', __( 'Thousands of clearly licensed fonts, ready-made Canva templates, and design elements — all in one place, with a live preview before you buy.', 'aksara' ) ) ); ?></p>
 
-		<form class="hero-search" role="search" method="get" action="<?php echo esc_url( home_url( '/' ) ); ?>">
-			<input type="text" name="s" placeholder="<?php esc_attr_e( 'Search fonts, styles, or categories…', 'aksara' ); ?>">
+		<form class="hero-search" role="search" method="get" action="<?php echo esc_url( function_exists( 'aksara_authentype_archive_url' ) ? aksara_authentype_archive_url() : home_url( '/' ) ); ?>">
+			<label class="screen-reader-text" for="home-font-search"><?php esc_html_e( 'Search font families', 'aksara' ); ?></label>
+			<input id="home-font-search" type="search" name="q" placeholder="<?php esc_attr_e( 'Search font families…', 'aksara' ); ?>">
 			<button type="submit"><?php esc_html_e( 'Search', 'aksara' ); ?></button>
 		</form>
+		<div class="hero-links" aria-label="<?php esc_attr_e( 'Browse product collections', 'aksara' ); ?>">
+			<a href="<?php echo esc_url( aksara_get_listing_url( 'fonts' ) ); ?>"><?php esc_html_e( 'Font library', 'aksara' ); ?></a>
+			<a href="<?php echo esc_url( aksara_get_listing_url( 'templates' ) ); ?>"><?php esc_html_e( 'Canva templates', 'aksara' ); ?></a>
+			<a href="<?php echo esc_url( aksara_get_listing_url( 'elements' ) ); ?>"><?php esc_html_e( 'Design elements', 'aksara' ); ?></a>
+		</div>
 
 		<div class="hero-stats">
 			<div class="stat"><b><?php echo esc_html( number_format_i18n( $font_count ) ); ?></b><span><?php esc_html_e( 'Fonts available', 'aksara' ); ?></span></div>
@@ -65,6 +72,9 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 
 		<?php
 		$font_query = function_exists( 'aksara_query_products_by_type' ) ? aksara_query_products_by_type( 'font', 6 ) : null;
+		if ( function_exists( 'aksara_authentype_enqueue_preview' ) ) {
+			aksara_authentype_enqueue_preview();
+		}
 		if ( $font_query && $font_query->have_posts() ) :
 			?>
 			<div class="specimen-list">
@@ -82,17 +92,10 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 	</div>
 </section>
 
-<section class="section section--last">
-	<div class="wrap">
-		<div class="section-head">
-			<h2><?php esc_html_e( 'Latest templates & elements', 'aksara' ); ?></h2>
-			<a href="<?php echo esc_url( aksara_get_listing_url( 'templates' ) ); ?>"><?php esc_html_e( 'View all', 'aksara' ); ?></a>
-		</div>
-
-		<?php
-		$assets_query = null;
-		if ( function_exists( 'aksara_query_products_by_type' ) ) {
-			$assets_query = new WP_Query( array(
+<?php
+$assets_query = null;
+if ( function_exists( 'aksara_query_products_by_type' ) ) {
+	$assets_query = new WP_Query( array(
 				'post_type'      => 'product',
 				'posts_per_page' => 8,
 				'post_status'    => 'publish',
@@ -103,11 +106,16 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 						'terms'    => array( 'canva_template', 'canva_element' ),
 					),
 				),
-			) );
-		}
-
-		if ( $assets_query && $assets_query->have_posts() ) :
-			?>
+	) );
+}
+if ( $assets_query && $assets_query->have_posts() ) :
+?>
+<section class="section section--last">
+	<div class="wrap">
+		<div class="section-head">
+			<h2><?php esc_html_e( 'Latest templates & elements', 'aksara' ); ?></h2>
+			<a href="<?php echo esc_url( aksara_get_listing_url( 'templates' ) ); ?>"><?php esc_html_e( 'View all', 'aksara' ); ?></a>
+		</div>
 			<div class="asset-grid">
 				<?php
 				while ( $assets_query->have_posts() ) :
@@ -117,23 +125,24 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 				wp_reset_postdata();
 				?>
 			</div>
-		<?php else : ?>
-			<p><?php esc_html_e( 'No templates or elements have been published yet.', 'aksara' ); ?></p>
-		<?php endif; ?>
 	</div>
 </section>
+<?php endif; ?>
 
 <section class="trust">
 	<div class="wrap">
 		<div>
+			<span class="trust-index" aria-hidden="true">01</span>
 			<h3><?php esc_html_e( 'Licensing you can actually read', 'aksara' ); ?></h3>
 			<p><?php esc_html_e( 'Every font comes with its full licensing terms — desktop, web, app, and commercial — without the confusing jargon.', 'aksara' ); ?></p>
 		</div>
 		<div>
+			<span class="trust-index" aria-hidden="true">02</span>
 			<h3><?php esc_html_e( 'Try before you buy', 'aksara' ); ?></h3>
 			<p><?php esc_html_e( 'Type your own text and see every style live, without downloading anything.', 'aksara' ); ?></p>
 		</div>
 		<div>
+			<span class="trust-index" aria-hidden="true">03</span>
 			<h3><?php esc_html_e( 'Your files stay protected', 'aksara' ); ?></h3>
 			<p><?php esc_html_e( 'Original files are only released after successful payment, through a protected download link.', 'aksara' ); ?></p>
 		</div>

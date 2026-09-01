@@ -84,10 +84,16 @@ class Aksara_Account_Endpoints {
 	 */
 	public static function add_menu_items( $items ) {
 		$new_items = array();
+		$endpoints = array_keys( self::ENDPOINTS );
+		if ( function_exists( 'aksara_marketplace_uses_authentype' ) && aksara_marketplace_uses_authentype() ) {
+			// Authentype/WooCommerce provides font licenses and native downloads.
+			// Keep Aksara Downloads for Canva products and keep the shared wishlist.
+			$endpoints = array_diff( $endpoints, array( 'aksara-certificates' ) );
+		}
 
 		foreach ( $items as $key => $label ) {
 			if ( 'customer-logout' === $key ) {
-				foreach ( array_keys( self::ENDPOINTS ) as $endpoint ) {
+				foreach ( $endpoints as $endpoint ) {
 					$new_items[ $endpoint ] = self::translated_label( $endpoint );
 				}
 			}

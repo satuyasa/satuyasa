@@ -77,6 +77,7 @@ class Aksara_Rest_Controller {
 	 * Daftarkan seluruh route.
 	 */
 	public static function register_routes() {
+		if ( ! function_exists( 'aksara_marketplace_uses_authentype' ) || ! aksara_marketplace_uses_authentype() ) {
 		register_rest_route(
 			self::NAMESPACE_,
 			'/font-preview',
@@ -139,6 +140,7 @@ class Aksara_Rest_Controller {
 				),
 			)
 		);
+		}
 
 		register_rest_route(
 			self::NAMESPACE_,
@@ -382,6 +384,7 @@ class Aksara_Rest_Controller {
 
 		$results       = array();
 		$budget_error  = null;
+		$service_error = null;
 
 		foreach ( $style_ids as $style_id ) {
 			$validated = self::validate_preview_request( $style_id, $request->get_param( 'text' ) );
@@ -400,6 +403,7 @@ class Aksara_Rest_Controller {
 
 			$woff2 = Aksara_Preview_Service_Client::get_subset( $validated['style'], $validated['text'] );
 			if ( is_wp_error( $woff2 ) ) {
+				$service_error = $woff2;
 				continue;
 			}
 
@@ -413,6 +417,9 @@ class Aksara_Rest_Controller {
 		if ( empty( $results ) && $budget_error ) {
 			return $budget_error;
 		}
+		if ( empty( $results ) && $service_error ) {
+			return new WP_Error( 'aksara_preview_unavailable', __( 'The live font preview service is unavailable.', 'aksara-marketplace' ), array( 'status' => 503 ) );
+		}
 
 		return new WP_REST_Response( $results );
 	}
@@ -424,10 +431,19 @@ class Aksara_Rest_Controller {
 	 * @return WP_REST_Response
 	 */
 	public static function handle_update_style_price( WP_REST_Request $request ) {
+		$style_id   = absint( $request->get_param( 'style_id' ) );
+		$license_id = absint( $request->get_param( 'license_id' ) );
+		$price      = (float) $request->get_param( 'price' );
+		if ( ! Aksara_Font_Styles_Repository::get( $style_id ) || ! Aksara_Font_Licenses_Repository::get( $license_id ) ) {
+			return new WP_Error( 'aksara_invalid_price_target', __( 'The selected style or license does not exist.', 'aksara-marketplace' ), array( 'status' => 404 ) );
+		}
+		if ( $price < 0 ) {
+			return new WP_Error( 'aksara_invalid_price', __( 'Price cannot be negative.', 'aksara-marketplace' ), array( 'status' => 400 ) );
+		}
 		Aksara_Font_Licenses_Repository::set_style_price(
-			$request->get_param( 'style_id' ),
-			$request->get_param( 'license_id' ),
-			$request->get_param( 'price' )
+			$style_id,
+			$license_id,
+			$price
 		);
 
 		return new WP_REST_Response( array( 'success' => true ) );
@@ -493,30 +509,7 @@ class Aksara_Rest_Controller {
 		}
 
 		if ( 'redirect' === $result['type'] ) {
-			/*
-			 * wp_safe_redirect() TIDAK BOLEH dipakai di sini, dan dulu dipakai.
-			 * Fungsi itu menjalankan wp_validate_redirect() yang hanya
-			 * mengizinkan host situs sendiri; tujuan eksternal DIGANTI diam-
-			 * diam dengan admin_url(). Tautan Canva selalu eksternal
-			 * (canva.com), jadi setiap pembeli produk Canva yang mengklik
-			 * tautan unduhnya mendarat di /wp-admin/ — atau layar login,
-			 * karena pembeli bukan admin. Uang masuk, barang tidak pernah
-			 * sampai, dan tidak ada error apa pun yang muncul.
-			 *
-			 * wp_http_validate_url() dipakai sebagai gantinya: ia tetap
-			 * menolak skema selain http/https (mis. javascript:) dan alamat
-			 * jaringan internal, jadi endpoint ini tidak bisa dijadikan open
-			 * redirect walau meta produknya diisi sembarangan.
-			 */
-			if ( ! wp_http_validate_url( $result['url'] ) ) {
-				return new WP_Error(
-					'aksara_invalid_resource_url',
-					__( 'The download link stored for this product is not valid. Please contact support.', 'aksara-marketplace' ),
-					array( 'status' => 500 )
-				);
-			}
-
-			wp_redirect( esc_url_raw( $result['url'] ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- tujuan eksternal disengaja; sudah divalidasi wp_http_validate_url() di atas.
+			wp_redirect( esc_url_raw( $result['url'] ), 302, 'Aksara Marketplace' ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- host was strictly allowlisted in Download Manager.
 			exit;
 		}
 
@@ -565,7 +558,7 @@ class Aksara_Rest_Controller {
 
 		nocache_headers();
 		header( 'Content-Type: application/pdf' );
-		header( 'Content-Disposition: attachment; filename="license-certificate-order-' . $order_id . '.pdf"' );
+		header( 'Content-Disposition: attachment; filename="sertifikat-order-' . $order_id . '.pdf"' );
 		header( 'Content-Length: ' . filesize( $path ) );
 		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_readfile
 		exit;

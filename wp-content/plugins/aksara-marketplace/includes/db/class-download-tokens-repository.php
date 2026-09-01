@@ -23,7 +23,7 @@ class Aksara_Download_Tokens_Repository {
 	 * jadi harus acak & tidak bisa ditebak.
 	 *
 	 * @param array $data order_id, order_item_id, user_id, resource_type, resource_id.
-	 * @return string Token yang baru dibuat.
+	 * @return string|false Token yang baru dibuat, false jika gagal.
 	 */
 	public static function create( $data ) {
 		global $wpdb;
@@ -31,7 +31,7 @@ class Aksara_Download_Tokens_Repository {
 
 		$token = bin2hex( random_bytes( 24 ) );
 
-		$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$inserted = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$table,
 			array(
 				'token'          => $token,
@@ -44,7 +44,13 @@ class Aksara_Download_Tokens_Repository {
 			)
 		);
 
-		return $token;
+		return false === $inserted ? false : $token;
+	}
+
+	public static function find_for_resource( $order_item_id, $resource_type, $resource_id ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aksara_download_tokens';
+		return $wpdb->get_var( $wpdb->prepare( "SELECT token FROM {$table} WHERE order_item_id = %d AND resource_type = %s AND resource_id = %d LIMIT 1", $order_item_id, $resource_type, $resource_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery
 	}
 
 	/**
@@ -96,6 +102,13 @@ class Aksara_Download_Tokens_Repository {
 		global $wpdb;
 		$table = $wpdb->prefix . 'aksara_download_tokens';
 		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET download_count = download_count + 1 WHERE id = %d", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+	}
+
+	/** Atomically reserve one download slot. */
+	public static function claim_download( $id ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'aksara_download_tokens';
+		return 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET download_count = download_count + 1 WHERE id = %d AND is_revoked = 0 AND download_count < download_limit", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery
 	}
 
 	/**

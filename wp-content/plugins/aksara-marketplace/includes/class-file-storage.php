@@ -28,6 +28,7 @@ class Aksara_File_Storage {
 	const SUBDIR = 'aksara-private';
 
 	const ALLOWED_FONT_EXTENSIONS = array( 'ttf', 'otf', 'woff', 'woff2' );
+	const DEFAULT_MAX_FONT_SIZE = 26214400;
 
 	/**
 	 * Direktori absolut tempat file privat disimpan (di luar akses URL langsung).
@@ -95,6 +96,27 @@ class Aksara_File_Storage {
 			);
 		}
 
+		$max_size = (int) apply_filters( 'aksara_max_font_upload_size', self::DEFAULT_MAX_FONT_SIZE );
+		$file_size = filesize( $tmp_path );
+		if ( false === $file_size || $file_size < 12 || $file_size > $max_size ) {
+			return new WP_Error( 'aksara_invalid_size', sprintf( __( 'The font file must be smaller than %s.', 'aksara-marketplace' ), size_format( $max_size ) ) );
+		}
+
+		$handle = fopen( $tmp_path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		$magic  = $handle ? fread( $handle, 4 ) : false; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
+		if ( $handle ) {
+			fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		}
+		$signatures = array(
+			'ttf'   => "\x00\x01\x00\x00",
+			'otf'   => 'OTTO',
+			'woff'  => 'wOFF',
+			'woff2' => 'wOF2',
+		);
+		if ( false === $magic || ! hash_equals( $signatures[ $extension ], $magic ) ) {
+			return new WP_Error( 'aksara_invalid_font_signature', __( 'The file contents do not match its font extension.', 'aksara-marketplace' ) );
+		}
+
 		$dir = self::ensure_protected_dir( 'fonts' );
 
 		$safe_name = sanitize_file_name( pathinfo( $original_filename, PATHINFO_FILENAME ) );
@@ -139,36 +161,18 @@ class Aksara_File_Storage {
 	 * @return string
 	 */
 	public static function get_absolute_path( $relative_path ) {
-		$base = trailingslashit( self::get_base_dir() );
-		$path = $base . ltrim( (string) $relative_path, '/' );
-
-		/*
-		 * Penjaga path traversal. Saat ini belum bisa dieksploitasi: kolom
-		 * file_path hanya pernah ditulis oleh store_uploaded_font() (yang
-		 * membuat sendiri nama berkasnya) dan store_generated_file() (yang
-		 * melewati sanitize_file_name()), sementara update_meta() secara
-		 * eksplisit hanya mengizinkan empat kolom lain. Penjaga ini dipasang
-		 * karena TARUHANNYA: satu jalur tulis baru ke file_path di kemudian
-		 * hari langsung mengubah endpoint unduhan bertoken menjadi pembaca
-		 * berkas arbitrer (wp-config.php dan seisinya). Lebih murah menutup
-		 * sekarang daripada mengandalkan setiap kontributor berikutnya ingat.
-		 *
-		 * realpath() mengembalikan false untuk berkas yang tidak ada,
-		 * sehingga hasilnya string kosong — dan setiap pemanggil sudah
-		 * menangani kasus "berkas tidak ditemukan" lewat file_exists().
-		 */
-		$real_base = realpath( $base );
-		$real_path = realpath( $path );
-
-		if ( false === $real_base || false === $real_path ) {
+		$base_real = realpath( self::get_base_dir() );
+		if ( false === $base_real ) {
 			return '';
 		}
-
-		if ( 0 !== strpos( $real_path, trailingslashit( $real_base ) ) ) {
+		$base      = wp_normalize_path( $base_real );
+		$candidate = wp_normalize_path( trailingslashit( $base ) . ltrim( (string) $relative_path, '/' ) );
+		$resolved  = realpath( $candidate );
+		if ( false === $resolved ) {
 			return '';
 		}
-
-		return $real_path;
+		$resolved = wp_normalize_path( $resolved );
+		return 0 === strpos( $resolved, trailingslashit( $base ) ) ? $resolved : '';
 	}
 
 	/**
@@ -178,7 +182,7 @@ class Aksara_File_Storage {
 	 */
 	public static function delete( $relative_path ) {
 		$absolute = self::get_absolute_path( $relative_path );
-		if ( file_exists( $absolute ) ) {
+		if ( $absolute && file_exists( $absolute ) ) {
 			wp_delete_file( $absolute );
 		}
 	}

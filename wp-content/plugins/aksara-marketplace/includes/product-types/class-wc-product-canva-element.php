@@ -54,4 +54,8 @@ class WC_Product_Canva_Element extends WC_Product_Simple {
 	public function needs_shipping() {
 		return false;
 	}
+
+	public function is_purchasable() {
+		return '' !== trim( (string) get_post_meta( $this->get_id(), '_aksara_canva_link', true ) ) && parent::is_purchasable();
+	}
 }

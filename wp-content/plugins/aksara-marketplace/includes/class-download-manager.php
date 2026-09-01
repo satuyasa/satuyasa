@@ -54,32 +54,42 @@ class Aksara_Download_Manager {
 
 		$user_id = $order->get_customer_id();
 
+		$all_created = true;
 		foreach ( $order->get_items() as $item_id => $item ) {
 			$style_ids_raw = $item->get_meta( '_aksara_style_ids' );
 
 			if ( $style_ids_raw ) {
 				foreach ( array_filter( explode( ',', $style_ids_raw ) ) as $style_id ) {
-					Aksara_Download_Tokens_Repository::create( array(
+					$existing = Aksara_Download_Tokens_Repository::find_for_resource( $item_id, Aksara_Download_Tokens_Repository::RESOURCE_FONT_STYLE, (int) $style_id );
+					$created = $existing ? $existing : Aksara_Download_Tokens_Repository::create( array(
 						'order_id'      => $order_id,
 						'order_item_id' => $item_id,
 						'user_id'       => $user_id,
 						'resource_type' => Aksara_Download_Tokens_Repository::RESOURCE_FONT_STYLE,
 						'resource_id'   => (int) $style_id,
 					) );
+					$all_created = $all_created && false !== $created;
 				}
 				continue;
 			}
 
 			$product = $item->get_product();
 			if ( $product && in_array( $product->get_type(), array( 'canva_template', 'canva_element' ), true ) ) {
-				Aksara_Download_Tokens_Repository::create( array(
+				$existing = Aksara_Download_Tokens_Repository::find_for_resource( $item_id, Aksara_Download_Tokens_Repository::RESOURCE_CANVA, $product->get_id() );
+				$created = $existing ? $existing : Aksara_Download_Tokens_Repository::create( array(
 					'order_id'      => $order_id,
 					'order_item_id' => $item_id,
 					'user_id'       => $user_id,
 					'resource_type' => Aksara_Download_Tokens_Repository::RESOURCE_CANVA,
 					'resource_id'   => $product->get_id(),
 				) );
+				$all_created = $all_created && false !== $created;
 			}
+		}
+
+		if ( ! $all_created ) {
+			Aksara_Error_Logger::log( 'download-tokens', 'One or more download tokens could not be created.', array( 'order_id' => $order_id ) );
+			return;
 		}
 
 		$order->update_meta_data( '_aksara_tokens_generated', 'yes' );
@@ -156,7 +166,9 @@ class Aksara_Download_Manager {
 				return new WP_Error( 'aksara_missing_resource', __( 'File not found on the server.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 			}
 
-			Aksara_Download_Tokens_Repository::increment_download_count( $row->id );
+			if ( ! Aksara_Download_Tokens_Repository::claim_download( $row->id ) ) {
+				return new WP_Error( 'aksara_token_limit', __( 'This link has reached its download limit.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+			}
 
 			return array(
 				'type'     => 'stream',
@@ -170,8 +182,15 @@ class Aksara_Download_Manager {
 			if ( ! $link ) {
 				return new WP_Error( 'aksara_missing_resource', __( 'The seller has not set the Canva link yet.', 'aksara-marketplace' ), array( 'status' => 404 ) );
 			}
+			$host = strtolower( (string) wp_parse_url( $link, PHP_URL_HOST ) );
+			$allowed_hosts = (array) apply_filters( 'aksara_allowed_canva_hosts', array( 'canva.com', 'www.canva.com' ) );
+			if ( 'https' !== wp_parse_url( $link, PHP_URL_SCHEME ) || ! in_array( $host, $allowed_hosts, true ) ) {
+				return new WP_Error( 'aksara_invalid_canva_link', __( 'The Canva delivery link is not on an approved HTTPS host.', 'aksara-marketplace' ), array( 'status' => 500 ) );
+			}
 
-			Aksara_Download_Tokens_Repository::increment_download_count( $row->id );
+			if ( ! Aksara_Download_Tokens_Repository::claim_download( $row->id ) ) {
+				return new WP_Error( 'aksara_token_limit', __( 'This link has reached its download limit.', 'aksara-marketplace' ), array( 'status' => 403 ) );
+			}
 
 			return array(
 				'type' => 'redirect',

@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
- * Description: WooCommerce marketplace for Fonts (sold per style, with tiered licensing), Canva Templates, and Canva Elements. Adds custom product types, font style management, a license price matrix, an interactive typing-preview tool, a license calculator, secure downloads, PDF license certificates, wishlists, and logging for monitoring.
- * Version: 0.6.1
+ * Description: Aksara storefront companion for WooCommerce. Authentype owns font generation, previews, pricing, variations and delivery; Aksara manages Canva Templates, Canva Elements, wishlists and shared storefront features.
+ * Version: 0.8.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,10 +21,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.6.1' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.8.0' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );
+
+/**
+ * Select the font commerce owner. When Authentype is active it owns font
+ * catalog, pricing, preview, cart and delivery; Aksara keeps Canva commerce.
+ */
+function aksara_marketplace_font_engine() {
+	if ( defined( 'AKSARA_FONT_ENGINE' ) ) {
+		return 'authentype' === strtolower( (string) AKSARA_FONT_ENGINE ) ? 'authentype' : 'aksara';
+	}
+	return 'authentype';
+}
+
+function aksara_marketplace_uses_authentype() {
+	return 'authentype' === aksara_marketplace_font_engine();
+}
 
 /**
  * Deklarasikan kompatibilitas dengan HPOS (High-Performance Order Storage)
@@ -85,6 +100,10 @@ function aksara_marketplace_init() {
 	}
 
 	aksara_marketplace_load_includes();
+	if ( aksara_marketplace_uses_authentype() ) {
+		add_filter( 'woocommerce_product_is_visible', 'aksara_marketplace_hide_legacy_font_products', 10, 2 );
+		add_action( 'admin_notices', 'aksara_marketplace_authentype_mode_notice' );
+	}
 
 	// Admin_UI lebih dulu: ia memasang enctype multipart pada form editor
 	// post, yang tanpa itu bulk upload di metabox Font Styles tidak akan
@@ -92,21 +111,51 @@ function aksara_marketplace_init() {
 	Aksara_Admin_UI::init();
 	Aksara_Product_Type_Registrar::init();
 	Aksara_Canva_Info_Metabox::init();
-	Aksara_Font_Styles_Metabox::init();
-	Aksara_License_Admin::init();
-	Aksara_Cart_Handler::init();
+	if ( ! aksara_marketplace_uses_authentype() ) {
+		Aksara_Font_Styles_Metabox::init();
+	}
+	if ( ! aksara_marketplace_uses_authentype() ) {
+		Aksara_License_Admin::init();
+	}
+	if ( ! aksara_marketplace_uses_authentype() ) {
+		Aksara_Cart_Handler::init();
+	}
 	Aksara_Rest_Controller::init();
 	Aksara_Cleanup_Jobs::init();
 	Aksara_Download_Manager::init();
 	Aksara_Account_Endpoints::init();
 	Aksara_Order_Emails::init();
-	Aksara_Dashboard_Widget::init();
+	if ( ! aksara_marketplace_uses_authentype() ) {
+		Aksara_Dashboard_Widget::init();
+	}
 	Aksara_Error_Logger::init();
-	Aksara_Service_Health::init();
+	if ( ! aksara_marketplace_uses_authentype() ) {
+		Aksara_Service_Health::init();
+	}
 
 	Aksara_DB_Installer::maybe_upgrade();
 }
 add_action( 'plugins_loaded', 'aksara_marketplace_init' );
+
+function aksara_marketplace_hide_legacy_font_products( $visible, $product_id ) {
+	return has_term( 'font', 'product_type', $product_id ) ? false : $visible;
+}
+
+function aksara_marketplace_authentype_mode_notice() {
+	if ( ! current_user_can( 'manage_woocommerce' ) || ! function_exists( 'get_current_screen' ) ) {
+		return;
+	}
+	$screen = get_current_screen();
+	if ( ! $screen || ! in_array( $screen->id, array( 'dashboard', 'plugins', 'edit-product', 'product' ), true ) ) {
+		return;
+	}
+	if ( ! defined( 'AUTHENTYPE_SPECIMEN_VERSION' ) ) {
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Authentype is required for font products.', 'aksara-marketplace' ) . '</strong> ' . esc_html__( 'Install and activate Authentype Font Specimen Commerce. Aksara font commerce remains disabled to prevent two competing font engines.', 'aksara-marketplace' ) . '</p></div>';
+		return;
+	}
+	$font_admin_url = admin_url( 'edit.php?post_type=ath_font' );
+	echo '<div class="notice notice-info"><p><strong>' . esc_html__( 'Aksara is using Authentype mode.', 'aksara-marketplace' ) . '</strong> ' . esc_html__( 'Create and edit fonts only in Authentype. It owns previews, prices, variations and delivery; Aksara manages Canva products and shared storefront features.', 'aksara-marketplace' ) . ' <a href="' . esc_url( $font_admin_url ) . '">' . esc_html__( 'Open Font Products', 'aksara-marketplace' ) . '</a></p></div>';
+}
 
 /**
  * Notice admin jika WooCommerce belum aktif.
@@ -138,13 +187,15 @@ function aksara_marketplace_enqueue_assets() {
 		AKSARA_MARKETPLACE_VERSION
 	);
 
-	wp_register_script(
-		'aksara-font-typing-tool',
-		AKSARA_MARKETPLACE_URL . 'assets/js/font-typing-tool.js',
-		array(),
-		AKSARA_MARKETPLACE_VERSION,
-		true
-	);
+	if ( ! aksara_marketplace_uses_authentype() ) {
+		wp_register_script(
+			'aksara-font-typing-tool',
+			AKSARA_MARKETPLACE_URL . 'assets/js/font-typing-tool.js',
+			array(),
+			AKSARA_MARKETPLACE_VERSION,
+			true
+		);
+	}
 
 	// Wishlist adalah fitur khusus akun (lihat class-account-endpoints.php) —
 	// tombolnya cuma dirender untuk user yang login (lihat aksara_wishlist_button()),

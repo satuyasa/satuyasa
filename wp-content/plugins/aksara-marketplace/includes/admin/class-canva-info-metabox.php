@@ -111,7 +111,14 @@ class Aksara_Canva_Info_Metabox {
 		}
 
 		if ( isset( $_POST['aksara_canva_link'] ) ) {
-			update_post_meta( $post_id, '_aksara_canva_link', esc_url_raw( wp_unslash( $_POST['aksara_canva_link'] ) ) );
+			$link = esc_url_raw( wp_unslash( $_POST['aksara_canva_link'] ) );
+			$host = strtolower( (string) wp_parse_url( $link, PHP_URL_HOST ) );
+			$allowed = (array) apply_filters( 'aksara_allowed_canva_hosts', array( 'canva.com', 'www.canva.com' ) );
+			if ( '' === $link || ( 'https' === wp_parse_url( $link, PHP_URL_SCHEME ) && in_array( $host, $allowed, true ) ) ) {
+				update_post_meta( $post_id, '_aksara_canva_link', $link );
+			} elseif ( class_exists( 'Aksara_Admin_UI' ) ) {
+				Aksara_Admin_UI::queue_notice( __( 'Canva link was not saved. Use an HTTPS link hosted on canva.com.', 'aksara-marketplace' ), 'error' );
+			}
 		}
 
 		if ( isset( $_POST['aksara_dimensions'] ) ) {
