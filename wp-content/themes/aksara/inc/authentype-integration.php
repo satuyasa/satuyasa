@@ -302,6 +302,65 @@ function aksara_specimen_debug_information( $info ) {
 add_filter( 'debug_information', 'aksara_specimen_debug_information' );
 
 /**
+ * Pasang aset specimen SEDINI MUNGKIN, di wp_enqueue_scripts.
+ *
+ * KENAPA INI PENTING - ini akar masalah "Preview unavailable" sesudah
+ * konversi FSE.
+ *
+ * Baris 4 specimen.js berbunyi:
+ *
+ *     const cfg = window.AthSpecimen || {};
+ *
+ * Baris itu dieksekusi saat skripnya DI-PARSE, bukan saat DOMContentLoaded.
+ * Kalau window.AthSpecimen belum ada pada detik itu, cfg menjadi objek kosong
+ * yang TERPUTUS PERMANEN dari window.AthSpecimen - deklarasi
+ * "var AthSpecimen = {...}" yang muncul belakangan tidak akan pernah sampai ke
+ * cfg. Akibat berantainya persis seperti gejala yang dilaporkan:
+ * cfg.ajaxUrl undefined -> fetch(undefined) meminta URL relatif "undefined"
+ * -> server menjawab halaman 404 (HTML, bukan image/png) -> res.json() gagal
+ * -> pesan mundur ke "Preview unavailable." Jadi satu akar masalah ini
+ * menghasilkan DUA gejala sekaligus: preview gagal, dan deretan permintaan
+ * 404 ke URL "undefined" di log server.
+ *
+ * Data itu dicetak WordPress sebagai blok <script id="...-js-extra"> tepat
+ * SEBELUM tag skripnya - tapi hanya kalau wp_localize_script() dipanggil
+ * sebelum handle-nya dicetak. Di tema classic, template PHP dirender lebih
+ * dulu sehingga pemanggilan dari dalam template selalu cukup awal. Di block
+ * theme, isi halaman dirender lewat render_callback blok, dan tema tidak lagi
+ * memegang kendali atas kapan itu terjadi relatif terhadap pencetakan skrip.
+ * Menggantungkan lokalisasi pada waktu render blok berarti bertaruh pada
+ * urutan yang bukan milik kita.
+ *
+ * Maka: pasang di wp_enqueue_scripts, yang dijamin berjalan sebelum apa pun
+ * dicetak. Prioritas 20 supaya registrasi handle oleh plugin (prioritas 10)
+ * sudah selesai - wp_enqueue_script() dan wp_localize_script() sama-sama
+ * mensyaratkan handle yang sudah terdaftar, dan diam-diam tidak melakukan
+ * apa-apa kalau belum.
+ *
+ * Pemanggilan dari dalam template part TIDAK dihapus: blok bisa disisipkan
+ * lewat Site Editor ke halaman mana pun yang tidak tercakup daftar di bawah,
+ * dan di sana jalur lama tetap satu-satunya kesempatan. Guard "static $done"
+ * membuatnya jadi no-op kalau preload sudah menanganinya.
+ */
+function aksara_authentype_preload_preview() {
+	if ( is_admin() || ! aksara_authentype_available() ) {
+		return;
+	}
+
+	$needs_preview = is_front_page()
+		|| is_home()
+		|| is_search()
+		|| is_page()
+		|| is_post_type_archive( 'ath_font' )
+		|| is_singular( 'ath_font' );
+
+	if ( apply_filters( 'aksara_preload_specimen_assets', $needs_preview ) ) {
+		aksara_authentype_enqueue_preview();
+	}
+}
+add_action( 'wp_enqueue_scripts', 'aksara_authentype_preload_preview', 20 );
+
+/**
  * Pasang aset specimen Authentype untuk kartu/baris preview milik tema.
  *
  * Tema dan plugin sama-sama mengisi objek global AthSpecimen pada handle

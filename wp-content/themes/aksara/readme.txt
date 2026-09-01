@@ -502,3 +502,62 @@ menjawab normal sama sekali (fatal error PHP -> HTML 500, atau diblokir
 WAF/proxy/security plugin -> 403/404). Cek status dan isi respons request
 admin-ajax.php di tab Network untuk memisahkan keduanya.
 
+
+== v1.0.5 - akar masalah "Preview unavailable" sesudah FSE ==
+
+Gejalanya: preview teks katalog jalan sebelum konversi block theme, dan hilang
+sesudahnya. Perbaikan umur nonce di 1.0.2 tidak menyentuhnya sama sekali,
+karena penyebabnya bukan nonce.
+
+Akar masalahnya ada di baris 4 assets/specimen.js milik plugin Authentype:
+
+    const cfg = window.AthSpecimen || {};
+
+Baris itu dieksekusi saat skripnya DI-PARSE, bukan saat DOMContentLoaded.
+Kalau window.AthSpecimen belum ada pada detik itu, cfg menjadi objek kosong
+yang TERPUTUS PERMANEN dari window.AthSpecimen - deklarasi
+"var AthSpecimen = {...}" yang tercetak belakangan tidak akan pernah sampai ke
+cfg. Rantai akibatnya persis gejala yang terlihat: cfg.ajaxUrl undefined ->
+fetch(undefined) meminta URL relatif "undefined" -> server menjawab halaman
+404 dalam HTML, bukan image/png -> res.json() gagal -> pesan mundur ke teks
+generik "Preview unavailable."
+
+Satu akar masalah, dua gejala: preview gagal DAN deretan permintaan 404 ke URL
+"undefined" di log server. Itu menjelaskan kenapa "Page Not Found" muncul
+berbarengan.
+
+Kenapa baru muncul sesudah FSE: WordPress mencetak data itu sebagai blok
+<script id="...-js-extra"> tepat sebelum tag skripnya, tapi hanya kalau
+wp_localize_script() dipanggil sebelum handle-nya dicetak. Tema memanggilnya
+dari dalam template part (font-specimen-row.php dan font-product-card.php).
+Di tema classic, template PHP dirender lebih dulu sehingga pemanggilan itu
+selalu cukup awal. Di block theme, isi halaman dirender lewat render_callback
+blok, dan tema tidak lagi memegang kendali atas kapan itu terjadi relatif
+terhadap pencetakan skrip. Lokalisasi yang datang setelah handle-nya tercetak
+tidak menghasilkan apa-apa dan tidak melaporkan error apa pun.
+
+Perbaikannya: pasang dan lokalisasi aset specimen di hook wp_enqueue_scripts,
+yang dijamin berjalan sebelum apa pun dicetak. Prioritas 20, supaya registrasi
+handle oleh plugin (prioritas 10) sudah selesai lebih dulu - wp_enqueue_script()
+dan wp_localize_script() sama-sama mensyaratkan handle terdaftar dan diam-diam
+tidak melakukan apa-apa kalau belum. Cakupannya: front page, blog, hasil
+pencarian, semua Page, arsip ath_font, dan halaman ath_font tunggal; bisa
+disesuaikan lewat filter aksara_preload_specimen_assets.
+
+Pemanggilan dari dalam template part TIDAK dihapus. Blok bisa disisipkan lewat
+Site Editor ke halaman yang tidak tercakup daftar di atas, dan di sana jalur
+lama tetap satu-satunya kesempatan. Guard "static $done" membuatnya jadi no-op
+kalau preload sudah menanganinya.
+
+Diverifikasi dengan harness PHP yang meniru semantik cetak WP_Scripts:
+lokalisasi sesudah handle tercetak menghasilkan cfg kosong (bug terbukti);
+lokalisasi di wp_enqueue_scripts mencetak blok -js-extra tepat sebelum tag
+skrip sehingga cfg terisi; dan prioritas yang terlalu awal (sebelum plugin
+mendaftarkan handle) juga menghasilkan cfg kosong - itulah alasan prioritas 20
+dipilih, bukan angka sembarang.
+
+Yang masih perlu dikonfirmasi di situs Anda: buka View Source halaman katalog
+lalu cari "AthSpecimen". Kalau sesudah memasang versi ini blok
+<script id="authentype-font-specimen-js-extra"> sudah muncul TEPAT SEBELUM
+<script src=".../specimen.js">, urutannya sudah benar.
+
