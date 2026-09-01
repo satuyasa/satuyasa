@@ -106,3 +106,49 @@ Penyimpangan yang disengaja dari DESIGN.md, beserta alasannya:
 
 Diverifikasi di browser (Chromium headless) pada lebar 375px, 768px & 1440px:
 `scrollWidth == clientWidth` di ketiganya, jadi tidak ada scroll horizontal.
+
+== v0.9.1 — halaman blog, cart, checkout, My Account ==
+
+Sampai versi sebelumnya, seluruh halaman transaksi dan halaman blog masih
+memakai markup + CSS bawaan WooCommerce/WordPress: tombol ungu #a46497,
+kotak abu-abu #f7f6f7, badge diskon bulat hijau, dan blog tanpa tata letak
+sidebar sama sekali. Semuanya bertabrakan dengan sistem monokrom.
+
+Dikerjakan lewat CSS saja — woocommerce.php tetap membungkus
+woocommerce_content() dan TIDAK ada template WooCommerce yang di-fork
+(override template rapuh antar versi WC; keputusan lama ini dipertahankan).
+
+* **Cart** — dua kolom (item kiri, ringkasan total kanan), tabel hairline,
+  tombol hapus jadi glyph tinta, kolom kuantitas, baris kupon, tombol
+  checkout penuh.
+* **Checkout** — dua kolom (data pembeli kiri, ringkasan + pembayaran
+  kanan), field form dengan label kapital kecil, daftar metode pembayaran
+  hairline, select2 disamakan dengan input biasa.
+* **My Account** — navigasi sidebar hairline dengan status aktif, area
+  konten, form login/register.
+* **Order received** — daftar ringkasan order sebagai baris hairline.
+* **Arsip toko** — result count, dropdown urutan, paginasi, badge "Sale"
+  monokrom (bukan lingkaran hijau).
+* **Blog** — tata letak dua kolom saat sidebar aktif (class .has-sidebar
+  sudah dicetak single.php sejak lama tapi belum pernah punya aturan CSS),
+  ritme tipografi isi artikel (h2/h3/list/blockquote/kode/tabel/figure),
+  navigasi antar-artikel, komentar bertingkat, dan widget.
+
+=== Tiga bug tata letak yang ketahuan lewat pemotretan browser ===
+
+1. **Konten menempel ke tepi layar di SEMUA halaman.** `.content-area` dan
+   `.aksara-product-summary` memakai shorthand `padding: X 0 Y`, yang
+   menulis ulang padding horizontal jadi 0 — padahal elemen yang sama
+   membawa class `.wrap` yang seharusnya memberi gutter 24px. Diganti
+   `padding-block`.
+2. **Tabel keranjang cuma memakai ~45% lebar di desktop.** Aturan
+   responsif lama `display:block; overflow-x:auto` berlaku di semua lebar;
+   pada `<table>`, `display:block` mematikan layout tabel sehingga
+   menyusut mengikuti isi. Sekarang hanya aktif di bawah 782px.
+3. **Halaman cart meluber horizontal di 375px.** Kolom grid `1fr` berarti
+   `minmax(auto, 1fr)` — tidak boleh lebih sempit dari min-content isinya,
+   jadi tabel lebar mendorong seluruh halaman. Diganti `minmax(0, 1fr)`.
+
+Diverifikasi di Chromium headless dengan markup WooCommerce asli:
+`scrollWidth == clientWidth` untuk cart, checkout, dan blog pada 375px,
+768px, dan 1440px. Palet tetap 0 warna kromatik.
