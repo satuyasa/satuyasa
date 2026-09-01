@@ -3,7 +3,7 @@
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
  * Description: Aksara storefront companion for WooCommerce. Authentype owns font generation, previews, pricing, variations and delivery; Aksara manages Canva Templates, Canva Elements, wishlists and shared storefront features.
- * Version: 0.8.0
+ * Version: 0.8.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.8.0' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.8.1' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );

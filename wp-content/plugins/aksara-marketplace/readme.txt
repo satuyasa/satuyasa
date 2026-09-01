@@ -250,3 +250,34 @@ sekali:
 
 Juga: panel Product data untuk type Font kini menjelaskan bahwa harga font
 memang tidak diatur di situ, melainkan dari matriks style x lisensi di bawah.
+
+== v0.8.1 — dua perbaikan audit dipasang ulang ==
+
+Kedua hal ini pernah ada di repo lalu tidak ikut terbawa ke paket 0.8.0.
+Dipasang ulang di commit terpisah supaya mudah dibedakan dari kode lain.
+
+* **Token unduhan tidak lagi tertulis ke log.** Aksara_Error_Logger mencatat
+  rute REST apa adanya, dan rute unduhan berisi token bearer 48-hex —
+  kredensial yang cukup untuk mengunduh berkas. Bukan hanya token mati:
+  error `aksara_missing_resource` justru terjadi pada token yang MASIH
+  berlaku. Docblock log() di berkas yang sama sudah lama meminta "jangan
+  kirim token mentah"; rute inilah yang diam-diam melanggarnya. Kini
+  diredaksi sebelum masuk debug.log maupun hook `aksara_error` (Sentry).
+
+* **Keterbukaan folder privat kini benar-benar diuji, bukan diasumsikan.**
+  Proteksinya hanya .htaccess, yang Nginx abaikan sepenuhnya. Di stack
+  Nginx berkas font berbayar bisa diunduh siapa saja yang menebak URL-nya,
+  tanpa gejala apa pun dari dalam WordPress — kondisi paling merusak di
+  sistem ini sekaligus yang paling sunyi. Komentar peringatan di
+  class-file-storage.php sudah ada sejak awal dan tidak menolong siapa pun.
+  `Aksara_Service_Health::is_private_dir_exposed()` menulis berkas umpan
+  lalu MENGAMBILNYA lewat URL publik; kalau isinya kembali, admin diberi
+  notice error di seluruh layar wp-admin plus aturan Nginx siap salin di
+  halaman Status. Loopback yang gagal dilaporkan "tidak bisa dipastikan",
+  bukan "aman".
+
+Diuji dengan stub WordPress + reflection: redaksi token untuk rute unduhan
+(dan rute lain tidak ikut berubah), probe keterbukaan untuk kelima kondisi
+(200+umpan, 403, 404, 200 isi lain, loopback gagal), serta perilaku cache.
+Penjaga traversal di get_absolute_path() versi 0.8.0 ikut diuji dan lolos
+untuk empat pola path.

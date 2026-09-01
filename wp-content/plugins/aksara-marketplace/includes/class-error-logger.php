@@ -59,7 +59,7 @@ class Aksara_Error_Logger {
 		$status     = is_array( $error_data ) && isset( $error_data['status'] ) ? (int) $error_data['status'] : 0;
 
 		self::log(
-			'rest:' . $request->get_route(),
+			'rest:' . self::redact_route( $request->get_route() ),
 			$response->get_error_message(),
 			array(
 				'code'   => $response->get_error_code(),
@@ -70,6 +70,28 @@ class Aksara_Error_Logger {
 		);
 
 		return $response;
+	}
+
+	/**
+	 * Buang token bearer dari rute sebelum dicatat.
+	 *
+	 * Rute unduhan berbentuk /aksara/v1/download/<48 hex>, dan token itu
+	 * ADALAH kredensialnya — siapa pun yang memegangnya bisa mengunduh
+	 * berkasnya. Mencatatnya apa adanya berarti menulis kredensial hidup ke
+	 * debug.log (yang di sebagian server bisa dibaca lewat web) dan
+	 * mengirimkannya ke layanan monitoring lewat hook `aksara_error`.
+	 *
+	 * Ini bukan soal token yang sudah mati saja: error seperti
+	 * `aksara_missing_resource` justru terjadi pada token yang masih
+	 * berlaku, belum kedaluwarsa, dan kuotanya belum habis. Docblock
+	 * log() di bawah sudah lama meminta "jangan kirim token mentah" —
+	 * rute inilah yang diam-diam melanggarnya.
+	 *
+	 * @param string $route Rute REST asli.
+	 * @return string
+	 */
+	private static function redact_route( $route ) {
+		return preg_replace( '#(/download/)[a-f0-9]{16,}#i', '$1[redacted]', (string) $route );
 	}
 
 	/**
