@@ -139,7 +139,36 @@ class Aksara_File_Storage {
 	 * @return string
 	 */
 	public static function get_absolute_path( $relative_path ) {
-		return trailingslashit( self::get_base_dir() ) . ltrim( $relative_path, '/' );
+		$base = trailingslashit( self::get_base_dir() );
+		$path = $base . ltrim( (string) $relative_path, '/' );
+
+		/*
+		 * Penjaga path traversal. Saat ini belum bisa dieksploitasi: kolom
+		 * file_path hanya pernah ditulis oleh store_uploaded_font() (yang
+		 * membuat sendiri nama berkasnya) dan store_generated_file() (yang
+		 * melewati sanitize_file_name()), sementara update_meta() secara
+		 * eksplisit hanya mengizinkan empat kolom lain. Penjaga ini dipasang
+		 * karena TARUHANNYA: satu jalur tulis baru ke file_path di kemudian
+		 * hari langsung mengubah endpoint unduhan bertoken menjadi pembaca
+		 * berkas arbitrer (wp-config.php dan seisinya). Lebih murah menutup
+		 * sekarang daripada mengandalkan setiap kontributor berikutnya ingat.
+		 *
+		 * realpath() mengembalikan false untuk berkas yang tidak ada,
+		 * sehingga hasilnya string kosong — dan setiap pemanggil sudah
+		 * menangani kasus "berkas tidak ditemukan" lewat file_exists().
+		 */
+		$real_base = realpath( $base );
+		$real_path = realpath( $path );
+
+		if ( false === $real_base || false === $real_path ) {
+			return '';
+		}
+
+		if ( 0 !== strpos( $real_path, trailingslashit( $real_base ) ) ) {
+			return '';
+		}
+
+		return $real_path;
 	}
 
 	/**

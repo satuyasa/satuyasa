@@ -244,3 +244,82 @@ sekali:
 
 Juga: panel Product data untuk type Font kini menjelaskan bahwa harga font
 memang tidak diatur di situ, melainkan dari matriks style x lisensi di bawah.
+
+== v0.6.1 — hasil audit menyeluruh ==
+
+=== Kritis ===
+
+* **Seluruh pengiriman produk Canva rusak.** `handle_download()` memakai
+  `wp_safe_redirect()`, yang menjalankan `wp_validate_redirect()` dan hanya
+  mengizinkan host situs sendiri — tujuan eksternal DIGANTI diam-diam dengan
+  `admin_url()`. Tautan Canva selalu eksternal, jadi setiap pembeli produk
+  Canva yang mengklik tautan unduhnya mendarat di `/wp-admin/` (atau layar
+  login, karena pembeli bukan admin). Uang masuk, barang tidak pernah sampai,
+  tanpa error apa pun. Diganti `wp_redirect()` dengan validasi
+  `wp_http_validate_url()`, yang tetap menolak skema `javascript:` dan alamat
+  jaringan internal sehingga endpoint ini tidak bisa dijadikan open redirect.
+
+=== Tinggi ===
+
+* **Token unduhan tertulis ke log.** `Aksara_Error_Logger` mencatat rute REST
+  apa adanya, dan rute unduhan berisi token bearer 48-hex — kredensial yang
+  cukup untuk mengunduh berkas. Ini bukan hanya soal token mati: error
+  `aksara_missing_resource` justru terjadi pada token yang MASIH berlaku.
+  Token kini diredaksi sebelum masuk `debug.log` maupun hook `aksara_error`
+  (yang biasanya tersambung ke Sentry).
+
+* **Harga & ketersediaan cart tidak pernah divalidasi ulang.** Harga item font
+  dihitung sekali saat ditambahkan lalu disimpan di session; cart WooCommerce
+  bisa bertahan berhari-hari. Mengubah harga di admin tidak berpengaruh pada
+  cart yang sudah terisi, dan menghapus style/lisensi meninggalkan item yang
+  menunjuk data hilang — checkout tetap berhasil, token dibuat untuk resource
+  yang tidak ada, pembeli yang sudah membayar hanya menerima "File not found".
+  `revalidate_cart_items()` kini dijalankan di `woocommerce_check_cart_items`
+  (halaman cart & sebelum checkout diproses): item yang tidak valid dikeluarkan
+  dengan penjelasan, harga yang berubah diperbarui dengan pemberitahuan.
+
+=== Menengah ===
+
+* **Folder privat tidak terlindungi di Nginx — sekarang benar-benar diuji.**
+  Proteksinya hanya `.htaccess`, yang Nginx abaikan sepenuhnya. Di stack Nginx
+  (sangat umum), berkas font berbayar bisa diunduh siapa saja yang menebak
+  URL-nya, dan tidak ada gejala apa pun dari dalam WordPress — kondisi paling
+  merusak di sistem ini sekaligus yang paling sunyi. Mendokumentasikannya
+  tidak cukup: `Aksara_Service_Health::is_private_dir_exposed()` kini menulis
+  berkas umpan berisi teks yang sudah diketahui lalu MENGAMBILNYA lewat URL
+  publik. Kalau kembali, folder itu memang terbuka — dan admin diberi notice
+  error di seluruh layar wp-admin plus aturan Nginx siap salin di halaman
+  Status. Kalau loopback gagal, hasilnya dilaporkan "tidak bisa dipastikan",
+  bukan "aman".
+
+* **Nama berkas sertifikat masih Indonesia** (`sertifikat-order-N.pdf`) —
+  luput dari terjemahan v0.6.0 karena bukan gettext. Kini
+  `license-certificate-order-N.pdf`.
+
+* **`get_absolute_path()` tanpa penjaga traversal.** Belum bisa dieksploitasi
+  hari ini (`update_meta()` mem-whitelist kolomnya; `file_path` cuma ditulis
+  kode kita sendiri), tapi satu jalur tulis baru ke kolom itu langsung
+  mengubah endpoint unduhan bertoken jadi pembaca berkas arbitrer. Ditutup
+  dengan pemeriksaan realpath.
+
+=== Dicatat, tidak diubah ===
+
+* Kuota unduhan berkurang sebelum berkas benar-benar terkirim
+  (`increment_download_count()` dipanggil sebelum `readfile()`), jadi koneksi
+  putus di tengah menghanguskan satu jatah. Memindahkannya ke sesudah stream
+  berisiko sebaliknya (unduhan sukses tidak terhitung kalau proses mati), dan
+  batas defaultnya longgar.
+* `/cart/add-font` memakai `permission_callback => '__return_true'` tanpa
+  nonce. Dampak CSRF-nya terbatas pada menambahkan item ke keranjang
+  pengunjung; add-to-cart bawaan WooCommerce sendiri juga tanpa nonce.
+* `maybe_upgrade()` berjalan tiap request, tapi hanya membaca satu option
+  yang autoloaded.
+
+=== Yang diperiksa dan ternyata sudah benar ===
+
+Seluruh query `$wpdb` memakai `prepare()` (termasuk placeholder `IN ()` yang
+dibangun dari `array_fill`); `update_meta()` mem-whitelist kolom; token
+memakai `random_bytes(24)`; endpoint sertifikat memeriksa kepemilikan order;
+harga selalu dihitung ulang di server dari DB (klien tidak pernah bisa
+mengirim harga); `dbDelta` didahului `require_once` upgrade.php; HPOS sudah
+dideklarasikan; tidak ada output tanpa escape di template tema.

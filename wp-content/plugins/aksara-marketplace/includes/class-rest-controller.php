@@ -493,7 +493,30 @@ class Aksara_Rest_Controller {
 		}
 
 		if ( 'redirect' === $result['type'] ) {
-			wp_safe_redirect( $result['url'] );
+			/*
+			 * wp_safe_redirect() TIDAK BOLEH dipakai di sini, dan dulu dipakai.
+			 * Fungsi itu menjalankan wp_validate_redirect() yang hanya
+			 * mengizinkan host situs sendiri; tujuan eksternal DIGANTI diam-
+			 * diam dengan admin_url(). Tautan Canva selalu eksternal
+			 * (canva.com), jadi setiap pembeli produk Canva yang mengklik
+			 * tautan unduhnya mendarat di /wp-admin/ — atau layar login,
+			 * karena pembeli bukan admin. Uang masuk, barang tidak pernah
+			 * sampai, dan tidak ada error apa pun yang muncul.
+			 *
+			 * wp_http_validate_url() dipakai sebagai gantinya: ia tetap
+			 * menolak skema selain http/https (mis. javascript:) dan alamat
+			 * jaringan internal, jadi endpoint ini tidak bisa dijadikan open
+			 * redirect walau meta produknya diisi sembarangan.
+			 */
+			if ( ! wp_http_validate_url( $result['url'] ) ) {
+				return new WP_Error(
+					'aksara_invalid_resource_url',
+					__( 'The download link stored for this product is not valid. Please contact support.', 'aksara-marketplace' ),
+					array( 'status' => 500 )
+				);
+			}
+
+			wp_redirect( esc_url_raw( $result['url'] ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- tujuan eksternal disengaja; sudah divalidasi wp_http_validate_url() di atas.
 			exit;
 		}
 
@@ -542,7 +565,7 @@ class Aksara_Rest_Controller {
 
 		nocache_headers();
 		header( 'Content-Type: application/pdf' );
-		header( 'Content-Disposition: attachment; filename="sertifikat-order-' . $order_id . '.pdf"' );
+		header( 'Content-Disposition: attachment; filename="license-certificate-order-' . $order_id . '.pdf"' );
 		header( 'Content-Length: ' . filesize( $path ) );
 		readfile( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_readfile
 		exit;
