@@ -58,7 +58,24 @@ aksara_authentype_enqueue_preview();
 			 * selalu tampil; ketergantungan pada JS ini adalah hal baru.)
 			 */
 			?>
-			<noscript><span class="sp-specimen-fallback"><?php the_title(); ?></span></noscript>
+			<?php
+			/*
+			 * Cadangan yang sama juga dipakai saat JS JALAN tapi render-nya
+			 * GAGAL. specimen.js menandai canvas yang gagal dengan class
+			 * .has-error lalu MELUKIS pesan error ke dalam canvas itu — jadi
+			 * tanpa aturan di bawah, pengunjung melihat kotak kosong berisi
+			 * tulisan "Preview unavailable." dan tidak satu pun huruf dari
+			 * keluarga font ini. CSS menyembunyikan canvas ber-.has-error dan
+			 * memunculkan span ini sebagai gantinya (lihat style.css).
+			 *
+			 * Canvas-nya sengaja TIDAK dihapus dari DOM: class .has-error
+			 * tetap bisa diperiksa di DevTools, dan request admin-ajax yang
+			 * gagal tetap terlihat di tab Network. Ini degradasi tampilan,
+			 * bukan penyembuhan penyebabnya.
+			 */
+			?>
+			<span class="sp-specimen-fallback" aria-hidden="true"><?php the_title(); ?></span>
+			<noscript><span class="sp-specimen-fallback sp-specimen-fallback--noscript"><?php the_title(); ?></span></noscript>
 		<?php else : ?>
 			<span class="sp-specimen-fallback"><?php the_title(); ?></span>
 		<?php endif; ?>

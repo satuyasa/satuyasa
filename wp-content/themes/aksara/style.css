@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 1.0.3
+Version: 1.0.4
 Requires at least: 6.6
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -992,6 +992,29 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 	background: var(--paper);
 }
 .aksara-row-canvas.is-loading { opacity: .55; }
+
+/* Degradasi saat render specimen gagal.
+ *
+ * specimen.js menandai canvas yang gagal dengan .has-error lalu melukis
+ * pesan error ke dalam canvas-nya. Karena baris specimen adalah SATU-SATUNYA
+ * isi visual baris katalog, hasilnya adalah kotak kosong bertuliskan
+ * "Preview unavailable." — nol huruf dari keluarga font yang sedang dijual.
+ *
+ * Aturan di bawah menukar canvas yang gagal dengan nama keluarga font dalam
+ * font tema: bukan spesimen sesungguhnya, tapi katalog tetap terbaca dan
+ * tetap bisa diklik. Canvas-nya tetap ada di DOM (cuma display:none) supaya
+ * kegagalannya masih bisa didiagnosis lewat DevTools.
+ *
+ * Kalau JS mati total, canvas tidak pernah dapat .has-error, jadi span
+ * cadangan ini tidak akan muncul lewat aturan tersebut — itulah kenapa
+ * <noscript> tetap dipertahankan sebagai jalur terpisah. */
+.sp-specimen .sp-specimen-fallback[aria-hidden="true"] { display: none; }
+.aksara-row-canvas.has-error { display: none; }
+.aksara-row-canvas.has-error + .sp-specimen-fallback[aria-hidden="true"] { display: block; }
+/* Kartu "Related font families" tidak butuh span cadangan: nama keluarganya
+ * sudah tampil di <h3> tepat di atas canvas. Jadi cukup sembunyikan canvas
+ * yang gagal supaya tidak ada kotak kosong bertuliskan error di dalam kartu. */
+.font-product-card__specimen.has-error { display: none; }
 .btn-view.is-preparing { opacity: .55; }
 .page-numbers ul,
 ul.page-numbers {

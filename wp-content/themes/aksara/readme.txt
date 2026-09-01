@@ -460,3 +460,45 @@ Satu temuan DILAPORKAN, belum diubah, karena butuh verifikasi staging:
   Checkout Anda isinya shortcode [woocommerce_cart]/[woocommerce_checkout]
   atau blok. Kalau blok, ini pekerjaan CSS baru yang tidak kecil.
 
+
+== v1.0.4 - katalog tetap terbaca saat render specimen gagal ==
+
+Ini DEGRADASI TAMPILAN, bukan penyembuhan penyebab "Preview unavailable".
+Penyebabnya masih perlu didiagnosis di server (lihat catatan diagnosis di
+bawah); yang diperbaiki di sini adalah akibatnya yang terlalu parah.
+
+Sebelumnya, kalau render gagal, specimen.js menandai canvas dengan class
+.has-error lalu MELUKIS pesan errornya ke dalam canvas itu. Karena baris
+spesimen adalah satu-satunya isi visual baris katalog, hasilnya adalah kotak
+kosong bertuliskan "Preview unavailable." - nol huruf dari keluarga font yang
+sedang dijual, di halaman yang tujuannya justru memperlihatkan huruf.
+
+Sekarang canvas yang gagal ditukar dengan nama keluarga font dalam font tema,
+memakai span cadangan yang sama dengan jalur <noscript>. Bukan spesimen
+sungguhan, tapi katalog tetap terbaca dan tetap bisa diklik. Di kartu "Related
+font families" canvas yang gagal cukup disembunyikan, karena nama keluarganya
+sudah tampil di <h3> tepat di atasnya.
+
+Canvas-nya sengaja TIDAK dihapus dari DOM, hanya display:none. Class
+.has-error tetap bisa diperiksa di DevTools dan request admin-ajax yang gagal
+tetap terlihat di tab Network, jadi sinyal diagnosisnya tidak hilang.
+
+Catatan diagnosis - apa arti pesan yang muncul:
+
+specimen.js membaca pesan error dari respons JSON endpoint dan menampilkannya
+apa adanya. Semua kegagalan yang berasal DARI DALAM handler render
+mengembalikan JSON dengan pesannya sendiri: "Font preview is not available."
+(post bukan ath_font atau belum publish), "Too many preview requests." (rate
+limit), "Preview font could not be resolved." (token tidak resolve), "Imagick
+is not available.", "GD FreeType is not available.", "GD fallback requires a
+TTF preview font." (server tidak punya mesin render yang cocok).
+
+Teks generik "Preview unavailable." adalah cadangan terakhir milik TEMA, dan
+hanya muncul kalau responsnya BUKAN JSON sama sekali. Artinya requestnya tidak
+pernah sampai ke handler render, atau mati sebelum sempat menjawab dalam
+bentuk JSON. Dua kemungkinan nyata: nonce ditolak (check_ajax_referer menjawab
+"-1" sebagai teks biasa dengan status 403), atau admin-ajax.php tidak
+menjawab normal sama sekali (fatal error PHP -> HTML 500, atau diblokir
+WAF/proxy/security plugin -> 403/404). Cek status dan isi respons request
+admin-ajax.php di tab Network untuk memisahkan keduanya.
+
