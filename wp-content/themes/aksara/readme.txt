@@ -290,3 +290,65 @@ di hari ke-14 dan kedaluwarsa di hari ke-31; nonce keranjang tetap kedaluwarsa
 di hari ke-1,5 seperti default; wp_rest tidak tersentuh; dan pemanggilan tanpa
 $action tidak mengubah apa pun.
 
+
+== v0.9.11 - audit responsif: batas kiri/kanan halaman ==
+
+Diaudit dengan merender tema di Chromium headless, bukan dengan membaca CSS.
+15 jenis halaman (front page, blog, arsip, single post, page, search, 404,
+arsip & single ath_font, halaman WooCommerce, dan empat page template) x 10
+lebar viewport (320, 360, 375, 414, 768, 900, 950, 1024, 1280, 1440), masing-
+masing dirender dalam iframe selebar itu supaya media query benar-benar
+dievaluasi, lalu diukur scrollWidth vs clientWidth plus bounding box tiap
+elemen.
+
+KOREKSI METODOLOGI. Putaran pertama melaporkan overflow di hampir semua
+halaman. Itu SALAH: fixture-nya menyuntikkan kata buatan sepanjang 43 huruf
+tanpa spasi ke setiap heading, dan pada clamp(..., 13vw, 160px) kata itu
+memang tidak mungkin muat. Angkanya mengukur fixture, bukan tema. Setelah
+diganti judul realistis, kelima belas halaman bersih di sepuluh lebar.
+
+Tapi ada yang memang lolos dari putaran itu: fixture dibuat dengan me-strip
+PHP, sehingga the_content() menghasilkan kosong dan ISI ARTIKEL DARI EDITOR
+tidak pernah teruji sama sekali. Di situlah empat bug sebenarnya berada.
+Diukur pada viewport 375px:
+
+  <pre> berisi satu baris kode panjang      meluber 338px
+  <table> enam kolom                        meluber  73px
+  URL panjang tanpa spasi di dalam <p>      meluber  60px
+
+Ketiganya karena tema sama sekali tidak punya aturan global untuk pre, table,
+maupun overflow-wrap - yang ada cuma img { max-width: 100% }. Isi artikel
+datang dari editor, bukan dari template, jadi tema tidak boleh mengandalkan
+markupnya berperilaku baik. Ditambahkan satu blok pagar untuk .entry-content
+dan .editorial-single__body: overflow-wrap break-word (bukan anywhere -
+break-word hanya memotong kata yang memang tidak muat dan tidak mengubah
+perhitungan min-content, jadi tipografi normal tidak terganggu), plus
+display:block + overflow-x:auto untuk pre dan table.
+
+  blockquote artikel     meluber 50px di 901px, 25px di 950px, 1px di 999px
+
+Ini yang paling halus. .editorial-single__body blockquote memasang
+margin: 64px -120px TANPA SYARAT sebagai efek bleed, lalu membatalkannya
+lewat margin-inline: 0 di bawah 900px. Badan artikel lebarnya
+min(100% - 32px, 760px), jadi bleed 120px per sisi baru benar-benar muat
+kalau viewport minimal 760 + 240 = 1000px. Yang tersisa adalah celah
+901-999px: pembatalannya sudah berhenti berlaku tapi ruangnya belum ada.
+
+Diperbaiki dengan membalik logikanya: bleed dinyatakan sebagai afordansi
+desktop lewat @media (min-width: 1040px), bukan default yang dibatalkan di
+layar kecil. Celahnya tertutup secara definisi, bukan dengan menambal
+breakpoint.
+
+Ambangnya 1040px dan bukan 1000px pas karena alasan yang terukur: saat
+halaman cukup panjang untuk memunculkan scrollbar vertikal, ruang yang
+tersedia berkurang selebar scrollbar (~15px) sementara media query tetap
+dievaluasi terhadap 1000px - tepat di 1000px masih tersisa 8px overflow.
+40px kelonggaran menutupinya di semua lebar scrollbar yang wajar.
+
+GUTTER. Padding kiri/kanan .wrap diperiksa di kelima belas halaman dan
+sepuluh lebar: konsisten 16px di <=600px dan 24px di atasnya, kiri selalu
+sama dengan kanan. Tidak ada yang menyimpang.
+
+HASIL AKHIR. Kelima belas halaman plus lima fixture isi-artikel: nol
+overflow horizontal di sepuluh lebar.
+

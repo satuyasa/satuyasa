@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.10
+Version: 0.9.11
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -836,6 +836,39 @@ button[type="submit"], input[type="submit"],
 	color: var(--muted);
 	margin-bottom: var(--spacing-12);
 }
+/* --- Pagar isi editor ----------------------------------------------------
+ * Isi artikel datang dari editor WordPress, bukan dari template tema, jadi
+ * tema tidak boleh mengandalkan markupnya berperilaku baik. Tiga elemen
+ * terbukti menembus batas kiri/kanan halaman saat diukur di Chromium
+ * headless pada viewport 375px:
+ *
+ *   <pre> berisi satu baris kode panjang   -> meluber 338px
+ *   <table> enam kolom                      -> meluber  73px
+ *   URL panjang tanpa spasi di dalam <p>    -> meluber  60px
+ *
+ * Ketiganya dipagari di sini SATU KALI untuk semua template, bukan
+ * ditambal per halaman - sumbernya sama: konten yang lebarnya tidak bisa
+ * diketahui tema di muka.
+ *
+ * overflow-wrap dipakai break-word, bukan anywhere: break-word hanya
+ * memotong kata ketika kata itu memang tidak muat, dan tidak ikut mengubah
+ * perhitungan min-content - jadi tipografi normal tidak terganggu.
+ *
+ * table dibuat display:block agar overflow-x-nya berlaku; ini konsekuensi
+ * yang diterima, karena <table> biasa mengabaikan overflow. */
+.entry-content,
+.editorial-single__body {
+	overflow-wrap: break-word;
+}
+.entry-content pre,
+.editorial-single__body pre,
+.entry-content table,
+.editorial-single__body table {
+	display: block;
+	max-width: 100%;
+	overflow-x: auto;
+}
+
 .entry-content { font-size: var(--text-body); line-height: var(--leading-body); }
 .entry-content a { border-bottom: 1px solid var(--hairline-strong); }
 .entry-thumbnail img { border-radius: var(--radius-sm); margin-bottom: var(--spacing-24); }
@@ -1593,7 +1626,22 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-single__body h3 { font-family: var(--font-editorial); font-weight: 400; line-height: 1.08; letter-spacing: -.025em; }
 .editorial-single__body h2 { margin-top: 2em; font-size: clamp(42px, 6vw, 68px); }
 .editorial-single__body h3 { margin-top: 1.8em; font-size: 34px; }
-.editorial-single__body blockquote { margin: 64px -120px; padding: 0; border: 0; font-family: var(--font-editorial); font-size: clamp(42px, 6vw, 72px); line-height: 1.08; text-align: center; }
+/* Bleed -120px SENGAJA hanya di >=1000px, bukan default yang dibatalkan di
+ * layar kecil. Badan artikel lebarnya min(100% - 32px, 760px), jadi bleed
+ * 120px per sisi baru muat kalau viewport >= 760 + 240 = 1000px. Versi lama
+ * memasang -120px tanpa syarat lalu membatalkannya di bawah 900px, sehingga
+ * tersisa celah 901-999px yang meluber - terukur 50px di 901px, 25px di
+ * 950px, 1px di 999px. Menyatakan syaratnya lewat min-width menutup celah itu
+ * secara definisi, bukan dengan menambal breakpoint.
+ *
+ * Ambangnya 1040px, bukan 1000px pas. Batas teoretisnya memang 1000px, tapi
+ * saat halaman cukup panjang untuk memunculkan scrollbar vertikal, ruang yang
+ * benar-benar tersedia berkurang selebar scrollbar itu (~15px) sementara
+ * media query tetap dievaluasi terhadap 1000px - terukur menyisakan 8px
+ * overflow tepat di 1000px. 40px kelonggaran menutupinya dengan aman di semua
+ * lebar scrollbar yang wajar. */
+.editorial-single__body blockquote { margin: 64px 0; padding: 0; border: 0; font-family: var(--font-editorial); font-size: clamp(42px, 6vw, 72px); line-height: 1.08; text-align: center; }
+@media (min-width: 1040px) { .editorial-single__body blockquote { margin-inline: -120px; } }
 .editorial-single__body img { border-radius: 8px; }
 .editorial-single__footer { padding: 64px 0 88px; border-top: 1px solid #bdbdbd; }
 .editorial-author { display: grid; grid-template-columns: 80px minmax(0, 600px); gap: 24px; align-items: start; }
@@ -1636,7 +1684,6 @@ form.hero-search input[type="search"]:focus-visible {
 @media (max-width: 900px) {
 	.editorial-card--featured { grid-template-columns: 1fr; gap: 28px; }
 	.editorial-card--featured .editorial-card__image { border-radius: 160px; }
-	.editorial-single__body blockquote { margin-inline: 0; }
 	.editorial-related__grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
