@@ -85,7 +85,13 @@ body.foundry-page {
 	--fd-section-gap: 64px;
 	--fd-sidebar: 200px;
 	--fd-max: 1440px;
-	--fd-pad: 24px;
+	/* Gutter halaman. Diikat ke --gutter milik tema (24px, 16px di bawah
+	 * 600px) supaya isi halaman Free Font sejajar dengan header dan footer
+	 * di atas-bawahnya, dan tidak bisa hanyut kalau salah satunya berubah.
+	 * Nilainya persis sama dengan angka yang dulu ditulis di sini, termasuk
+	 * di ponsel — jadi override --fd-pad di @media 600px kini tidak perlu
+	 * dan ikut dihapus. Fallback 24px kalau foundry.css dimuat sendirian. */
+	--fd-pad: var(--gutter, 24px);
 
 	background: var(--fd-black);
 	color: var(--fd-bone);
@@ -112,10 +118,36 @@ body.foundry-page {
 	background: #ffffff;
 	color: #111111;
 }
+/* LEBAR HALAMAN FREE FONT — kenapa lebar penuh, bukan kolom 1440px.
+ *
+ * Dulu: width: min(100% - 48px, 1440px) + margin auto + garis rambut kiri
+ * kanan. Diukur di Chromium, hasilnya isi halaman ini TIDAK PERNAH sejajar
+ * dengan header dan footernya sendiri di atas 600px:
+ *
+ *      viewport   header/footer   isi Free Font
+ *      768-1440       24px            49px
+ *      1600           24px            98px
+ *      1920           24px           258px
+ *      2560           24px           578px
+ *
+ * Dua sebab, dan keduanya diperbaiki di sini. Pertama GUTTER GANDA: wadah
+ * ini memberi 24px lewat "100% - 48px", lalu section di dalamnya memberi
+ * --fd-pad 24px lagi, ditambah 1px garis — 49px, dua kali lipat gutter tema.
+ * Kedua BATAS 1440px: di atas ~1488px kolomnya berhenti melebar sementara
+ * header dan footer terus sampai tepi, dan selisihnya tumbuh tanpa batas.
+ *
+ * Batas 1440px itu sendiri datang dari DESIGN3, tapi di sana ia berpasangan
+ * dengan sidebar tetap 200px di kiri — tata letak yang TIDAK diadopsi tema
+ * ini; halaman Free Font memakai header Aksara biasa. Dan DESIGN.md, yang
+ * mengatur kerangka situs, menyatakan sistemnya tanpa max-width dan tanpa
+ * kolom yang dipusatkan. Jadi yang tersisa adalah batas warisan dari layout
+ * yang sudah tidak ada.
+ *
+ * Garis rambut kiri-kanan ikut dilepas: ia hanya masuk akal sebagai bingkai
+ * kolom yang dipusatkan. Di lebar penuh ia jadi garis yang menempel persis
+ * di tepi viewport. Gutter kini datang dari satu tempat saja, --fd-pad. */
 .freefonts-archive__inner {
-	width: min(100% - 48px, 1440px);
-	margin-inline: auto;
-	border-inline: 1px solid var(--fd-soot);
+	width: 100%;
 }
 .freefonts-archive .foundry-hero {
 	padding-block: clamp(56px, 7vw, 104px) clamp(44px, 5vw, 72px);
@@ -486,88 +518,14 @@ body.foundry-page {
 .foundry-specimen canvas.has-error { display: none; }
 .foundry-specimen canvas.has-error + .foundry-placeholder--on-error { display: flex; }
 
-/* --- Font tester --------------------------------------------------------
- * Kontrolnya milik plugin (.ath-preview-toolbar, .ath-master-text, .ath-size)
- * dan hanya ditata di sini. Bentuknya mengikuti "Metadata Strip" DESIGN3:
- * satu baris horizontal, monospace huruf besar, garis rambut di bawahnya. */
-.foundry-tester {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: end;
-	gap: 12px var(--fd-gap);
-	margin-bottom: 32px;
-	padding-bottom: 16px;
-	border-bottom: 1px solid var(--fd-chalk);
-}
-.foundry-tester > * { min-width: 0; }
-.foundry-tester__field {
-	display: flex;
-	flex: 1 1 240px;
-	flex-direction: column;
-	gap: 6px;
-	min-width: 0;
-}
-.foundry-tester__field--size { flex: 0 1 200px; }
-.foundry-tester__label {
-	font-size: var(--fd-caption);
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	color: var(--fd-ash-text);
-}
-.foundry-tester__text {
-	width: 100%;
-	padding: 10px 12px;
-	border: 1px solid var(--fd-chalk);
-	border-radius: var(--fd-radius);
-	background: transparent;
-	color: var(--fd-bone);
-	font-family: var(--fd-mono);
-	font-size: var(--fd-body-sm);
-	letter-spacing: -0.02em;
-}
-.foundry-tester__text::placeholder { color: var(--fd-ash-text); }
-.foundry-tester__text:focus { border-color: var(--fd-ember); outline: none; }
+/* Blok .foundry-tester (~80 baris) dihapus di 0.9.25 bersama
+ * assets/js/foundry-tester.js. Keduanya menata dan menggerakkan toolbar
+ * tester buatan tema sendiri, tapi tidak ada satu pun template yang mencetak
+ * markupnya: toolbar yang benar-benar tampil milik plugin
+ * (.ath-free-live-preview__toolbar) dan ditata di bagian .freefonts-archive
+ * di atas. Skripnya sudah berhenti di-enqueue sejak inc/free-fonts.php
+ * beralih ke atribut data-* milik Authentype 1.0.7; CSS-nya tertinggal. */
 
-/* Slider digambar sendiri: kontrol range bawaan membawa warna sistem operasi
- * yang tidak bisa diselaraskan dengan andal di semua platform, dan di kanvas
- * gelap ia sering muncul sebagai batang biru terang. */
-.foundry-tester__size {
-	width: 100%;
-	height: 20px;
-	margin: 0;
-	background: transparent;
-	-webkit-appearance: none;
-	appearance: none;
-	cursor: pointer;
-}
-.foundry-tester__size::-webkit-slider-runnable-track {
-	height: 1px;
-	background: var(--fd-bone);
-}
-.foundry-tester__size::-moz-range-track {
-	height: 1px;
-	background: var(--fd-bone);
-}
-.foundry-tester__size::-webkit-slider-thumb {
-	-webkit-appearance: none;
-	appearance: none;
-	width: 12px;
-	height: 12px;
-	margin-top: -6px;
-	border: 0;
-	border-radius: 50%;
-	background: var(--fd-bone);
-}
-.foundry-tester__size::-moz-range-thumb {
-	width: 12px;
-	height: 12px;
-	border: 0;
-	border-radius: 50%;
-	background: var(--fd-bone);
-}
-.foundry-tester__size:focus-visible { outline: 2px solid var(--fd-ember); outline-offset: 4px; }
-
-.foundry-tester__reset { align-self: end; }
 
 /* Wadah spesimen milik plugin tidak boleh membawa gaya apa pun sendiri. */
 .foundry-root { display: block; }
@@ -616,6 +574,47 @@ body.foundry-page {
 	color: var(--fd-bone);
 }
 
+/* Deskripsi + gambar unggulan berdampingan.
+ *
+ * Gutter-nya pindah ke pembungkus ini, bukan tinggal di .foundry-body:
+ * kalau padding tetap di kolom teks, kolom gambar akan mulai dari tempat
+ * lain dan keduanya tidak lagi rata dengan sisa halaman.
+ *
+ * 34% untuk kolom gambar, bukan lebar tetap: teks tetap mendapat lebar baca
+ * yang layak di 1024px maupun 2560px, sementara gambar ikut tumbuh alih-alih
+ * jadi prangko di layar lebar. minmax(0, ...) di kedua kolom karena anak grid
+ * bawaannya tidak boleh menyusut di bawah lebar min-content-nya — masalah
+ * yang sama yang dulu melebarkan halaman di audit responsif. */
+.foundry-about { padding: 40px var(--fd-pad); }
+.foundry-about--split {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
+	gap: 40px;
+	align-items: start;
+}
+.foundry-about > * { min-width: 0; }
+.foundry-about .foundry-body { padding: 0; }
+
+.foundry-figure { margin: 0; }
+.foundry-figure__img {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: var(--fd-radius);
+}
+.foundry-figure figcaption {
+	margin-top: 12px;
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	color: var(--fd-ash-text);
+}
+
+/* Di bawah 900px kolomnya ditumpuk: gambar turun ke bawah teks, mengikuti
+ * urutan DOM-nya, jadi tidak perlu order apa pun. */
+@media (max-width: 900px) {
+	.foundry-about--split { grid-template-columns: 1fr; gap: 32px; }
+}
+
 .foundry-body {
 	max-width: min(60ch, 100%);
 	padding: 40px var(--fd-pad);
@@ -624,7 +623,14 @@ body.foundry-page {
 	line-height: 1.6;
 }
 .foundry-body a { color: var(--fd-ember); border-bottom: 1px solid var(--fd-ember); }
-.foundry-body > * + * { margin-top: 1em; }
+/* .foundry .foundry-body, bukan .foundry-body saja — dan itu bukan gaya
+ * penulisan, itu perbaikan bug. Reset ".foundry p { margin: 0 }" di atas
+ * berspesifisitas (0,1,1), sedangkan ".foundry-body > * + *" hanya (0,1,0),
+ * jadi selama ini reset itulah yang menang dan SELURUH paragraf deskripsi
+ * free font menempel tanpa jarak sama sekali. Terukur: margin-top setiap
+ * <p> dihitung 0px. Dengan satu kelas tambahan spesifisitasnya jadi (0,2,0)
+ * dan aturan ini menang tanpa perlu !important. */
+.foundry .foundry-body > * + * { margin-top: 1em; }
 /* Isi dari editor tidak bisa diandalkan berperilaku baik — pagar yang sama
  * seperti .entry-content di sistem terang. */
 .foundry-body pre,
@@ -798,13 +804,12 @@ body.foundry-page {
 }
 
 @media (max-width: 600px) {
-	.foundry { --fd-pad: 16px; --fd-section-gap: 40px; }
+	.foundry { --fd-section-gap: 40px; }
 	.foundry-meta { justify-content: flex-start; }
 	.foundry-sidebar-foot { grid-auto-flow: row; }
 	.foundry .foundry-download .ath-free-download-actions { grid-template-columns: 1fr; }
 	.foundry .foundry-download .ath-free-download-button { justify-self: stretch; width: 100%; }
 	.foundry .foundry-download .ath-free-download-license-info { grid-template-columns: 1fr; }
-	.freefonts-archive__inner { width: 100%; border-inline: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

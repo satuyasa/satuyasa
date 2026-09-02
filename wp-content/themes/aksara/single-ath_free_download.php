@@ -92,8 +92,40 @@ while ( have_posts() ) :
 			<div class="foundry-meta"><span class="muted"><?php echo esc_html( $fd_summary ); ?></span></div>
 		<?php endif; ?>
 
-		<?php if ( trim( (string) get_the_content() ) ) : ?>
-			<div class="foundry-body"><?php the_content(); ?></div>
+		<?php
+		/*
+		 * Deskripsi + gambar unggulan, berdampingan: teks kiri, gambar kanan.
+		 *
+		 * Gambar unggulannya sendiri BARU ditampilkan di sini — sebelumnya
+		 * halaman ini tidak pernah mencetaknya sama sekali, jadi gambar yang
+		 * sudah dipasang admin di editor tidak muncul di mana pun.
+		 *
+		 * Kalau salah satunya tidak ada, blok ini tidak memaksakan dua kolom:
+		 * tanpa gambar, teks memakai lebar bacanya sendiri seperti dulu, dan
+		 * tanpa teks, gambar berdiri sendiri. Kelas pembeda dipasang di PHP,
+		 * bukan lewat :has() di CSS, supaya perilakunya sama di peramban yang
+		 * belum mendukung :has().
+		 */
+		$fd_text  = trim( (string) get_the_content() );
+		$fd_thumb = has_post_thumbnail( $fd_id )
+			? get_the_post_thumbnail( $fd_id, 'aksara-preview-md', array( 'class' => 'foundry-figure__img', 'loading' => 'lazy' ) )
+			: '';
+		$fd_cap   = $fd_thumb ? get_the_post_thumbnail_caption( $fd_id ) : '';
+		?>
+		<?php if ( $fd_text || $fd_thumb ) : ?>
+			<div class="foundry-about<?php echo ( $fd_text && $fd_thumb ) ? ' foundry-about--split' : ''; ?>">
+				<?php if ( $fd_text ) : ?>
+					<div class="foundry-body"><?php the_content(); ?></div>
+				<?php endif; ?>
+				<?php if ( $fd_thumb ) : ?>
+					<figure class="foundry-figure">
+						<?php echo $fd_thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- keluaran inti WordPress. ?>
+						<?php if ( $fd_cap ) : ?>
+							<figcaption><?php echo esc_html( $fd_cap ); ?></figcaption>
+						<?php endif; ?>
+					</figure>
+				<?php endif; ?>
+			</div>
 		<?php endif; ?>
 
 		<?php if ( $fd_note ) : ?>

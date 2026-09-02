@@ -1005,3 +1005,77 @@ sesudah: hasilnya sama persis - overflow halaman 0 dan gutter tepat di
 semuanya. Empat halaman menandai scroll DI DALAM elemen (tabel di dalam
 overflow-x:auto seperti yang dirancang, dan dua fixture potongan tanpa
 kerangka halaman); keempatnya sudah begitu sebelum rilis ini.
+
+== v0.9.25 - lebar halaman Free Font, warna spesimen, gambar unggulan ==
+
+LEBAR: ISINYA TIDAK PERNAH SEJAJAR DENGAN HEADER-NYA SENDIRI
+
+Diukur di Chromium, tepi isi halaman Free Font dibandingkan dengan tepi isi
+header dan footer di halaman yang sama:
+
+    viewport      header/footer     isi Free Font
+    360-600            16px              16px   sejajar
+    768-1440           24px              49px
+    1600               24px              98px
+    1920               24px             258px
+    2560               24px             578px
+
+Dua sebabnya. Pertama GUTTER GANDA: .freefonts-archive__inner memberi 24px
+lewat width: min(100% - 48px, 1440px), lalu section di dalamnya memberi
+--fd-pad 24px lagi, ditambah 1px garis rambut - 49px, dua kali lipat gutter
+tema. Kedua BATAS 1440px: di atas ~1488px kolomnya berhenti melebar sementara
+header dan footer terus sampai tepi, dan selisihnya tumbuh tanpa batas.
+
+Batas 1440px itu datang dari DESIGN3, tapi di sana ia berpasangan dengan
+sidebar tetap 200px di kiri - tata letak yang TIDAK diadopsi tema ini;
+halaman Free Font memakai header Aksara biasa. Dan DESIGN.md, yang mengatur
+kerangka situs, menyatakan sistemnya tanpa max-width dan tanpa kolom yang
+dipusatkan. Jadi yang tersisa adalah batas warisan dari layout yang sudah
+tidak ada. Garis rambut kiri-kanan ikut dilepas: ia hanya masuk akal sebagai
+bingkai kolom terpusat.
+
+Gutter kini datang dari satu tempat saja, dan --fd-pad diikat ke --gutter
+milik tema. Nilainya persis sama dengan yang dulu ditulis lepas (24px, 16px
+di bawah 600px), jadi override --fd-pad di @media 600px ikut dihapus. Sesudah
+perbaikan, 11 lebar dari 360px sampai 2560px diukur ulang: SELURUHNYA sejajar
+dengan header dan footer.
+
+SPESIMEN ARSIP: LATAR HITAM DI ATAS HALAMAN PUTIH
+
+Arsip Free Font sudah lama putih (.freefonts-archive menimpa seluruh palet
+Foundry jadi terang), tapi template-parts/free-font-row.php masih mengirim
+text_color="#efefef" bg_color="#121212" ke shortcode - sisa dari masa arsip
+ini masih kanvas gelap. Warna itu dikirim ke SERVER dan ikut terbakar ke
+dalam PNG spesimennya, jadi yang muncul persegi hitam di atas halaman putih.
+Latar canvas di CSS tidak bisa menolong karena PNG-nya menutupi latar itu.
+Sekarang #111111 di atas #ffffff.
+
+assets/js/foundry-tester.js DIHAPUS. Berkas itu ada untuk menimpa warna yang
+dipaksakan initRoot() milik plugin, tapi sejak inc/free-fonts.php beralih ke
+atribut data-* milik Authentype 1.0.7 ia berhenti di-enqueue - yatim, sama
+seperti header-foundry.php dulu. Blok CSS .foundry-tester (~80 baris) ikut
+dihapus: tidak ada satu pun template yang mencetak markupnya, karena toolbar
+yang benar-benar tampil milik plugin (.ath-free-live-preview__toolbar).
+
+GAMBAR UNGGULAN DI KANAN DESKRIPSI
+
+Halaman tunggal Free Font sebelumnya TIDAK PERNAH mencetak gambar unggulan
+sama sekali - gambar yang sudah dipasang admin di editor tidak muncul di mana
+pun. Kini deskripsi dan gambar berdampingan: teks kiri, gambar kanan
+(minmax(0,1fr) / minmax(0,34%)), ditumpuk di bawah 900px dengan gambar turun
+mengikuti urutan DOM.
+
+Kalau salah satunya tidak ada, blok ini tidak memaksakan dua kolom. Kelas
+pembedanya dipasang di PHP, bukan lewat :has() di CSS, supaya perilakunya
+sama di peramban yang belum mendukung :has().
+
+SATU BUG YANG KETAHUAN SAAT MERAPIKANNYA
+
+Seluruh paragraf deskripsi free font selama ini MENEMPEL tanpa jarak.
+Penyebabnya spesifisitas: ".foundry p { margin: 0 }" bernilai (0,1,1)
+sedangkan ".foundry-body > * + * { margin-top: 1em }" hanya (0,1,0), jadi
+reset itulah yang menang. Terukur: margin-top setiap <p> dihitung 0px.
+Ditambah satu kelas jadi ".foundry .foundry-body > * + *" (0,2,0) dan aturan
+itu menang tanpa perlu !important - terukur kini 16px.
+
+Regresi luber/gutter untuk kedua halaman di 9 lebar: bersih seluruhnya.

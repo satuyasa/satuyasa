@@ -44,8 +44,17 @@ if ( $fd_specimen && function_exists( 'aksara_authentype_styles' ) ) {
 	<div class="foundry-specimen">
 		<?php if ( $fd_specimen && shortcode_exists( 'authentype_free_font_preview' ) ) : ?>
 			<?php
+			/*
+			 * Tinta hitam di atas kertas putih. Dulu di sini tertulis
+			 * #efefef di atas #121212 — sisa dari masa arsip ini masih
+			 * kanvas gelap. Halamannya sudah lama putih (lihat
+			 * .freefonts-archive di foundry.css), tapi warna INI dikirim ke
+			 * server dan ikut terbakar ke dalam PNG-nya, jadi yang muncul
+			 * adalah persegi hitam di atas halaman putih. Latar canvas di
+			 * CSS tidak bisa menolong: PNG-nya menutupi latar itu.
+			 */
 			echo do_shortcode( sprintf(
-				'[authentype_free_font_preview id="%d" text="%s" size="120" min_size="36" max_size="180" text_color="#efefef" bg_color="#121212"]',
+				'[authentype_free_font_preview id="%d" text="%s" size="120" min_size="36" max_size="180" text_color="#111111" bg_color="#ffffff"]',
 				(int) $fd_id,
 				esc_attr( get_the_title() )
 			) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- shortcode milik plugin meng-escape semua nilai.
