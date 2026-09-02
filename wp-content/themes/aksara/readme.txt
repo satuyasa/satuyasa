@@ -352,3 +352,73 @@ sama dengan kanan. Tidak ada yang menyimpang.
 HASIL AKHIR. Kelima belas halaman plus lima fixture isi-artikel: nol
 overflow horizontal di sepuluh lebar.
 
+
+== v0.9.12 - "ABOUT THE AUTHOR ke bawah" & lantai min-content ==
+
+Audit 0.9.11 melewatkan seluruh bagian bawah halaman single post, dan
+alasannya sama seperti sebelumnya: isinya digenerate PHP - get_avatar(),
+the_author(), the_post_navigation(), comments_template(), dan loop related -
+sedangkan fixture dibuat dengan me-strip PHP. Bagian itu dirender kosong,
+jadi tidak pernah benar-benar diuji. Fixture baru memakai markup WordPress
+yang sebenarnya untuk seluruh wilayah itu.
+
+PELAKUNYA: .editorial-author
+
+Lebarnya terkunci 405px berapa pun viewport-nya. Di 320px meluber 100px, di
+375px 45px, di 414px 6px, dan baru hilang di 600px - persis pola yang
+dilaporkan.
+
+Sebabnya bukan aturan width yang salah, melainkan lantai min-content:
+
+  Setiap anak grid atau flex punya min-width: auto secara bawaan, yang
+  berarti ia TIDAK BOLEH menyusut di bawah lebar min-content-nya.
+
+.editorial-author memakai grid-template-columns: 80px minmax(0, 600px).
+Trek keduanya memang boleh mengecil sampai 0 - tapi ITEM di dalamnya tidak.
+Bio penulis yang memuat satu URL panjang memaksa lebarnya 301px, sehingga
+kotaknya terkunci di 80 + 24 + 301 = 405px dan mendorong <body> ikut melebar.
+Tidak ada satu pun properti width yang keliru; yang keliru adalah asumsi
+bahwa anak grid boleh menyusut.
+
+PERBAIKAN - DUA LAPIS, KEDUANYA PERLU
+
+1. overflow-wrap: break-word di body. Teks yang tidak muat DIPOTONG, bukan
+   dibiarkan mendorong halaman. Ditaruh di body, bukan didaftar per wadah,
+   karena sumbernya bisa muncul di mana saja: nama font panjang, URL di
+   dalam judul, alamat email di heading footer. Dipakai break-word dan bukan
+   anywhere supaya perhitungan min-content tidak ikut berubah - tipografi
+   normal dan spesimen besar tidak berubah sama sekali.
+
+2. min-width: 0 pada anak setiap wadah grid/flex. Daftar selektornya TIDAK
+   ditulis tangan: ia diturunkan dari stylesheet ini sendiri dengan memindai
+   setiap aturan yang mendeklarasikan display: grid atau display: flex - 53
+   wadah. Daftar tangan terbukti selalu tertinggal: percobaan pertama
+   melewatkan .editorial-masthead dan .font-library-header, dan keduanya
+   langsung muncul di uji tekan.
+
+   Keduanya diperlukan. Tanpa overflow-wrap, teksnya tetap tumpah keluar
+   item meski itemnya sudah boleh menyusut. Tanpa min-width: 0, treknya
+   tetap dipaksa melebar meski teksnya sudah boleh dipotong.
+
+SATU LAGI: .editorial-footer-cta p
+
+max-width: 34ch pada font-size 18px = 321px. Di bawah 640px wadahnya jadi
+flex-direction: column dengan align-items: flex-start, sehingga item ini
+menyusut ke lebar kontennya - dibatasi max-width, TAPI mengabaikan lebar
+wadahnya. Di viewport 320px ruang yang tersedia cuma 273px, jadi meluber
+tepat 32px - di SETIAP halaman, karena footer ini dipakai semua halaman.
+min-width: 0 tidak menolong: itu soal penyusutan sumbu utama, bukan batas
+atas di sumbu silang. Diperbaiki jadi max-width: min(34ch, 100%).
+
+UJI TEKAN
+
+Selain suite konten normal, ditambahkan suite kedua yang menyuntikkan token
+88 karakter tanpa spasi ke SETIAP heading dan paragraf di semua halaman -
+worst case yang disengaja, bukan kecelakaan fixture seperti di 0.9.11.
+Ia langsung membuktikan pagar versi pertama terlalu sempit: 17 dari 21
+halaman masih meluber, sampai 1306px.
+
+HASIL AKHIR. 21 fixture (15 jenis halaman + bagian bawah single post + 5
+fixture isi artikel) x 10 lebar viewport, pada kedua suite: nol overflow
+horizontal.
+

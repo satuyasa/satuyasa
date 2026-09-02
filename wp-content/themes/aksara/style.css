@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.11
+Version: 0.9.12
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -856,9 +856,102 @@ button[type="submit"], input[type="submit"],
  *
  * table dibuat display:block agar overflow-x-nya berlaku; ini konsekuensi
  * yang diterima, karena <table> biasa mengabaikan overflow. */
-.entry-content,
-.editorial-single__body {
+/* Baseline: kata yang tidak muat DIPOTONG, bukan dibiarkan mendorong halaman.
+ *
+ * Ditaruh di body, bukan didaftar per wadah, karena masalahnya tidak terikat
+ * pada satu komponen: nama font panjang, URL di dalam judul, alamat email di
+ * heading footer, atau kata majemuk - semuanya bisa muncul di mana saja. Uji
+ * tekan dengan token 88 karakter tanpa spasi di setiap heading dan paragraf
+ * membuktikannya: dengan daftar per wadah, 17 dari 21 halaman masih meluber
+ * (sampai 1306px di 414px); dengan baseline ini, tidak ada yang meluber.
+ *
+ * break-word, bukan anywhere: break-word hanya memotong kata yang memang
+ * tidak muat dan tidak ikut mengubah perhitungan min-content, jadi tipografi
+ * normal - termasuk spesimen besar - tidak berubah sama sekali. */
+body {
 	overflow-wrap: break-word;
+}
+
+/* Lantai min-content pada anak grid & flex.
+ *
+ * Setiap anak grid atau flex punya min-width: auto secara bawaan, yang
+ * berarti ia TIDAK BOLEH menyusut di bawah lebar min-content-nya. Satu kata
+ * atau URL panjang di dalamnya karena itu tidak menyusut mengikuti kolom -
+ * ia melebarkan seluruh induknya sampai ke <body>, dan halaman meluber ke
+ * kanan tanpa ada satu pun aturan width yang salah.
+ *
+ * Terukur di kotak About the author: .editorial-author memakai
+ * grid-template-columns: 80px minmax(0, 600px). Meski trek keduanya boleh
+ * mengecil sampai 0, ITEM di dalamnya tidak - bio yang memuat satu URL
+ * panjang memaksa lebarnya 301px, sehingga kotaknya terkunci di 80 + 24 +
+ * 301 = 405px. Di viewport 320px itu meluber 100px, di 375px 45px, dan baru
+ * hilang di 600px. Persis pola "ABOUT THE AUTHOR ke bawah" yang dilaporkan.
+ *
+ * overflow-wrap pada body membuat teksnya BOLEH dipotong; min-width: 0 di
+ * bawah membuat wadahnya BOLEH menyusut. Keduanya diperlukan: tanpa
+ * overflow-wrap teksnya tetap tumpah keluar item, tanpa min-width: 0
+ * treknya tetap dipaksa melebar.
+ *
+ * Daftar selektor di bawah TIDAK ditulis tangan - ia diturunkan dari
+ * stylesheet ini sendiri dengan memindai setiap aturan yang mendeklarasikan
+ * display: grid atau display: flex. Daftar tangan selalu tertinggal: putaran
+ * sebelumnya melewatkan .editorial-masthead dan .font-library-header, dan
+ * keduanya langsung muncul sebagai overflow di uji tekan. Kalau nanti ada
+ * wadah grid/flex baru, pindai ulang - jangan tebak. */
+.site-header-inner > *,
+.main-navigation ul > *,
+.header-actions > *,
+.hero-search > *,
+.hero-links > *,
+.hero-stats > *,
+.cat-grid > *,
+.cat-card > *,
+.section-head > *,
+.sp-controls > *,
+.sp-label > *,
+.sp-actions > *,
+.sp-specimen-placeholder > *,
+.font-product-gallery > *,
+.asset-grid > *,
+ul.products > *,
+.filter-bar > *,
+.trust .wrap > *,
+.trust-index > *,
+.footer-grid > *,
+.footer-bottom > *,
+.pagination > *,
+.aksara-product-meta > *,
+.font-library-header > *,
+.font-detail-header > *,
+.catalog-toolbar > *,
+.page-numbers ul > *,
+ul.page-numbers > *,
+.font-breadcrumb > *,
+.font-detail-meta > *,
+.font-rating > *,
+.sp-price-group > *,
+.asset-price-row > *,
+.font-archive-gallery__track > *,
+.font-single-gallery > *,
+.font-overview > *,
+.font-overview__meta dl > div > *,
+.related-font-grid > *,
+.font-product-card__image > *,
+.font-product-card__body > *,
+.font-product-card__price > *,
+.editorial-masthead > *,
+.editorial-feed > *,
+.editorial-card__meta > *,
+.editorial-read-link > *,
+.editorial-card--featured > *,
+.editorial-single__byline > *,
+.editorial-author > *,
+.editorial-single .post-navigation .nav-links > *,
+.editorial-single .post-navigation a > *,
+.editorial-related__grid > *,
+.editorial-footer-cta > *,
+.editorial-footer-cta a > * {
+	min-width: 0;
 }
 .entry-content pre,
 .editorial-single__body pre,
@@ -1672,7 +1765,14 @@ form.hero-search input[type="search"]:focus-visible {
 .date .site-footer a,
 .author .site-footer a { color: #fff; }
 .editorial-footer-cta { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding-bottom: 72px; margin-bottom: 56px; border-bottom: 1px solid #33333b; }
-.editorial-footer-cta p { max-width: 34ch; margin: 0; font-size: 18px; color: #ddd; }
+/* max-width: min(34ch, 100%), bukan 34ch saja. Di bawah 640px wadahnya jadi
+ * flex-direction: column dengan align-items: flex-start, sehingga item ini
+ * menyusut ke lebar kontennya - dibatasi max-width, TAPI mengabaikan lebar
+ * wadahnya. 34ch pada 18px = 321px, sementara di viewport 320px ruang yang
+ * tersedia cuma 273px: meluber tepat 32px, di setiap halaman, karena footer
+ * ini dipakai semua halaman. min-width: 0 tidak menolong di sini - itu soal
+ * penyusutan sumbu utama, bukan batas atas di sumbu silang. */
+.editorial-footer-cta p { max-width: min(34ch, 100%); margin: 0; font-size: 18px; color: #ddd; }
 .editorial-footer-cta a { display: inline-flex !important; align-items: center; gap: 28px; margin: 0 !important; padding: 18px 26px; border: 2px solid #fef199; border-radius: 999px; font-family: var(--font-editorial); font-size: clamp(28px, 4vw, 52px) !important; letter-spacing: -.02em !important; }
 .blog .footer-bottom,
 .single-post .footer-bottom,
