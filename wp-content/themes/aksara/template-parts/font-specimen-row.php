@@ -48,8 +48,32 @@ aksara_authentype_enqueue_preview();
 				data-font-size="112"
 				data-fit-single-line="1"
 				aria-label="<?php echo esc_attr( sprintf( __( '%s font preview', 'aksara' ), get_the_title( $font_id ) ) ); ?>"></canvas>
+			<?php
+			/*
+			 * Tiga keadaan di mana huruf aslinya TIDAK bisa tampil, dan
+			 * ketiganya diperlakukan sama: barisnya tidak boleh jadi kotak
+			 * kosong, tapi juga tidak boleh menyamar sebagai spesimen.
+			 *
+			 * 1. Render gagal. specimen.js menandai canvas dengan .has-error
+			 *    lalu MELUKIS pesan errornya ke dalam canvas itu. CSS
+			 *    menyembunyikan canvas tersebut dan memunculkan placeholder
+			 *    di bawah ini sebagai gantinya.
+			 * 2. JavaScript mati. Canvas tidak pernah dapat .has-error, jadi
+			 *    aturan CSS itu tidak berlaku - <noscript> adalah satu-satunya
+			 *    jalur yang tersisa. (0.9.8 kehilangan cadangan ini sama
+			 *    sekali, jadi JS yang diblokir berarti katalog kosong total.)
+			 * 3. Font belum punya token preview - ditangani di cabang else.
+			 *
+			 * Canvas-nya sengaja TIDAK dihapus dari DOM, hanya display:none,
+			 * supaya .has-error dan request admin-ajax yang gagal tetap bisa
+			 * didiagnosis di DevTools. Ini degradasi tampilan, bukan
+			 * penyembuhan penyebabnya.
+			 */
+			aksara_specimen_placeholder( get_the_title( $font_id ), __( 'Preview unavailable', 'aksara' ), true );
+			?>
+			<noscript><?php aksara_specimen_placeholder( get_the_title( $font_id ), __( 'Preview needs JavaScript', 'aksara' ) ); ?></noscript>
 		<?php else : ?>
-			<span class="sp-specimen-fallback"><?php the_title(); ?></span>
+			<?php aksara_specimen_placeholder( get_the_title( $font_id ), __( 'Preview not ready', 'aksara' ) ); ?>
 		<?php endif; ?>
 	</a>
 	<?php if ( $archive_gallery ) : ?>

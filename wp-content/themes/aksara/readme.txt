@@ -218,3 +218,75 @@ KROMATIK, padahal DESIGN.md menetapkan 0% warna kromatik. Yang paling mencolok
 ditambah keluarga hitam kebiruan #111118 / #33333b / #292d35 (delta 7-12) di
 sekitar baris 1489-1602. Belum diubah karena ini soal warna, bukan font.
 
+
+== v0.9.10 - placeholder specimen yang jujur + umur nonce preview ==
+
+Dua perbaikan yang sempat hilang saat mengadopsi master 0.9.8, dipasang ulang
+dalam bentuk yang sudah disesuaikan.
+
+**1. Placeholder baris specimen (menggantikan versi asli yang ditolak)**
+
+Versi aslinya menukar canvas yang gagal dengan nama keluarga font, dicetak
+sebesar spesimen sungguhnya dalam tinta penuh. Itu ditolak dengan alasan yang
+benar: ini toko huruf. "Honic" yang dicetak 158px dalam font TEMA di kotak
+yang seharusnya berisi spesimen Honic bisa membuat pembeli mengira itulah
+wujud Honic - kesan percaya diri yang salah, lebih merugikan daripada mengaku
+terus terang.
+
+Versi yang dipakai sekarang sengaja TERBACA SEBAGAI PLACEHOLDER:
+* ukurannya clamp(26px, 4.5vw, 56px), jauh di bawah spesimen sungguhan yang
+  115-158px, jadi tidak pernah menempati peran visual yang sama;
+* warnanya --muted (#767676), bukan tinta penuh;
+* selalu disertai keterangan kecil yang menyebut apa yang sedang terjadi.
+
+Tiga keadaan ditangani dengan komponen yang sama tapi keterangan berbeda:
+* render gagal -> "Preview unavailable" (muncul saat specimen.js menandai
+  canvas dengan .has-error; canvas-nya disembunyikan CSS);
+* JavaScript mati -> "Preview needs JavaScript" lewat <noscript>. Master 0.9.8
+  kehilangan cadangan ini SAMA SEKALI, jadi pengunjung yang JS-nya diblokir
+  melihat katalog kosong total - itu diperbaiki sekalian;
+* font belum punya token preview -> "Preview not ready".
+
+Keadaan ketiga tadinya memakai .sp-specimen-fallback yang punya masalah
+menyesatkan yang persis sama (nama keluarga, 158px, tinta penuh), jadi ia ikut
+diseragamkan. Aturan CSS .sp-specimen-fallback jadi tidak terpakai dan
+dihapus, bukan ditinggal sebagai CSS mati.
+
+Canvas yang gagal sengaja TIDAK dihapus dari DOM, hanya display:none, supaya
+.has-error dan request admin-ajax yang gagal tetap bisa didiagnosis di
+DevTools. Ini degradasi tampilan, bukan penyembuhan penyebabnya.
+
+**2. Umur nonce preview - HANYA preview, bukan keranjang**
+
+renderNonce ditanam di HTML dan efektif hanya 12-24 jam. Di situs dengan
+full-page cache, HTML katalog disajikan lebih lama dari itu sehingga setiap
+preview gagal sampai cache dibersihkan. Tanpa page cache, bug ini tidak akan
+pernah muncul.
+
+Filter nonce_life yang disaring per $action memperpanjang
+ath_specimen_render_preview jadi 30 hari (jaminan minimum 15 hari), bisa
+diubah lewat filter aksara_specimen_nonce_ttl.
+
+Nonce keranjang (ath_specimen_cart) SENGAJA TIDAK ikut dilonggarkan meski
+kena masalah cache yang sama, karena ia action yang mengubah state:
+memperpanjangnya berarti memperlebar jendela CSRF add-to-cart. Kalau suatu
+saat tombol Add to cart terbukti gagal di halaman ter-cache, cabangnya
+ditambahkan secara sadar - bukan disamaratakan.
+
+Filternya harus berlaku untuk pembuatan DAN verifikasi: ada dua tempat
+pembuatan nonce (tema dan shortcode plugin) dan tiga tempat verifikasi. Kalau
+umurnya hanya dilonggarkan saat request AJAX, tick pembuatan dan verifikasi
+tidak akan pernah cocok dan semua preview langsung gagal.
+
+$action baru diteruskan ke nonce_life pada WordPress yang wp_nonce_tick()-nya
+menerima argumen. Versi persisnya tidak bisa diverifikasi dari lingkungan
+kerja ini, jadi kodenya memeriksa runtime lewat ReflectionFunction, bukan
+menebak nomor versi. Pada WordPress lama filternya mengembalikan umur apa
+adanya (fail-safe) dan statusnya dilaporkan di Tools > Site Health > Info >
+Aksara theme, lengkap dengan saran menurunkan TTL page cache di bawah 12 jam.
+
+Diverifikasi dengan harness PHP yang meniru mekanika tick nonce: preview valid
+di hari ke-14 dan kedaluwarsa di hari ke-31; nonce keranjang tetap kedaluwarsa
+di hari ke-1,5 seperti default; wp_rest tidak tersentuh; dan pemanggilan tanpa
+$action tidak mengubah apa pun.
+

@@ -192,6 +192,140 @@ function aksara_authentype_styles( $font_id ) {
 	} ) );
 }
 
+/**
+ * Umur nonce preview specimen.
+ *
+ * Masalahnya: renderNonce ditanam ke dalam HTML halaman. Umur nonce WordPress
+ * default 1 hari, dan efektifnya hanya 12-24 jam karena verifikasi menerima
+ * tick sekarang + tick sebelumnya. Di situs dengan full-page cache (WP Rocket,
+ * LiteSpeed, Varnish, Cloudflare APO) HTML katalog bisa disajikan jauh lebih
+ * lama dari itu, sehingga setiap canvas preview gagal sampai cache dibersihkan
+ * manual. TANPA page cache, bug ini tidak akan pernah muncul - HTML dibuat
+ * baru tiap request dan nonce-nya tidak pernah berumur lebih dari detik.
+ *
+ * HANYA action preview yang dilonggarkan. Nonce keranjang
+ * (ath_specimen_cart) SENGAJA dibiarkan di umur default meski kena masalah
+ * cache yang sama, karena ia action yang MENGUBAH STATE: memperpanjangnya
+ * berarti memperlebar jendela CSRF add-to-cart. Kalau suatu saat tombol Add
+ * to cart terbukti gagal di halaman yang di-cache, tambahkan cabangnya di
+ * sini secara sadar - jangan disamaratakan.
+ *
+ * Kenapa memperpanjang umur nonce PREVIEW aman:
+ *   - Nonce ini sudah dicetak di HTML publik pada setiap halaman katalog, jadi
+ *     siapa pun yang bisa membuka halaman sudah memilikinya. Ia tidak pernah
+ *     rahasia dan tidak melindungi apa pun yang bernilai.
+ *   - Endpointnya read-only: ia hanya me-render PNG specimen.
+ *   - Endpoint tetap punya pertahanan sendiri yang tidak bergantung nonce:
+ *     rate limit per-IP (ath_specimen_render_rate_limit_ok) plus pemeriksaan
+ *     bahwa post bertipe ath_font dan berstatus publish.
+ * Yang hilang hanyalah jendela replay endpoint gambar publik.
+ *
+ * PENTING - filter ini harus berlaku untuk PEMBUATAN dan VERIFIKASI sekaligus.
+ * Ada dua tempat pembuatan nonce dengan action yang sama: tema (fungsi di
+ * bawah) dan plugin Authentype (shortcode-specimen.php). Kalau umur nonce
+ * hanya dilonggarkan saat request AJAX, pembuatan tetap memakai umur default
+ * sementara verifikasi memakai umur panjang; tick-nya tidak akan pernah cocok
+ * dan SEMUA preview langsung gagal. Karena filter nonce_life ini global dan
+ * hanya menyaring lewat $action, kedua tempat pembuatan dan ketiga tempat
+ * verifikasi otomatis memakai umur yang sama.
+ *
+ * Catatan versi WordPress: parameter $action baru diteruskan ke filter
+ * nonce_life pada WordPress yang wp_nonce_tick()-nya menerima argumen. Pada
+ * WordPress lama argumen kedua tidak dikirim, $action tetap '' , dan fungsi
+ * ini mengembalikan $life apa adanya - fail-safe: tidak ada yang rusak, tapi
+ * bug cache di atas juga belum tertutup. Status dukungan itu dilaporkan di
+ * Site Health supaya operator tahu harus menurunkan TTL page cache di bawah
+ * 12 jam. Kodenya memeriksa runtime, bukan menebak nomor versi.
+ */
+function aksara_specimen_nonce_life( $life, $action = '' ) {
+	if ( 'ath_specimen_render_preview' !== $action ) {
+		return $life;
+	}
+	$ttl = (int) apply_filters( 'aksara_specimen_nonce_ttl', 30 * DAY_IN_SECONDS );
+	return $ttl > 0 ? $ttl : $life;
+}
+add_filter( 'nonce_life', 'aksara_specimen_nonce_life', 10, 2 );
+
+/**
+ * Apakah WordPress ini meneruskan $action ke filter nonce_life?
+ *
+ * Dijawab dari runtime, bukan dari tebakan nomor versi: kalau wp_nonce_tick()
+ * punya parameter, WordPress meneruskan action-nya ke filter.
+ */
+function aksara_nonce_life_is_action_scoped() {
+	static $supported = null;
+	if ( null !== $supported ) {
+		return $supported;
+	}
+	$supported = false;
+	if ( function_exists( 'wp_nonce_tick' ) ) {
+		try {
+			$reflection = new ReflectionFunction( 'wp_nonce_tick' );
+			$supported  = $reflection->getNumberOfParameters() > 0;
+		} catch ( ReflectionException $e ) {
+			$supported = false;
+		}
+	}
+	return $supported;
+}
+
+/** Laporkan status umur nonce preview di Tools > Site Health > Info. */
+function aksara_specimen_debug_information( $info ) {
+	$scoped = aksara_nonce_life_is_action_scoped();
+	$days   = (int) round( (int) apply_filters( 'aksara_specimen_nonce_ttl', 30 * DAY_IN_SECONDS ) / DAY_IN_SECONDS );
+
+	$info['aksara'] = array(
+		'label'  => __( 'Aksara theme', 'aksara' ),
+		'fields' => array(
+			'specimen_nonce_ttl' => array(
+				'label' => __( 'Font preview nonce lifetime', 'aksara' ),
+				'value' => $scoped
+					/* translators: %d: number of days. */
+					? sprintf( _n( '%d day', '%d days', $days, 'aksara' ), $days )
+					: __( 'WordPress default (about 1 day)', 'aksara' ),
+			),
+			'specimen_nonce_scoped' => array(
+				'label' => __( 'Page cache safe for font previews', 'aksara' ),
+				'value' => $scoped
+					? __( 'Yes', 'aksara' )
+					: __( 'No — this WordPress version cannot scope nonce lifetime per action. Keep the full-page cache lifetime under 12 hours, or font previews will fail on cached pages.', 'aksara' ),
+			),
+		),
+	);
+	return $info;
+}
+add_filter( 'debug_information', 'aksara_specimen_debug_information' );
+
+/**
+ * Placeholder untuk baris specimen yang tidak bisa menampilkan huruf aslinya.
+ *
+ * Kenapa BUKAN sekadar mencetak nama keluarga font sebesar spesimen aslinya:
+ * ini toko huruf. Menampilkan "Honic" dalam font TEMA di kotak yang
+ * seharusnya berisi spesimen Honic bisa membuat calon pembeli mengira itulah
+ * wujud Honic. Kesan yang percaya diri tapi salah lebih merugikan daripada
+ * mengaku terus terang. Karena itu placeholder ini sengaja dibuat terbaca
+ * sebagai placeholder: ukurannya jauh di bawah spesimen sungguhan, warnanya
+ * --muted (bukan tinta penuh), dan ada keterangan kecil yang menyebut apa
+ * yang sedang terjadi.
+ *
+ * Tetap menampilkan nama keluarganya supaya barisnya tidak jadi kotak kosong
+ * dan tetap bisa diklik menuju halaman produknya.
+ *
+ * @param string $name     Nama keluarga font.
+ * @param string $note     Keterangan singkat, sudah diterjemahkan.
+ * @param bool   $on_error true kalau ini cadangan untuk canvas yang GAGAL
+ *                         render - varian itu disembunyikan CSS sampai
+ *                         specimen.js menandai canvas-nya dengan .has-error.
+ */
+function aksara_specimen_placeholder( $name, $note, $on_error = false ) {
+	printf(
+		'<span class="sp-specimen-placeholder%1$s" aria-hidden="true"><span class="sp-specimen-placeholder__name">%2$s</span><span class="sp-specimen-placeholder__note">%3$s</span></span>',
+		$on_error ? ' sp-specimen-placeholder--on-error' : '',
+		esc_html( $name ),
+		esc_html( $note )
+	);
+}
+
 function aksara_authentype_enqueue_preview() {
 	static $done = false;
 	if ( $done || ! aksara_authentype_available() ) {

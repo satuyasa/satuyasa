@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.9
+Version: 0.9.10
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -598,14 +598,46 @@ button[type="submit"], input[type="submit"],
 	max-width: 100%;
 	border-radius: 0;
 }
-.sp-specimen-fallback {
-	font-size: clamp(40px, 11vw, 158px);
-	line-height: 1;
+/* Placeholder baris specimen - lihat aksara_specimen_placeholder().
+ *
+ * Sengaja dibuat TERBACA SEBAGAI PLACEHOLDER, bukan sebagai spesimen: ini
+ * toko huruf, dan nama keluarga font yang dicetak besar-besar dalam font TEMA
+ * bisa membuat pembeli mengira itulah wujud fontnya. Karena itu ukurannya
+ * jauh di bawah spesimen sungguhan (yang 115-158px), warnanya --muted alih-
+ * alih tinta penuh, dan selalu disertai keterangan apa yang sedang terjadi.
+ *
+ * --muted = #767676 = 4,54:1 di atas kertas putih, jadi keterangan 12px-nya
+ * tetap lolos WCAG AA. */
+.sp-specimen-placeholder {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: var(--spacing-24) 0;
+}
+.sp-specimen-placeholder__name {
+	font-family: var(--font-ui);
+	font-size: clamp(26px, 4.5vw, 56px);
+	line-height: 1.08;
 	letter-spacing: -0.02em;
 	font-weight: var(--font-weight-regular);
-	color: var(--ink);
+	color: var(--muted);
 	word-break: break-word;
 }
+.sp-specimen-placeholder__note {
+	font-size: var(--text-caption);
+	line-height: var(--leading-caption);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+/* Varian cadangan-saat-gagal: diam sampai specimen.js benar-benar menandai
+ * canvas-nya .has-error. Selektor saudara langsung (+) aman karena helper
+ * mencetak placeholder tepat sesudah <canvas>, tanpa elemen lain di antaranya. */
+.sp-specimen-placeholder--on-error { display: none; }
+.aksara-row-canvas.has-error { display: none; }
+.aksara-row-canvas.has-error + .sp-specimen-placeholder--on-error { display: flex; }
+
 
 .font-product-gallery {
 	display: grid;
