@@ -484,3 +484,95 @@ uji tekan token 88 karakter. Ditambah pemeriksaan visual: screenshot 1440px
 memastikan avatar, About the author, kartu Previous/Next, dan Related stories
 semuanya mulai di 24px, bukan 0.
 
+
+== v0.9.14 - halaman Free Font (sistem visual Foundry) ==
+
+Dua halaman baru mengikuti docs/DESIGN3.md: arsip free font dan halaman
+tunggalnya.
+
+DATANYA BUKAN MILIK TEMA
+
+Authentype sudah punya seluruh sistemnya: CPT ath_free_download, preset
+lisensi, gerbang email (lead), token unduhan sekali pakai, rate limit per IP,
+dan honeypot. Tema hanya menyediakan tampilan. Tombol unduhnya TETAP dirender
+shortcode plugin, tidak ditulis ulang — di dalam markup kartu itu ada nonce,
+license fingerprint, dan hidden field yang seluruhnya bagian dari kontrak
+keamanan plugin, dan menyalinnya berarti menyalin sesuatu yang bisa berubah
+saat plugin di-update.
+
+Masalahnya [authentype_free_downloads] tidak punya atribut id — ia hanya
+menyaring lewat type/font_id, sedangkan halaman tunggal butuh tepat satu item.
+Jadi QUERY-nya yang dipersempit, bukan markupnya yang disalin: get_posts()
+memakai WP_Query di baliknya dan pre_get_posts berlaku untuk semua WP_Query.
+Cakupannya dipersempit tiga lapis — hanya saat bendera dipasang, hanya untuk
+post type ini, dan bendera dilepas segera setelah shortcode selesai.
+
+DUA SISTEM VISUAL YANG BERTENTANGAN, DIPISAH DENGAN SENGAJA
+
+  DESIGN.md  (Studio Few) — terang, 0% kromatik, Sterling/Work Sans
+  DESIGN3.md (Foundry)    — gelap #121212, aksen oranye #ff4d00, JetBrains Mono
+
+Keduanya tidak bisa digabung. Foundry ditaruh di assets/css/foundry.css,
+di-enqueue HANYA di arsip dan halaman tunggal ath_free_download, dan seluruh
+aturannya diberi awalan .foundry supaya tidak pernah bocor. Halaman Free Font
+karena itu TIDAK mengikuti DESIGN.md — itu memang yang diminta, tapi perlu
+disebut terang-terangan supaya tidak dikira regresi oleh audit monokrom.
+
+Header dan footernya juga terpisah (header-foundry.php / footer-foundry.php).
+DESIGN3 menetapkan sidebar kiri tetap dan melarang tata letak terpusat; itu
+struktur halaman yang berbeda, bukan variasi warna. Memakai header.php lalu
+menempelkan kanvas gelap akan menghasilkan bilah terang di atas ruang hitam,
+persis yang dilarang DESIGN3.
+
+SATU PENYIMPANGAN SADAR DARI DESIGN3, KARENA DIUKUR
+
+Ash #747474 di atas kanvas #121212 hanya 4,01:1. DESIGN3 menugaskannya ke
+"muted helper text, inactive labels, secondary metadata" — di sistem ini
+semuanya 12-14px, persis kategori yang WCAG AA minta 4,5:1. Jadi ia gagal
+untuk peran yang diberikan kepadanya. Ash tetap dipakai untuk hal non-teks,
+teks redup memakai --fd-ash-text (#7d7d7d = 4,55:1), nilai tergelap yang
+masih lolos. Draf pertama komentar di CSS sempat mengklaim 4,84:1; itu keliru
+dan ketahuan karena angkanya dihitung, bukan diasumsikan.
+
+Sisa palet lulus: bone #efefef 16,29:1, ember #ff4d00 5,63:1, chalk #e2e8f0
+15,20:1, tag terbalik 16,29:1.
+
+SPESIMEN & PLACEHOLDER
+
+Free download adalah post tersendiri dan tidak punya token preview. Yang punya
+token adalah ath_font, dan admin bisa menautkan keduanya lewat
+_ath_free_download_related_font. Kalau tautannya ada, spesimennya dirender
+sungguhan lewat Authentype; kalau tidak, halaman memakai placeholder yang
+jujur mengaku placeholder — pola yang sama dengan 0.9.10, dengan keterangan
+yang dibedakan: "Preview unavailable" (render gagal), "Preview needs
+JavaScript" (JS mati), "No specimen linked" (belum ditautkan).
+
+TIGA BUG DITEMUKAN OLEH PENGUJIAN SENDIRI
+
+* foundry.css tidak me-reset body. Di produksi style.css menutupinya, tapi
+  bergantung pada stylesheet lain itu rapuh, dan kanvas hitamnya bocor jadi
+  putih di area bawah konten pendek serta area overscroll. Ditambahkan
+  body.foundry-page, digerbangi body class supaya tidak menyentuh halaman lain.
+* Garis vertikal sidebar berhenti di tengah halaman: sidebar-nya sticky
+  dengan align-self: start sehingga setinggi isinya sendiri. Garisnya
+  dipindahkan ke border-left milik kanvas, yang selalu setinggi konten.
+* .foundry-sidebar punya overflow-y: auto untuk mode desktop dan itu tidak
+  ikut direset saat dilipat di mobile. Menyetel satu sumbu ke non-visible
+  memaksa sumbu lain jadi auto, jadi ia berubah menjadi wadah scroll yang
+  MENYEMBUNYIKAN overflow dari mata dan dari scrollWidth sekaligus. Direset
+  ke overflow: visible supaya pengukurannya kembali bisa dipercaya.
+
+VERIFIKASI
+
+Kedua halaman diuji dengan harness yang sama seperti audit responsif: 10
+lebar viewport (320-1440), pada suite konten normal DAN suite uji tekan token
+88 karakter tanpa spasi. Nol overflow horizontal di keduanya. Ditambah
+screenshot 1440px dan 390px.
+
+CATATAN PEMASANGAN
+
+URL arsipnya /free-downloads/ — slug itu ditetapkan plugin Authentype saat
+mendaftarkan CPT dan tidak punya filter, jadi tema tidak bisa mengubahnya.
+Setelah memasang versi ini, buka Settings > Permalinks lalu Save sekali agar
+rewrite rule-nya ter-flush.
+

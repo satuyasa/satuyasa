@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '0.9.13' );
+define( 'AKSARA_THEME_VERSION', '0.9.14' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -140,6 +140,7 @@ require AKSARA_THEME_DIR . '/inc/template-tags.php';
 require AKSARA_THEME_DIR . '/inc/template-functions.php';
 require AKSARA_THEME_DIR . '/inc/woocommerce-helpers.php';
 require AKSARA_THEME_DIR . '/inc/authentype-integration.php';
+require AKSARA_THEME_DIR . '/inc/free-fonts.php';
 require AKSARA_THEME_DIR . '/inc/seo.php';
 
 /**
