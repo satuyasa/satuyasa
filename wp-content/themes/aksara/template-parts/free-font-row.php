@@ -40,16 +40,37 @@ if ( $fd_specimen && function_exists( 'aksara_authentype_styles' ) ) {
 		</span>
 	</div>
 
+	<?php
+	/*
+	 * WADAH .ath-specimen-v7 WAJIB ADA — bukan hiasan kelas.
+	 *
+	 * specimen.js hanya menjalankan initRoot() pada elemen berkelas
+	 * .ath-specimen-v7 (baris 1273), dan initRoot itulah yang memasang
+	 * IntersectionObserver yang me-render canvas. Tanpa wadah ini canvas
+	 * TIDAK PERNAH dirender sama sekali — bukan gagal, tapi diam.
+	 *
+	 * data-font-post-id juga wajib, dan isinya ID ath_font yang DITAUTKAN,
+	 * bukan ID free download ini: nilai itulah yang dikirim sebagai post_id ke
+	 * endpoint render, dan endpoint menolak apa pun yang bukan ath_font
+	 * berstatus publish.
+	 *
+	 * data-text-color / data-bg-color sengaja TIDAK ditulis di sini walau
+	 * terlihat masuk akal. initRoot() menimpanya tanpa syarat ke #111111 dan
+	 * #ffffff di dua baris pertamanya, jadi apa pun yang ditulis di markup
+	 * akan hilang. Palet gelapnya dipasang setelah init oleh
+	 * assets/js/foundry-tester.js.
+	 */
+	?>
 	<a class="foundry-specimen" href="<?php the_permalink(); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'Open %s', 'aksara' ), get_the_title() ) ); ?>">
 		<?php if ( $fd_specimen ) : ?>
+			<span class="ath-specimen ath-specimen-v7 foundry-root" data-font-post-id="<?php echo esc_attr( $fd_specimen['font_id'] ); ?>">
 			<canvas class="ath-server-canvas"
+				data-sync-master="1"
 				data-font-token="<?php echo esc_attr( $fd_specimen['token'] ); ?>"
 				data-mode="style-text"
 				data-text="<?php echo esc_attr( get_the_title() ); ?>"
 				data-font-size="120"
 				data-fit-single-line="1"
-				data-text-color="#efefef"
-				data-bg-color="#121212"
 				aria-hidden="true"></canvas>
 			<?php
 			/*
@@ -63,6 +84,7 @@ if ( $fd_specimen && function_exists( 'aksara_authentype_styles' ) ) {
 			aksara_foundry_placeholder( get_the_title(), __( 'Preview unavailable', 'aksara' ), true );
 			?>
 			<noscript><?php aksara_foundry_placeholder( get_the_title(), __( 'Preview needs JavaScript', 'aksara' ) ); ?></noscript>
+			</span>
 		<?php else : ?>
 			<?php
 			/*

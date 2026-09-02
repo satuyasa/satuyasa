@@ -374,6 +374,92 @@ body.foundry-page {
 .foundry-specimen canvas.has-error { display: none; }
 .foundry-specimen canvas.has-error + .foundry-placeholder--on-error { display: flex; }
 
+/* --- Font tester --------------------------------------------------------
+ * Kontrolnya milik plugin (.ath-preview-toolbar, .ath-master-text, .ath-size)
+ * dan hanya ditata di sini. Bentuknya mengikuti "Metadata Strip" DESIGN3:
+ * satu baris horizontal, monospace huruf besar, garis rambut di bawahnya. */
+.foundry-tester {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: 12px var(--fd-gap);
+	margin-bottom: 32px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--fd-chalk);
+}
+.foundry-tester > * { min-width: 0; }
+.foundry-tester__field {
+	display: flex;
+	flex: 1 1 240px;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.foundry-tester__field--size { flex: 0 1 200px; }
+.foundry-tester__label {
+	font-size: var(--fd-caption);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fd-ash-text);
+}
+.foundry-tester__text {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--fd-chalk);
+	border-radius: var(--fd-radius);
+	background: transparent;
+	color: var(--fd-bone);
+	font-family: var(--fd-mono);
+	font-size: var(--fd-body-sm);
+	letter-spacing: -0.02em;
+}
+.foundry-tester__text::placeholder { color: var(--fd-ash-text); }
+.foundry-tester__text:focus { border-color: var(--fd-ember); outline: none; }
+
+/* Slider digambar sendiri: kontrol range bawaan membawa warna sistem operasi
+ * yang tidak bisa diselaraskan dengan andal di semua platform, dan di kanvas
+ * gelap ia sering muncul sebagai batang biru terang. */
+.foundry-tester__size {
+	width: 100%;
+	height: 20px;
+	margin: 0;
+	background: transparent;
+	-webkit-appearance: none;
+	appearance: none;
+	cursor: pointer;
+}
+.foundry-tester__size::-webkit-slider-runnable-track {
+	height: 1px;
+	background: var(--fd-bone);
+}
+.foundry-tester__size::-moz-range-track {
+	height: 1px;
+	background: var(--fd-bone);
+}
+.foundry-tester__size::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	margin-top: -6px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--fd-bone);
+}
+.foundry-tester__size::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--fd-bone);
+}
+.foundry-tester__size:focus-visible { outline: 2px solid var(--fd-ember); outline-offset: 4px; }
+
+.foundry-tester__reset { align-self: end; }
+
+/* Wadah spesimen milik plugin tidak boleh membawa gaya apa pun sendiri. */
+.foundry-root { display: block; }
+
 .foundry-band__note {
 	max-width: min(50ch, 100%);
 	padding: 0 var(--fd-pad) 40px;

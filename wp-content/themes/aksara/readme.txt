@@ -576,3 +576,89 @@ mendaftarkan CPT dan tidak punya filter, jadi tema tidak bisa mengubahnya.
 Setelah memasang versi ini, buka Settings > Permalinks lalu Save sekali agar
 rewrite rule-nya ter-flush.
 
+
+== v0.9.15 - font tester di halaman Free Font, + satu bug 0.9.14 ==
+
+BUG DI 0.9.14 YANG BARU KETAHUAN
+
+Canvas spesimen di halaman Free Font TIDAK PERNAH DIRENDER SAMA SEKALI.
+Bukan gagal render, tapi diam: specimen.js hanya menjalankan initRoot() pada
+elemen berkelas .ath-specimen-v7 (baris 1273), dan initRoot itulah yang
+memasang IntersectionObserver yang memicu render. Template Foundry di 0.9.14
+tidak punya wadah itu, jadi observernya tidak pernah terpasang.
+
+Ketahuan justru saat menyiapkan tester ini, karena pertanyaannya memaksa
+membaca kontrak specimen.js sampai ke fungsi init-nya, bukan hanya bagian
+requestnya. Ditambahkan wadah .ath-specimen-v7 dengan data-font-post-id yang
+berisi ID ath_font YANG DITAUTKAN — bukan ID free download-nya, karena nilai
+itulah yang dikirim sebagai post_id dan endpoint menolak apa pun yang bukan
+ath_font berstatus publish.
+
+Bug kedua di jalur yang sama: data-text-color / data-bg-color ditulis di
+canvas, padahal specimen.js membacanya dari ROOT (baris 173-174). Jadi
+setelan itu tidak berpengaruh apa pun.
+
+FONT TESTER
+
+Menumpang mesin milik plugin, bukan mesin baru. specimen.js sudah punya
+seluruh logikanya — debounce (360ms teks, 120ms ukuran), sinkronisasi antar
+kontrol, antrian maksimal 3 request paralel, dan cache hasil. Tema hanya
+menyediakan markup dengan kontrak yang tepat:
+
+  .ath-specimen-v7                          wadah yang di-init
+  data-font-post-id                         ID ath_font yang ditautkan
+  .ath-preview-toolbar                      wadah kontrol
+  .ath-master-text                          input teks
+  .ath-size                                 input ukuran
+  .ath-server-canvas[data-sync-master="1"]  canvas yang ikut berubah
+
+Testernya ada di halaman TUNGGAL, bukan di arsip. Alasannya struktural, bukan
+selera: satu toolbar hanya menggerakkan canvas di dalam ROOT-nya sendiri, dan
+data-font-post-id melekat pada root. Semua baris arsip punya ath_font yang
+berbeda, jadi satu tester bersama untuk seluruh arsip mustahil tanpa
+mengorbankan kebenaran post_id-nya. Tester per baris bisa ditambahkan kalau
+memang diinginkan.
+
+SATU MASALAH YANG MENUNTUT JAVASCRIPT SENDIRI
+
+initRoot() membuka dirinya dengan dua baris ini, tanpa syarat:
+
+    root.dataset.textColor = "#111111";
+    root.dataset.bgColor   = "#ffffff";
+
+Nilai itu dikirim ke endpoint render, jadi PNG-nya jadi tinta nyaris hitam di
+atas putih — di kanvas Foundry yang hitam hasilnya blok putih menyala, bukan
+spesimen. Berkas plugin tidak boleh diedit karena akan tertimpa saat update,
+jadi warnanya dipasang ulang dari assets/js/foundry-tester.js SESUDAH init.
+
+Urutannya dijamin, bukan untung-untungan: skrip tema mendeklarasikan handle
+plugin sebagai dependency sehingga selalu dicetak sesudahnya, jadi listener
+DOMContentLoaded-nya juga terdaftar dan berjalan sesudah initRoot. Render
+pertama dipicu IntersectionObserver, yang callback-nya selalu dikirim asinkron
+setelah layout — jadi penyetelan warna pasti selesai sebelum request pertama.
+
+Satu pengecualian yang diakui: kalau IntersectionObserver tidak tersedia,
+specimen.js me-render seluruh canvas secara SINKRON di dalam initRoot dan di
+situ skrip tema memang terlambat. Konsekuensinya hanya warna spesimen yang
+keliru, bukan halaman yang rusak.
+
+Tombol .ath-reset milik plugin sengaja TIDAK dipakai: handler-nya menyetel
+warna balik ke #111111, persis masalah di atas. Tombol reset tema memakai
+kelas sendiri dan bekerja dengan cara paling tidak invasif — menulis nilai ke
+input milik plugin lalu men-dispatch event "input", sehingga yang mengerjakan
+render tetap listener milik plugin.
+
+Pemilih warna (.ath-text-color) juga tidak dipakai: DESIGN3 monokrom.
+
+VERIFIKASI
+
+Kontrak JS-nya diuji dengan tiruan specimen.js yang meniru initRoot dan
+handler toolbarnya persis, dimuat dalam urutan yang sama seperti produksi.
+Delapan pemeriksaan lulus: warna gelap terpasang sesudah init, canvas ikut
+berubah saat mengetik, fit-single-line dilepas saat pengunjung mengetik
+sendiri, reset mengembalikan teks dan ukuran, warna tetap gelap sesudah
+reset, dan render terakhir benar-benar memakai warna terang.
+
+Responsif diuji ulang dengan tester terpasang: 10 lebar viewport, suite
+konten normal dan uji tekan, nol overflow.
+

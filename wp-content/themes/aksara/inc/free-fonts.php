@@ -131,6 +131,22 @@ function aksara_free_fonts_assets() {
 	if ( function_exists( 'aksara_authentype_enqueue_preview' ) ) {
 		aksara_authentype_enqueue_preview();
 	}
+
+	/*
+	 * Dependency 'authentype-font-specimen' bukan formalitas — ia yang
+	 * menjamin skrip ini DICETAK sesudah specimen.js, sehingga listener
+	 * DOMContentLoaded-nya juga terdaftar dan berjalan sesudah initRoot().
+	 * Itulah satu-satunya cara memasang palet gelap tanpa mengedit berkas
+	 * plugin, karena initRoot() menimpa warna tanpa syarat di dua baris
+	 * pertamanya. Lihat komentar lengkap di berkas JS-nya.
+	 */
+	wp_enqueue_script(
+		'aksara-foundry-tester',
+		AKSARA_THEME_URI . '/assets/js/foundry-tester.js',
+		array( 'authentype-font-specimen' ),
+		AKSARA_THEME_VERSION,
+		true
+	);
 }
 add_action( 'wp_enqueue_scripts', 'aksara_free_fonts_assets', 20 );
 
