@@ -1,24 +1,13 @@
 <?php
-/**
- * Blok: halaman produk font Authentype (breadcrumb, header, galeri,
- * ringkasan, specimen, font terkait).
- *
- * Dipindahkan apa adanya dari single-ath_font.php versi classic theme.
- * Yang dilepas: get_header()/get_footer() (jadi template part di block
- * theme) dan loop while(have_posts()) — di block theme, post yang sedang
- * dilihat sudah menjadi konteks blok, jadi get_the_ID() langsung benar.
- *
- * @package Aksara
- */
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-
-$font_id    = get_the_ID();
+/** Professional canonical font product page backed by Authentype + Woo. */
+if ( ! defined( 'ABSPATH' ) ) { exit; }
+get_header();
+while ( have_posts() ) :
+	the_post();
+	$font_id    = get_the_ID();
 	$styles     = function_exists( 'aksara_authentype_styles' ) ? aksara_authentype_styles( $font_id ) : array();
 	$product    = function_exists( 'aksara_authentype_linked_product' ) ? aksara_authentype_linked_product( $font_id ) : null;
-	$gallery    = function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 3 ) : array();
+	$gallery    = function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 0 ) : array();
 	$categories = function_exists( 'aksara_authentype_product_terms' ) ? aksara_authentype_product_terms( $product, 'product_cat' ) : array();
 	$tags       = function_exists( 'aksara_authentype_product_terms' ) ? aksara_authentype_product_terms( $product, 'product_tag' ) : array();
 	$content    = trim( (string) get_the_content() );
@@ -37,11 +26,15 @@ $font_id    = get_the_ID();
 		</header>
 
 		<?php if ( $gallery ) : ?>
-			<div class="font-single-gallery">
-				<?php foreach ( $gallery as $image_id ) : ?>
-					<a href="<?php echo esc_url( wp_get_attachment_image_url( $image_id, 'full' ) ); ?>"><?php echo wp_get_attachment_image( $image_id, 'aksara-preview-xl', false, array( 'sizes' => '(max-width: 760px) calc(100vw - 32px), 33vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></a>
-				<?php endforeach; ?>
-			</div>
+			<section class="font-archive-gallery font-single-gallery" data-font-gallery aria-label="<?php echo esc_attr( sprintf( __( '%s image gallery', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
+				<?php if ( count( $gallery ) > 1 ) : ?><button class="font-archive-gallery__arrow font-archive-gallery__arrow--prev" type="button" data-gallery-prev aria-label="<?php esc_attr_e( 'Previous product images', 'aksara' ); ?>">&#8249;</button><?php endif; ?>
+				<div class="font-archive-gallery__track" data-gallery-track tabindex="0">
+					<?php foreach ( $gallery as $image_index => $image_id ) : ?>
+						<a class="font-archive-gallery__slide" href="<?php echo esc_url( wp_get_attachment_image_url( $image_id, 'full' ) ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'Open image %1$d of %2$d', 'aksara' ), $image_index + 1, count( $gallery ) ) ); ?>"><?php echo wp_get_attachment_image( $image_id, 'aksara-preview-md', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 640px) 82vw, (max-width: 960px) 44vw, 25vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></a>
+					<?php endforeach; ?>
+				</div>
+				<?php if ( count( $gallery ) > 1 ) : ?><button class="font-archive-gallery__arrow font-archive-gallery__arrow--next" type="button" data-gallery-next aria-label="<?php esc_attr_e( 'Next product images', 'aksara' ); ?>">&#8250;</button><?php endif; ?>
+			</section>
 		<?php elseif ( has_post_thumbnail() ) : ?>
 			<div class="font-cover"><?php the_post_thumbnail( 'aksara-preview-xl', array( 'sizes' => '(max-width: 1820px) 100vw, 1820px' ) ); ?></div>
 		<?php endif; ?>
@@ -63,3 +56,4 @@ $font_id    = get_the_ID();
 			<section class="related-fonts"><div class="product-section-heading"><p class="eyebrow"><?php esc_html_e( 'Keep exploring', 'aksara' ); ?></p><h2><?php esc_html_e( 'Related font families', 'aksara' ); ?></h2></div><div class="related-font-grid"><?php while ( $related->have_posts() ) : $related->the_post(); get_template_part( 'template-parts/font-product-card' ); endwhile; wp_reset_postdata(); ?></div></section>
 		<?php endif; ?>
 	</div></main>
+<?php endwhile; get_footer(); ?>

@@ -1,20 +1,8 @@
 <?php
-/**
- * Blok: katalog font Authentype (pencarian + baris spesimen + paginasi).
- *
- * Dipindahkan apa adanya dari archive-ath_font.php versi classic theme —
- * markup & class-nya tidak diubah supaya seluruh CSS yang sudah diuji
- * tetap berlaku. Yang dilepas hanya get_header()/get_footer(), karena di
- * block theme keduanya jadi template part.
- *
- * @package Aksara
- */
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-
-$paged  = max( 1, (int) get_query_var( 'paged' ) );
+/** Authentype font archive with Aksara storefront UI. */
+if ( ! defined( 'ABSPATH' ) ) { exit; }
+get_header();
+$paged  = max( 1, get_query_var( 'paged' ) );
 $search = isset( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $fonts  = function_exists( 'aksara_query_authentype_fonts' ) ? aksara_query_authentype_fonts( 20, $paged, $search ) : null;
 if ( function_exists( 'aksara_authentype_enqueue_preview' ) ) { aksara_authentype_enqueue_preview(); }
@@ -26,3 +14,4 @@ if ( function_exists( 'aksara_authentype_enqueue_preview' ) ) { aksara_authentyp
 	</form>
 	<?php if ( $fonts && $fonts->have_posts() ) : ?><div class="specimen-list"><?php while ( $fonts->have_posts() ) : $fonts->the_post(); get_template_part( 'template-parts/font-specimen-row' ); endwhile; ?></div><?php echo wp_kses_post( paginate_links( array( 'total' => $fonts->max_num_pages, 'current' => $paged, 'type' => 'list', 'add_args' => $search ? array( 'q' => $search ) : false ) ) ); wp_reset_postdata(); else : ?><div class="catalog-empty"><h2><?php esc_html_e( 'No fonts found.', 'aksara' ); ?></h2><p><?php esc_html_e( 'Try a different family name.', 'aksara' ); ?></p></div><?php endif; ?>
 </div></main>
+<?php get_footer(); ?>

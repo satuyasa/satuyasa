@@ -975,10 +975,6 @@ function ath_specimen_ajax_render_preview() {
     if (!$post || 'ath_font' !== $post->post_type || ('publish' !== $post->post_status && !authentype_specimen_can_manage_internal())) {
         wp_send_json_error(array('message' => __('Font preview is not available.', 'authentype-font-specimen')), 404);
     }
-    if (!ath_specimen_render_rate_limit_ok($post_id, 'render')) {
-        wp_send_json_error(array('message' => __('Too many preview requests. Please try again shortly.', 'authentype-font-specimen')), 429);
-    }
-
     $record = ath_specimen_preview_record($post_id, $token);
     $font_path = !empty($record['file']) ? ath_specimen_local_upload_path($record['file']) : '';
     if (!$font_path) wp_send_json_error(array('message' => __('Preview font could not be resolved.', 'authentype-font-specimen')), 404);
@@ -1010,6 +1006,18 @@ function ath_specimen_ajax_render_preview() {
     $cache_dir = ath_specimen_render_cache_dir($post_id);
     $cache_file = $cache_dir ? trailingslashit($cache_dir) . $hash . '.png' : '';
     $blob = $cache_file && is_file($cache_file) ? file_get_contents($cache_file) : false;
+    $cache_hit = false !== $blob && '' !== $blob;
+
+    // Cached pixels are cheap and do not consume a PHP font-rendering slot.
+    // Applying the global renderer ceiling before this lookup caused a 20-row
+    // archive to exhaust the entire site allowance after only ~30 visits.
+    if (false === $blob || '' === $blob) {
+        if (!ath_specimen_render_rate_limit_ok($post_id, 'render')) {
+            status_header(429);
+            header('Retry-After: 60');
+            wp_send_json_error(array('message' => __('Too many preview requests. Please try again shortly.', 'authentype-font-specimen')), 429);
+        }
+    }
 
     $render_lock = false;
     if (false === $blob || '' === $blob) {
@@ -1076,6 +1084,7 @@ function ath_specimen_ajax_render_preview() {
     header('Content-Type: image/png');
     header('X-Content-Type-Options: nosniff');
     header('Content-Disposition: inline; filename="font-preview.png"');
+    header('X-Ath-Preview-Cache: ' . ($cache_hit ? 'HIT' : 'MISS'));
     echo $blob; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary PNG generated server-side.
     wp_die();
 }

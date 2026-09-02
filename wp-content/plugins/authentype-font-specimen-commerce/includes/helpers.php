@@ -8,8 +8,11 @@ function ath_specimen_get_meta($post_id, $key, $default = null) {
 
 /**
  * Resolve an existing local file while guaranteeing that it remains inside
- * the WordPress uploads directory. This deliberately rejects remote URLs,
- * URL credentials, query strings, fragments, traversal and symlink escapes.
+ * the WordPress uploads directory. URL host/scheme are intentionally not an
+ * authority: only the URL path is mapped into the CURRENT local uploads root.
+ * This keeps staging/domain/HTTPS migrations working without ever fetching a
+ * remote URL. Credentials, query strings, fragments, traversal and symlink
+ * escapes remain rejected.
  */
 function ath_specimen_local_upload_path($value) {
     $value = is_scalar($value) ? trim((string) $value) : '';
@@ -25,12 +28,9 @@ function ath_specimen_local_upload_path($value) {
     if (filter_var($value, FILTER_VALIDATE_URL)) {
         $file = wp_parse_url($value);
         $base = wp_parse_url($uploads['baseurl']);
-        if (!is_array($file) || !is_array($base) || empty($file['host']) || empty($file['path']) || empty($base['host']) || empty($base['path'])) return '';
+        if (!is_array($file) || !is_array($base) || empty($file['host']) || empty($file['path']) || empty($base['path'])) return '';
         if (!empty($file['user']) || !empty($file['pass']) || isset($file['query']) || isset($file['fragment'])) return '';
         if (empty($file['scheme']) || !in_array(strtolower($file['scheme']), array('http', 'https'), true)) return '';
-        if (!empty($base['scheme']) && strtolower($file['scheme']) !== strtolower($base['scheme'])) return '';
-        if (strtolower($file['host']) !== strtolower($base['host'])) return '';
-        if (isset($file['port']) !== isset($base['port']) || (isset($file['port']) && (int) $file['port'] !== (int) $base['port'])) return '';
 
         $file_path = rawurldecode($file['path']);
         $base_path = rtrim(rawurldecode($base['path']), '/');
@@ -40,6 +40,10 @@ function ath_specimen_local_upload_path($value) {
         $candidate = trailingslashit($base_real) . $relative;
     } elseif (0 === strpos(wp_normalize_path($value), wp_normalize_path($base_real) . '/')) {
         $candidate = $value;
+    } elseif (!preg_match('#(^|[\\/])\.\.([\\/]|$)#', $value) && 0 !== strpos($value, '/') && false === strpos($value, "\0")) {
+        // New metadata may store a portable uploads-relative path such as
+        // woocommerce_uploads/authentype-previews/... instead of an origin URL.
+        $candidate = trailingslashit($base_real) . ltrim(wp_normalize_path($value), '/');
     } else {
         return '';
     }

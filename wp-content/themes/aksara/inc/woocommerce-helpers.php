@@ -185,36 +185,14 @@ function aksara_get_listing_url( $slug ) {
 		return $cached;
 	}
 
-	/*
-	 * Dua nilai dicari sekaligus, dan itu disengaja.
-	 *
-	 * Meta _wp_page_template menyimpan IDENTITAS template yang dipilih, dan
-	 * bentuknya berbeda antara classic theme dan block theme:
-	 *   classic -> 'page-templates/template-elements.php'
-	 *   block   -> 'page-elements'   (nama dari theme.json > customTemplates)
-	 *
-	 * Situs yang sudah berjalan sejak versi classic masih menyimpan nilai
-	 * lama di database, dan nilai itu TIDAK ikut berubah saat tema
-	 * dikonversi. Kalau hanya nilai baru yang dicari, seluruh tautan
-	 * listing di hero dan kartu kategori berubah jadi '#' setelah upgrade —
-	 * rusak tanpa pesan error apa pun. Jadi keduanya diterima.
-	 */
-	$template_values = array(
-		'page-' . $slug,                                  // block theme
-		'page-templates/template-' . $slug . '.php',      // classic theme (warisan)
-	);
+	$template_file = 'page-templates/template-' . $slug . '.php';
 
 	$pages = get_posts( array(
-		'post_type'        => 'page',
+		'post_type'      => 'page',
 		'posts_per_page'   => 1,
 		'post_status'      => 'publish',
-		'meta_query'       => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
-			array(
-				'key'     => '_wp_page_template',
-				'value'   => $template_values,
-				'compare' => 'IN',
-			),
-		),
+		'meta_key'         => '_wp_page_template', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		'meta_value'       => $template_file, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 	) );
 
 	$url = ! empty( $pages ) ? get_permalink( $pages[0] ) : '#';

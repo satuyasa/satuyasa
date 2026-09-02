@@ -1959,11 +1959,27 @@ function ath_specimen_package_font_ext($name) {
 }
 
 function ath_specimen_package_preview_exts($preview_format) {
-    $preview_format = in_array($preview_format, array('woff', 'otf', 'ttf', 'auto'), true) ? $preview_format : 'woff';
-    $fallbacks = array('woff', 'otf', 'ttf');
+    $preview_format = in_array($preview_format, array('woff', 'otf', 'ttf', 'auto'), true) ? $preview_format : 'auto';
+
+    // Server previews are rasterized by Imagick or GD/FreeType. WOFF is a
+    // delivery format and is not a dependable raster source; GD explicitly
+    // supports TTF only. Prefer formats the active server can actually draw.
+    $fallbacks = class_exists('Imagick') && class_exists('ImagickDraw')
+        ? array('ttf', 'otf', 'woff')
+        : (function_exists('imagettftext') ? array('ttf') : array());
 
     if ('auto' === $preview_format) {
         return $fallbacks;
+    }
+
+    if (empty($fallbacks)) {
+        return array();
+    }
+
+    // A requested format that the active engine cannot reliably rasterize
+    // stays readable in saved settings, but compatible candidates must win.
+    if ('woff' === $preview_format || !in_array($preview_format, $fallbacks, true)) {
+        return array_values(array_unique(array_merge($fallbacks, array($preview_format))));
     }
 
     return array_values(array_unique(array_merge(array($preview_format), $fallbacks)));
@@ -2560,7 +2576,10 @@ function ath_specimen_preview_styles_from_family_zip($post_id, $settings) {
     }
     $family = trim($family) ? trim($family) : 'FontFamily';
     $family_slug = sanitize_file_name($family);
-    $preview_exts = ath_specimen_package_preview_exts(isset($settings['preview_format']) ? $settings['preview_format'] : 'woff');
+    $preview_exts = ath_specimen_package_preview_exts(isset($settings['preview_format']) ? $settings['preview_format'] : 'auto');
+    if (empty($preview_exts)) {
+        return array();
+    }
 
     $entries = ath_specimen_read_font_family_zip($zip_path, $family);
     if (is_wp_error($entries)) {
@@ -2611,8 +2630,30 @@ function ath_specimen_preview_styles_from_family_zip($post_id, $settings) {
         $preview_name = sanitize_file_name($family . '-' . $style . '.' . $preview['ext']);
         $preview_data = ath_specimen_zip_entry_data($preview);
         if (false === $preview_data) continue;
-        file_put_contents($preview_base_dir . '/' . $preview_name, $preview_data);
+        $preview_path = $preview_base_dir . '/' . $preview_name;
+        file_put_contents($preview_path, $preview_data);
         unset($preview_data);
+
+        // Prove that this exact file can be rasterized on the current server
+        // before publishing it into _ath_font_styles. A filename/extension
+        // match alone is insufficient: FreeType delegates differ by host.
+        if (function_exists('ath_specimen_server_render_image')) {
+            $probe = ath_specimen_server_render_image(
+                $preview_path,
+                'Preview',
+                360,
+                32,
+                1.18,
+                '#111111',
+                '#ffffff',
+                'text'
+            );
+            if (is_wp_error($probe) || !is_string($probe) || strlen($probe) < 100) {
+                wp_delete_file($preview_path);
+                continue;
+            }
+            unset($probe);
+        }
         $preview_styles[$style_key] = array(
             'style_name' => $style,
             'font_file' => $preview_base_url . '/' . rawurlencode($preview_name),

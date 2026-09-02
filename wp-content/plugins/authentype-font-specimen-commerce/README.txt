@@ -1,4 +1,13 @@
-Authentype Font Specimen Commerce 1-46 — secure.8.3.0 Stability Freeze
+Authentype Font Specimen Commerce 1.0.7 — secure.8.4.4 Preview Reliability
+
+- Auto preview selection prefers renderer-compatible TTF/OTF sources instead of WOFF.
+- Secure Asset Build probes each selected preview file with the active server renderer before publishing it.
+- Cached PNG requests do not consume the expensive global render quota and expose an `X-Ath-Preview-Cache` diagnostic header.
+- Canvas widths use bounded buckets to improve cache reuse across similar viewports.
+- Local preview resolution survives host and HTTP/HTTPS migrations without fetching remote URLs.
+- WordPress, PHP, and WooCommerce requirements are explicit.
+
+Previous release notes:
 
 Stability-only release. No new commerce model or customer-facing feature is introduced.
 

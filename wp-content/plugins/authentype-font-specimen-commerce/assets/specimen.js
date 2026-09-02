@@ -111,7 +111,9 @@
 
   function canvasWidth(canvas) {
     const rect = canvas.getBoundingClientRect();
-    return Math.max(280, Math.min(1800, Math.round(rect.width || canvas.parentElement?.clientWidth || 1000)));
+    const measured = Math.max(280, Math.min(1800, Math.round(rect.width || canvas.parentElement?.clientWidth || 1000)));
+    // Reuse server PNGs across tiny viewport/layout differences.
+    return Math.max(280, Math.min(1800, Math.round(measured / 40) * 40));
   }
 
   function drawImageToCanvas(canvas, src) {

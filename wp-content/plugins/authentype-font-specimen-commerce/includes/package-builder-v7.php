@@ -574,14 +574,47 @@ function ath_specimen_build_font_packages_v7_unlocked($post_id, $settings) {
     foreach ($style_keys as $style_index => $style_key) {
         $style_assets = $assets_by_style[$style_key];
         $preview = null;
+        $preview_errors = array();
         foreach ($preview_exts as $ext) {
             foreach ($style_assets as $asset) {
-                if ($asset['ext'] === $ext) { $preview = $asset; break 2; }
+                if ($asset['ext'] !== $ext) continue;
+                if (!function_exists('ath_specimen_server_render_image')) {
+                    $preview_errors[] = __('The secure preview renderer is not loaded.', 'authentype-font-specimen');
+                    continue;
+                }
+
+                // Do not persist a preview source merely because its extension
+                // looks compatible. Exercise the exact staged file with the
+                // active server renderer first: some ImageMagick builds reject
+                // otherwise valid OTF/WOFF files, while GD only supports TTF.
+                $probe = ath_specimen_server_render_image(
+                    $asset['stage'],
+                    'Preview Aa 123',
+                    360,
+                    32,
+                    1.18,
+                    '#111111',
+                    '#ffffff',
+                    'text'
+                );
+                if (!is_wp_error($probe) && is_string($probe) && strlen($probe) >= 100) {
+                    $preview = $asset;
+                    unset($probe);
+                    break 2;
+                }
+                $preview_errors[] = is_wp_error($probe)
+                    ? $probe->get_error_message()
+                    : sprintf(__('The %s renderer probe returned no usable image.', 'authentype-font-specimen'), strtoupper($ext));
+                unset($probe);
             }
         }
         if (!$preview) {
             ath_specimen_cleanup_staged_files($staged_files);
-            return new WP_Error('ath_preview_missing', sprintf(__('No OTF, TTF, or WOFF preview source is available for %s.', 'authentype-font-specimen'), $style_assets[0]['style']));
+            $detail = $preview_errors ? ' ' . implode(' ', array_unique($preview_errors)) : '';
+            return new WP_Error(
+                'ath_preview_renderer_incompatible',
+                sprintf(__('No preview source for %s could be rendered on this server.', 'authentype-font-specimen'), $style_assets[0]['style']) . $detail
+            );
         }
         $label = $style_assets[0]['style'];
         $font_styles[] = array(

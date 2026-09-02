@@ -2,12 +2,6 @@
 /**
  * Fungsi & definisi utama tema Aksara.
  *
- * Sejak 1.0.0 ini BLOCK THEME (FSE): struktur halaman ada di templates/*.html
- * dan parts/*.html, token desain di theme.json, dan bagian yang isinya query
- * jadi blok dinamis di inc/blocks.php. Template PHP versi classic sudah
- * dihapus — WordPress mengabaikannya begitu templates/ ada, jadi
- * meninggalkannya hanya akan menyesatkan pembaca berikutnya.
- *
  * @package Aksara
  */
 
@@ -15,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '1.0.5' );
+define( 'AKSARA_THEME_VERSION', '0.9.9' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -48,13 +42,12 @@ function aksara_setup() {
 	add_image_size( 'aksara-preview-md', 910, 607, true );
 	add_image_size( 'aksara-preview-sm', 600, 400, true );
 
-	/*
-	 * Tidak ada register_nav_menus() maupun register_sidebar() lagi: di block
-	 * theme, menu dikelola lewat blok Navigation di parts/header.html dan
-	 * parts/footer.html, dan widget digantikan blok biasa. Mendaftarkannya
-	 * hanya akan memunculkan panel Menus/Widgets yang tidak berpengaruh
-	 * apa pun terhadap tampilan.
-	 */
+	register_nav_menus( array(
+		'primary' => __( 'Primary Menu', 'aksara' ),
+		'footer_shop'  => __( 'Footer — Shop', 'aksara' ),
+		'footer_help'  => __( 'Footer — Help', 'aksara' ),
+		'footer_about' => __( 'Footer — Company', 'aksara' ),
+	) );
 }
 add_action( 'after_setup_theme', 'aksara_setup' );
 
@@ -85,6 +78,13 @@ add_filter( 'woocommerce_get_image_size_thumbnail', 'aksara_woocommerce_thumbnai
  * bahasa visual mockup hangat yang digantikan DESIGN.md, dan memuat dua
  * keluarga display yang tak terpakai berarti dua request font sia-sia.
  *
+ * Playfair Display juga sudah dilepas. Ia masuk bersama halaman editorial
+ * di 0.9.8 dan membuat komentar ini berbohong: teksnya mengklaim "cuma satu
+ * keluarga" sementara URL-nya memuat dua. Selain itu DESIGN.md menyebut Work
+ * Sans sebagai "the only Google face in the system" dan tidak pernah
+ * menyebut Playfair Display sama sekali — jadi ia bukan bagian dari sistem,
+ * melainkan keluarga kedua yang menyelinap masuk.
+ *
  * PENTING: webfont di sini HANYA untuk chrome UI situs — bukan font yang
  * dijual. Font produk TIDAK PERNAH di-@font-face secara publik dari tema;
  * itu justru yang dicegah oleh seluruh sistem preview di PRD Bagian 4.3.
@@ -92,18 +92,14 @@ add_filter( 'woocommerce_get_image_size_thumbnail', 'aksara_woocommerce_thumbnai
 function aksara_scripts() {
 	wp_enqueue_style(
 		'aksara-google-fonts',
-		'https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500&display=swap',
+		'https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&display=swap',
 		array(),
 		null
 	);
 
 	wp_enqueue_style( 'aksara-style', get_stylesheet_uri(), array(), AKSARA_THEME_VERSION );
 
-	// navigation.js sudah dilepas: ia hanya menangani .menu-toggle milik
-	// header PHP versi classic. Di block theme, blok Navigation membawa
-	// overlay & tombol hamburger-nya sendiri, jadi skrip itu tidak akan
-	// pernah menemukan elemennya — memuatnya berarti satu request sia-sia
-	// di setiap halaman.
+	wp_enqueue_script( 'aksara-navigation', AKSARA_THEME_URI . '/assets/js/navigation.js', array(), AKSARA_THEME_VERSION, true );
 
 	if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
 		wp_enqueue_script( 'comment-reply' );
@@ -111,48 +107,56 @@ function aksara_scripts() {
 }
 add_action( 'wp_enqueue_scripts', 'aksara_scripts' );
 
+/** Estimated reading time for editorial post metadata. */
+function aksara_reading_time( $post_id = 0 ) {
+	$post_id = $post_id ? absint( $post_id ) : get_the_ID();
+	$text    = trim( wp_strip_all_tags( strip_shortcodes( (string) get_post_field( 'post_content', $post_id ) ) ) );
+	$words   = '' === $text ? 0 : count( preg_split( '/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY ) );
+	return max( 1, (int) ceil( $words / 220 ) );
+}
+
+/** First category label, with a neutral Journal fallback. */
+function aksara_editorial_category( $post_id = 0 ) {
+	$categories = get_the_category( $post_id ? absint( $post_id ) : get_the_ID() );
+	return $categories ? $categories[0] : null;
+}
+
+/**
+ * Daftarkan area widget.
+ */
+function aksara_widgets_init() {
+	register_sidebar( array(
+		'name'          => __( 'Blog Sidebar', 'aksara' ),
+		'id'            => 'sidebar-1',
+		'before_widget' => '<div id="%1$s" class="widget %2$s">',
+		'after_widget'  => '</div>',
+		'before_title'  => '<h2 class="widget-title">',
+		'after_title'   => '</h2>',
+	) );
+}
+add_action( 'widgets_init', 'aksara_widgets_init' );
+
+require AKSARA_THEME_DIR . '/inc/template-tags.php';
 require AKSARA_THEME_DIR . '/inc/template-functions.php';
 require AKSARA_THEME_DIR . '/inc/woocommerce-helpers.php';
 require AKSARA_THEME_DIR . '/inc/authentype-integration.php';
 require AKSARA_THEME_DIR . '/inc/seo.php';
-require AKSARA_THEME_DIR . '/inc/blocks.php';
 
 /**
- * Kategori sendiri di inserter, supaya blok tema tidak tercecer di antara
- * blok core dan sulit ditemukan.
- *
- * @param array $categories Kategori yang sudah ada.
- * @return array
+ * Fallback menu jika belum ada menu Utama yang diatur.
  */
-function aksara_block_category( $categories ) {
-	array_unshift(
-		$categories,
-		array(
-			'slug'  => 'aksara',
-			'title' => __( 'Aksara', 'aksara' ),
-		)
-	);
-	return $categories;
-}
-add_filter( 'block_categories_all', 'aksara_block_category' );
-
-/**
- * Daftarkan kategori PATTERN 'aksara'.
- *
- * Kategori blok (di atas) dan kategori pattern adalah dua registry terpisah.
- * patterns/section.php dan patterns/trust.php sama-sama mendeklarasikan
- * "Categories: aksara"; tanpa pendaftaran ini kategorinya tidak ada, jadi
- * kedua pattern tidak pernah muncul sebagai tab tersendiri di inserter.
- */
-function aksara_register_pattern_category() {
-	if ( ! function_exists( 'register_block_pattern_category' ) ) {
-		return;
+function aksara_fallback_menu() {
+	echo '<ul id="primary-menu" class="menu">';
+	printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( home_url( '/' ) ), esc_html__( 'Home', 'aksara' ) );
+	if ( function_exists( 'aksara_authentype_archive_url' ) ) {
+		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_authentype_archive_url() ), esc_html__( 'Fonts', 'aksara' ) );
 	}
-	register_block_pattern_category( 'aksara', array(
-		'label' => __( 'Aksara', 'aksara' ),
-	) );
+	if ( function_exists( 'aksara_get_listing_url' ) ) {
+		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_get_listing_url( 'templates' ) ), esc_html__( 'Templates', 'aksara' ) );
+		printf( '<li><a href="%1$s">%2$s</a></li>', esc_url( aksara_get_listing_url( 'elements' ) ), esc_html__( 'Elements', 'aksara' ) );
+	}
+	echo '</ul>';
 }
-add_action( 'init', 'aksara_register_pattern_category' );
 
 /** Show a clear setup warning instead of silently rendering an empty catalog. */
 function aksara_dependency_notice() {

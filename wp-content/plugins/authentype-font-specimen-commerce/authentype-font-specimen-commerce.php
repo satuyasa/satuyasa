@@ -2,14 +2,17 @@
 /*
 Plugin Name: Authentype Font Specimen Commerce
 Description: Standalone font specimen, style selector, license modal, and WooCommerce variation add-to-cart for Authentype.
-Version: 1.0.6-secure.8.4.3-render-workload-hardening
+Version: 1.0.7-secure.8.4.4-preview-reliability
+Requires at least: 6.1
+Requires PHP: 7.4
+Requires Plugins: woocommerce
 Author: Authentype Studio
 Text Domain: authentype-font-specimen
 */
 
 defined('ABSPATH') || exit;
 
-define('AUTHENTYPE_SPECIMEN_VERSION', '1.0.6-secure.8.4.3-render-workload-hardening');
+define('AUTHENTYPE_SPECIMEN_VERSION', '1.0.7-secure.8.4.4-preview-reliability');
 define('AUTHENTYPE_SPECIMEN_DATA_SCHEMA', '8.3.0');
 define('AUTHENTYPE_SPECIMEN_PATH', plugin_dir_path(__FILE__));
 define('AUTHENTYPE_SPECIMEN_URL', plugin_dir_url(__FILE__));
@@ -98,6 +101,14 @@ function authentype_specimen_can_manage_internal() {
 function authentype_specimen_can_upload_builder_files() {
     return is_admin() && current_user_can('upload_files') && authentype_specimen_can_manage_internal();
 }
+
+/** Make the hard commerce dependency visible before an administrator builds data. */
+add_action('admin_notices', function () {
+    if (!current_user_can('activate_plugins') || class_exists('WooCommerce')) return;
+    echo '<div class="notice notice-error"><p><strong>' . esc_html__('Authentype requires WooCommerce.', 'authentype-font-specimen') . '</strong> ';
+    echo esc_html__('Activate WooCommerce before building assets, pricing, variations, checkout, or delivery.', 'authentype-font-specimen');
+    echo '</p></div>';
+});
 
 /**
  * Font MIME types used by secure shared assets. WooCommerce validates every

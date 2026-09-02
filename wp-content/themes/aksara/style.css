@@ -4,14 +4,14 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 1.0.5
-Requires at least: 6.6
+Version: 0.9.9
+Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 License: GNU General Public License v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: aksara
-Tags: e-commerce, full-site-editing, block-patterns, custom-logo, featured-images, translation-ready
+Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
 */
 
 /* =======================================================================
@@ -66,6 +66,16 @@ Tags: e-commerce, full-site-editing, block-patterns, custom-logo, featured-image
 	 * dipilih sebagai suara utama. */
 	--font-ui: 'SterlingVF', 'Sterling', 'Work Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	--font-display: var(--font-ui);
+	/* Editorial dulu memakai 'Playfair Display' — sebuah serif, dan keluarga
+	 * Google KEDUA. DESIGN.md menyebut Work Sans sebagai "the only Google face
+	 * in the system" dan menegaskan "Sterling is the only voice"; Playfair
+	 * Display tidak disebut sama sekali di sana. Jadi halaman editorial kini
+	 * memakai suara yang sama dengan seluruh situs. Token-nya sengaja
+	 * DIPERTAHANKAN (bukan dihapus lalu 9 pemakaiannya ditulis ulang) supaya
+	 * peran "teks editorial" tetap punya nama sendiri kalau suatu saat
+	 * diberi keluarga tersendiri lagi — pola yang sama persis dengan
+	 * --font-display di baris atas. */
+	--font-editorial: var(--font-ui);
 
 	--text-caption: 12px;
 	--leading-caption: 1.5;
@@ -576,16 +586,15 @@ button[type="submit"], input[type="submit"],
 	padding: var(--spacing-24) 0;
 	overflow: hidden;
 }
-/* Aturan ini dulu menangani <img> hasil Aksara_Specimen_Image (mesin GD di
- * plugin aksara-marketplace). Sejak Authentype mengambil alih rendering,
- * baris spesimen memakai <canvas>, bukan <img> — jadi selektor ini tidak
- * pernah cocok dengan apa pun. Dipertahankan HANYA sebagai jaring pengaman
- * kalau ada gambar disisipkan ke dalam .sp-specimen (mis. lewat pattern),
- * tanpa !important yang tadinya dipasang untuk melawan height inline yang
- * kini tidak ada lagi. */
+/* !important di sini disengaja dan perlu: Aksara_Specimen_Image::get_img_tag()
+ * menulis height inline (style="height:115px;width:auto") supaya gambar
+ * tetap benar di tema lain yang tidak punya CSS ini. Tanpa override,
+ * max-width:100% akan mempersempit lebar sementara height inline bertahan
+ * — gambarnya jadi gepeng di layar sempit. */
 .sp-specimen img {
 	display: block;
-	height: auto;
+	height: auto !important;
+	width: auto;
 	max-width: 100%;
 	border-radius: 0;
 }
@@ -780,13 +789,7 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    10. Konten generik (blog, page, single, komentar) — pakai lebar baca
 ------------------------------------------------------------------------ */
-/* padding-block, BUKAN shorthand `padding: X 0 Y`.
- * Elemen ini selalu membawa class .wrap sekaligus (lihat index.php,
- * single.php, archive.php, search.php), dan .wrap-lah yang memberi gutter
- * kiri-kanan. Shorthand tiga nilai menulis ulang padding horizontal jadi 0,
- * sehingga seluruh halaman blog/arsip/pencarian menempel ke tepi jendela.
- * Ketahuan saat memotret halaman artikel di 1440px. */
-.content-area { padding-block: var(--page-top) var(--page-bottom); }
+.content-area { padding: var(--page-top) 0 var(--page-bottom); }
 .entry-card, article.post, article.page {
 	margin-bottom: var(--spacing-36);
 	padding-bottom: var(--spacing-36);
@@ -832,10 +835,7 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 /* -----------------------------------------------------------------------
    11. Single product & WooCommerce
 ------------------------------------------------------------------------ */
-/* Sama seperti .content-area di atas: dipakai bersama .wrap oleh
- * woocommerce.php, jadi gutter-nya tidak boleh ditimpa. Ini yang membuat
- * cart, checkout, dan My Account menempel ke tepi layar. */
-.aksara-product-summary { padding-block: var(--page-top) var(--page-bottom); }
+.aksara-product-summary { padding: var(--page-top) 0 var(--page-bottom); }
 .aksara-product-summary .product_title {
 	font-size: clamp(40px, 8vw, 115px);
 	line-height: 1;
@@ -887,21 +887,12 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 
 /* Tabel WC gampang overflow di layar sempit karena banyak kolom — biarkan
  * ia scroll di dalam wrappernya sendiri supaya body halaman tidak pernah
- * overflow ke samping.
- *
- * HANYA di layar sempit. Sebelumnya aturan ini berlaku di semua lebar, dan
- * itu merusak tabel keranjang di desktop: display:block pada <table>
- * mematikan layout tabelnya (browser membungkus baris dalam tabel anonim
- * yang menyusut mengikuti isi), sehingga tabel yang seharusnya selebar
- * halaman cuma memakai sekitar 45% lebar dan sisanya kosong. Ketahuan saat
- * memotret halaman cart di 1440px. */
-@media (max-width: 782px) {
-	.woocommerce table.shop_table,
-	.woocommerce-table {
-		display: block;
-		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
-	}
+ * overflow ke samping. */
+.woocommerce table.shop_table,
+.woocommerce-table {
+	display: block;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
 }
 
 .license-page-item {
@@ -922,7 +913,7 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 /* -----------------------------------------------------------------------
    12. Authentype catalog integration — Google Fonts-inspired utility UI
 ------------------------------------------------------------------------ */
-.font-library { padding-block: var(--page-top) var(--page-bottom); }
+.font-library { padding: var(--page-top) 0 var(--page-bottom); }
 .font-library-header,
 .font-detail-header {
 	display: grid;
@@ -985,6 +976,10 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 }
 .font-library .specimen-list { margin-top: 28px; }
 .aksara-catalog-specimen { padding-bottom: 20px; margin-bottom: 24px; }
+/* Archive preview is intentionally tighter than the reusable specimen row:
+ * keep the type large, but remove the oversized air above/below the raster. */
+.font-library .aksara-catalog-specimen .sp-controls { padding-bottom: 8px; }
+.font-library .aksara-catalog-specimen .sp-specimen { padding-block: 8px; }
 .aksara-row-canvas {
 	display: block;
 	width: 100%;
@@ -992,29 +987,6 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 	background: var(--paper);
 }
 .aksara-row-canvas.is-loading { opacity: .55; }
-
-/* Degradasi saat render specimen gagal.
- *
- * specimen.js menandai canvas yang gagal dengan .has-error lalu melukis
- * pesan error ke dalam canvas-nya. Karena baris specimen adalah SATU-SATUNYA
- * isi visual baris katalog, hasilnya adalah kotak kosong bertuliskan
- * "Preview unavailable." — nol huruf dari keluarga font yang sedang dijual.
- *
- * Aturan di bawah menukar canvas yang gagal dengan nama keluarga font dalam
- * font tema: bukan spesimen sesungguhnya, tapi katalog tetap terbaca dan
- * tetap bisa diklik. Canvas-nya tetap ada di DOM (cuma display:none) supaya
- * kegagalannya masih bisa didiagnosis lewat DevTools.
- *
- * Kalau JS mati total, canvas tidak pernah dapat .has-error, jadi span
- * cadangan ini tidak akan muncul lewat aturan tersebut — itulah kenapa
- * <noscript> tetap dipertahankan sebagai jalur terpisah. */
-.sp-specimen .sp-specimen-fallback[aria-hidden="true"] { display: none; }
-.aksara-row-canvas.has-error { display: none; }
-.aksara-row-canvas.has-error + .sp-specimen-fallback[aria-hidden="true"] { display: block; }
-/* Kartu "Related font families" tidak butuh span cadangan: nama keluarganya
- * sudah tampil di <h3> tepat di atas canvas. Jadi cukup sembunyikan canvas
- * yang gagal supaya tidak ada kotak kosong bertuliskan error di dalam kartu. */
-.font-product-card__specimen.has-error { display: none; }
 .btn-view.is-preparing { opacity: .55; }
 .page-numbers ul,
 ul.page-numbers {
@@ -1106,6 +1078,26 @@ ul.page-numbers {
 }
 .font-detail-meta .aksara-discount-label { align-self: center; }
 
+/* Satu-satunya font asing yang tersisa di halaman depan datang dari plugin:
+ * specimen.css menyetel .ath-feature-menu-btn ke Georgia, serif untuk tombol
+ * "ff" pembuka menu fitur OpenType. Berkas plugin tidak boleh diedit karena
+ * akan tertimpa saat update, jadi diseragamkan dari sini.
+ *
+ * Selektornya sengaja memakai button.… (0,1,1) dan .ath-specimen-v7 button.…
+ * (0,2,1) supaya menang atas aturan plugin (0,1,0 dan 0,2,0) TANPA
+ * !important, dan menang tanpa bergantung pada urutan cetak stylesheet -
+ * urutan itu tidak dijamin karena specimen.css baru di-enqueue saat
+ * shortcode/template part-nya berjalan.
+ *
+ * Chip tag fitur (.ath-feature-chip) SENGAJA dibiarkan monospace: isinya
+ * tag OpenType mentah seperti "liga" dan "dlig", dan monospace di situ
+ * fungsional, bukan dekoratif. Menyeragamkannya akan mengurangi keterbacaan
+ * tanpa menambah kesatuan visual apa pun. */
+button.ath-feature-menu-btn,
+.ath-specimen-v7 button.ath-feature-menu-btn {
+	font-family: var(--font-ui);
+}
+
 /* Authentype ships colored sale badges; the Aksara storefront keeps the
  * meaning but normalizes them to the theme's monochrome badge language. */
 .ath-specimen-v7 .ath-discount-badge,
@@ -1120,19 +1112,96 @@ ul.page-numbers {
 }
 
 /* =======================================================================
-   PRODUCT ARCHIVE + SINGLE PRODUCT AUDIT 0.9.0
+   PRODUCT ARCHIVE + SINGLE PRODUCT AUDIT 0.9.5
 ======================================================================= */
-.font-archive-image {
+.font-archive-gallery {
+	position: relative;
+	min-width: 0;
+	margin-top: 48px;
+}
+.font-archive-gallery__arrow {
+	position: absolute;
+	top: 50%;
+	z-index: 3;
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: #292d35;
+	color: #fff;
+	font-size: 21px;
+	/* Dulu Arial — satu-satunya font-family di tema ini yang menembus sistem
+	 * token. Glyph "x" ada di semua keluarga, jadi tidak ada alasan teknis
+	 * untuk mengecualikannya. */
+	font-family: var(--font-ui);
+	font-weight: 300;
+	line-height: 1;
+	transform: translateY(-50%);
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+	transition: opacity 160ms ease, visibility 160ms ease, background-color 160ms ease;
+}
+.font-archive-gallery:hover .font-archive-gallery__arrow,
+.font-archive-gallery:focus-within .font-archive-gallery__arrow {
+	opacity: 1;
+	visibility: visible;
+	pointer-events: auto;
+	cursor: pointer;
+}
+.font-archive-gallery__arrow--prev { left: 12px; }
+.font-archive-gallery__arrow--next { right: 12px; }
+.font-archive-gallery__arrow:hover { background: #111318; }
+.font-archive-gallery__arrow:focus-visible { outline: 3px solid var(--paper); outline-offset: -6px; }
+.font-archive-gallery__arrow[hidden] { display: none; }
+.font-archive-gallery__track {
+	display: flex;
+	gap: 20px;
+	overflow-x: auto;
+	overscroll-behavior-inline: contain;
+	scroll-snap-type: x mandatory;
+	scroll-behavior: smooth;
+	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+}
+.font-archive-gallery__track::-webkit-scrollbar { display: none; }
+.font-archive-gallery__slide {
 	display: block;
-	width: min(100%, 920px);
-	margin-top: 16px;
+	flex: 0 0 calc((100% - 60px) / 4);
+	min-width: 0;
 	overflow: hidden;
 	background: var(--color-foam-gray);
+	border-radius: 10px;
+	scroll-snap-align: start;
 }
-.font-archive-image img {
+.font-archive-gallery__slide img {
+	display: block;
 	width: 100%;
+	height: auto;
 	aspect-ratio: 3 / 2;
 	object-fit: cover;
+	transition: transform 240ms ease;
+}
+.font-archive-gallery__slide:hover img { transform: scale(1.015); }
+
+@media (max-width: 960px) {
+	.font-archive-gallery__slide { flex-basis: calc((100% - 20px) / 2); }
+}
+@media (max-width: 600px) {
+	.font-archive-gallery__slide { flex-basis: 82%; }
+	.font-archive-gallery__arrow { width: 30px; height: 30px; font-size: 20px; }
+	.font-archive-gallery__arrow--prev { left: 8px; }
+	.font-archive-gallery__arrow--next { right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.font-archive-gallery__track { scroll-behavior: auto; }
+	.font-archive-gallery__slide img { transition: none; }
+	.font-archive-gallery__arrow { transition: none; }
 }
 
 .font-detail-lead {
@@ -1227,15 +1296,6 @@ ul.page-numbers {
 }
 .font-product-card__body h3 { margin: 0; font-size: 18px; }
 .font-product-card__body p { margin: 5px 0 0; font-size: 12px; color: var(--muted); }
-/* Tinggi dipesan lebih dulu supaya kartu tidak melompat saat canvas selesai
- * dirender — pola yang sama dengan .aksara-row-canvas. */
-.font-product-card__specimen {
-	display: block;
-	width: 100%;
-	min-height: 44px;
-	margin-top: 8px;
-	background: var(--paper);
-}
 .font-product-card__price { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; white-space: nowrap; }
 
 /* Native WooCommerce products (Canva and other catalog items). */
@@ -1406,728 +1466,167 @@ form.hero-search input[type="search"]:focus-visible {
 	.content-area .archive-header { padding-bottom: 20px; }
 }
 
-/* =======================================================================
-   13. Editorial — blog, arsip, artikel tunggal, komentar, sidebar
-
-   Sebelumnya bagian ini cuma punya kartu entri & paginasi; sisanya
-   mengandalkan gaya bawaan browser. Yang ditambahkan di sini adalah
-   hal-hal yang benar-benar dipakai halaman blog: tata letak dua kolom
-   saat sidebar aktif (class .has-sidebar sudah dicetak single.php tapi
-   belum pernah punya aturan), ritme tipografi di dalam isi artikel,
-   navigasi antar-artikel, komentar, dan widget.
-======================================================================= */
-
-/* Dua kolom hanya kalau sidebar memang aktif — .has-sidebar dipasang
- * single.php berdasarkan is_active_sidebar(). */
-.content-area.has-sidebar {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) 280px;
-	gap: var(--section-rhythm);
-	align-items: start;
-}
-.content-area.has-sidebar > #primary { min-width: 0; }
-
-.page-header,
-.archive-header {
-	padding-bottom: var(--component-rhythm);
-	margin-bottom: var(--component-rhythm);
-	border-bottom: 1px solid var(--hairline);
-}
-.page-title,
-.archive-title {
-	font-size: clamp(32px, 5vw, 56px);
-	line-height: 1;
-	letter-spacing: -0.02em;
-	font-weight: var(--font-weight-regular);
-	margin: 0;
-}
-.archive-description {
-	margin-top: var(--spacing-16);
-	max-width: var(--measure);
-	color: var(--muted);
-	font-size: var(--text-body-sm);
-}
-
-/* --- Kartu entri di daftar/arsip --- */
-.entry-card:last-child { border-bottom: none; }
-.entry-card .entry-thumbnail img {
-	aspect-ratio: 16 / 9;
-	object-fit: cover;
-	width: 100%;
-}
-.entry-card .entry-title { margin-bottom: var(--spacing-12); }
-.entry-card .entry-content {
-	max-width: var(--measure);
-	color: var(--muted);
-	font-size: var(--text-body-sm);
-	line-height: var(--leading-body-sm);
-}
-.entry-card .entry-content p:last-child { margin-bottom: 0; }
-
-.entry-meta a { color: inherit; }
-.entry-meta .byline::before { content: "·"; margin: 0 6px; }
-
-/* --- Isi artikel tunggal: ritme baca --- */
-.single .entry-content,
-.page .entry-content {
-	max-width: var(--measure);
-	color: var(--ink);
-}
-.single .entry-content > * + *,
-.page .entry-content > * + * { margin-top: 1.2em; }
-.single .entry-content h2,
-.page .entry-content h2 {
-	font-size: 28px;
-	letter-spacing: -0.02em;
-	margin-top: 2em;
-}
-.single .entry-content h3,
-.page .entry-content h3 { font-size: 20px; margin-top: 1.8em; }
-.single .entry-content ul,
-.single .entry-content ol,
-.page .entry-content ul,
-.page .entry-content ol { padding-left: 1.4em; }
-.single .entry-content li + li,
-.page .entry-content li + li { margin-top: .4em; }
-
-.entry-content blockquote {
-	margin: 2em 0;
-	padding-left: var(--spacing-24);
-	border-left: 2px solid var(--ink);
-	font-size: 20px;
-	line-height: 1.35;
-	letter-spacing: -0.01em;
-}
-.entry-content blockquote p:last-child { margin-bottom: 0; }
-.entry-content blockquote cite {
+/* Normalize every custom font gallery to the same carousel shell. These
+ * selectors intentionally come after the older grid rules used by 0.9.0. */
+.font-archive-gallery.font-product-gallery,
+.font-archive-gallery.font-single-gallery {
 	display: block;
-	margin-top: var(--spacing-12);
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	font-style: normal;
-	color: var(--muted);
+	grid-template-columns: none;
+	gap: 0;
+	padding-block: 0;
 }
 
-.entry-content code,
-.entry-content kbd {
-	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-	font-size: .9em;
-	background: var(--hairline);
-	padding: .15em .4em;
-	border-radius: var(--radius-sm);
-}
-/* Blok kode boleh scroll sendiri; halaman tidak boleh ikut melebar. */
-.entry-content pre {
-	background: var(--hairline);
-	padding: var(--spacing-20);
-	border-radius: var(--radius-sm);
-	overflow-x: auto;
-	font-size: var(--text-body-sm);
-	line-height: 1.5;
-}
-.entry-content pre code { background: none; padding: 0; }
-
-.entry-content figure { margin: 2em 0; }
-.entry-content figcaption {
-	margin-top: var(--spacing-12);
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	color: var(--muted);
-}
-.entry-content table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm); }
-.entry-content th, .entry-content td {
-	text-align: left;
-	padding: var(--spacing-12) 0;
-	border-bottom: 1px solid var(--hairline);
-}
-
-.entry-footer {
-	margin-top: var(--component-rhythm);
-	padding-top: var(--spacing-16);
-	border-top: 1px solid var(--hairline);
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	color: var(--muted);
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--spacing-16);
-}
-.entry-footer a { color: var(--ink); }
-
-/* --- Navigasi antar artikel --- */
-.post-navigation {
-	margin-top: var(--section-rhythm);
-	padding-top: var(--component-rhythm);
-	border-top: 1px solid var(--hairline);
-}
-.post-navigation .nav-links {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: var(--spacing-36);
-}
-.post-navigation .nav-next { text-align: right; }
-.post-navigation .nav-subtitle {
-	display: block;
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	color: var(--muted);
-	margin-bottom: 6px;
-}
-.post-navigation .nav-title {
-	font-size: var(--text-body);
-	letter-spacing: -0.01em;
-}
-
-/* --- Komentar --- */
-.comments-area {
-	margin-top: var(--section-rhythm);
-	padding-top: var(--component-rhythm);
-	border-top: 1px solid var(--hairline);
-	max-width: var(--measure);
-}
-.comments-title,
-.comment-reply-title {
-	font-size: var(--text-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	margin-bottom: var(--component-rhythm);
-}
-.comment-list { list-style: none; margin: 0; padding: 0; }
-.comment-list li.comment { border-top: 1px solid var(--hairline); padding: var(--spacing-24) 0; }
-.comment-list li.comment:first-child { border-top: none; padding-top: 0; }
-.comment-list .children { list-style: none; margin: var(--spacing-24) 0 0; padding-left: var(--spacing-24); border-left: 1px solid var(--hairline); }
-.comment-author { font-size: var(--text-body-sm); font-weight: var(--font-weight-medium); }
-.comment-author img { display: inline-block; vertical-align: middle; margin-right: 8px; border-radius: 50%; }
-.comment-metadata {
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	color: var(--muted);
-	margin-bottom: var(--spacing-12);
-}
-.comment-content { font-size: var(--text-body-sm); line-height: var(--leading-body-sm); }
-.reply { font-size: var(--text-caption); letter-spacing: var(--tracking-caption); text-transform: uppercase; }
-.comment-form .comment-notes,
-.comment-form .logged-in-as { font-size: var(--text-caption); color: var(--muted); }
-.no-comments { font-size: var(--text-body-sm); color: var(--muted); }
-
-/* --- Sidebar / widget --- */
-.widget-area { font-size: var(--text-body-sm); }
-.widget + .widget { margin-top: var(--section-rhythm); }
-.widget .widget-title,
-.widget h2 {
-	font-size: var(--text-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	padding-bottom: var(--spacing-12);
-	margin-bottom: var(--spacing-16);
-	border-bottom: 1px solid var(--ink);
-}
-.widget ul { list-style: none; margin: 0; padding: 0; }
-.widget li { padding: var(--spacing-12) 0; border-bottom: 1px solid var(--hairline); }
-.widget li:last-child { border-bottom: none; }
-.widget a { color: var(--ink); }
-
-@media (max-width: 900px) {
-	.content-area.has-sidebar { grid-template-columns: minmax(0, 1fr); gap: var(--component-rhythm); }
-	.widget-area {
-		padding-top: var(--component-rhythm);
-		border-top: 1px solid var(--hairline);
-	}
-}
-@media (max-width: 560px) {
-	.post-navigation .nav-links { grid-template-columns: 1fr; gap: var(--spacing-24); }
-	.post-navigation .nav-next { text-align: left; }
+/* On the single-font page the overview hairline belongs between the gallery
+ * and copy, not directly against the image edges. */
+.single-ath_font .font-archive-gallery.font-single-gallery {
+	margin-bottom: 48px;
 }
 
 /* =======================================================================
-   14. Commerce — cart, checkout, My Account, order received, arsip toko
-
-   Kenapa ini perlu ditulis panjang: woocommerce.php sengaja membungkus
-   woocommerce_content() alih-alih meng-override template WooCommerce satu
-   per satu (keputusan yang tetap dipertahankan — override template rapuh
-   antar versi WC). Konsekuensinya, seluruh halaman transaksi memakai
-   markup + CSS bawaan WooCommerce: tombol ungu #a46497, kotak abu-abu
-   #f7f6f7, sudut membulat, badge diskon bulat hijau. Semua itu bertabrakan
-   dengan sistem monokrom di DESIGN.md. Bagian ini menetralkannya lewat CSS
-   saja, jadi tidak ada template WooCommerce yang perlu di-fork.
-
-   Selektor sengaja memakai nama class WooCommerce yang sebenarnya (bukan
-   pembungkus tema) supaya tetap berlaku di halaman mana pun WooCommerce
-   memutuskan merendernya.
+   EDITORIAL JOURNAL — DESIGN-2 adaptation
+   Scoped to blog templates so marketplace/product UI remains unchanged.
 ======================================================================= */
-
-/* --- Netralkan gaya dasar WooCommerce --- */
-.woocommerce .woocommerce-message,
-.woocommerce .woocommerce-info,
-.woocommerce .woocommerce-error,
-.woocommerce-notices-wrapper > * { border-radius: var(--radius-sm); }
-
-.woocommerce span.onsale {
-	background: var(--ink);
-	color: var(--paper);
-	border-radius: var(--radius-sm);
-	min-height: 0;
-	min-width: 0;
-	line-height: 1;
-	padding: 6px var(--spacing-12);
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
+.editorial-index { padding: 72px 0 112px; color: #111118; }
+.editorial-masthead {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(240px, .32fr);
+	align-items: end;
+	gap: 48px;
+	padding-bottom: 64px;
+}
+.editorial-kicker,
+.editorial-card__meta {
+	font-size: 12px;
+	line-height: 1.4;
+	letter-spacing: .107em;
 	text-transform: uppercase;
-	font-weight: var(--font-weight-regular);
-	top: var(--spacing-12);
-	left: var(--spacing-12);
+}
+.editorial-masthead .editorial-kicker { grid-column: 1 / -1; margin: 0; }
+.editorial-masthead h1,
+.editorial-single__header h1 {
 	margin: 0;
+	font-family: var(--font-editorial);
+	font-weight: 400;
+	line-height: .96;
+	letter-spacing: -.045em;
 }
+.editorial-masthead h1 { font-size: clamp(76px, 13vw, 160px); }
+.editorial-masthead > p:last-child { max-width: 34ch; margin: 0 0 10px; color: #7c7c7c; line-height: 1.5; }
+.editorial-masthead--archive { border-bottom: 1px solid #bdbdbd; margin-bottom: 56px; }
+.editorial-masthead--archive .archive-description { margin: 0 0 10px; }
 
-.woocommerce .quantity .qty {
-	width: 72px;
-	margin: 0;
-	padding: 10px var(--spacing-12);
-	text-align: center;
-	border: 1px solid var(--hairline-strong);
-	border-radius: var(--radius-sm);
-	font-variant-numeric: tabular-nums;
-}
-
-/* Tombol "×" hapus item: glyph tinta, bukan lingkaran merah. */
-.woocommerce a.remove {
-	color: var(--ink) !important;
-	font-size: 20px;
-	line-height: 1;
-	width: 24px;
-	height: 24px;
-	border-radius: var(--radius-sm);
-	font-weight: var(--font-weight-regular);
-}
-.woocommerce a.remove:hover {
-	background: var(--ink) !important;
-	color: var(--paper) !important;
-}
-
-/* --- Tabel (cart, order review, order details) --- */
-.woocommerce table.shop_table {
-	border: none;
-	border-radius: 0;
-	border-collapse: collapse;
-	width: 100%;
-}
-.woocommerce table.shop_table thead th {
-	border: none;
-	border-bottom: 1px solid var(--ink);
-	padding: var(--spacing-12) var(--spacing-16) var(--spacing-12) 0;
-	font-size: var(--text-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	text-align: left;
-}
-.woocommerce table.shop_table td,
-.woocommerce table.shop_table tfoot th {
-	border: none;
-	border-bottom: 1px solid var(--hairline);
-	padding: var(--spacing-20) var(--spacing-16) var(--spacing-20) 0;
-	vertical-align: middle;
-}
-.woocommerce table.shop_table tbody tr:last-child td { border-bottom: 1px solid var(--hairline); }
-.woocommerce table.shop_table tfoot th { text-align: left; font-weight: var(--font-weight-regular); }
-.woocommerce table.shop_table tfoot tr:last-child th,
-.woocommerce table.shop_table tfoot tr:last-child td {
-	border-bottom: none;
-	border-top: 1px solid var(--ink);
-	font-weight: var(--font-weight-medium);
-	font-size: var(--text-body);
-}
-.woocommerce table.shop_table .product-thumbnail img { width: 64px; height: auto; }
-.woocommerce table.shop_table .product-name a { font-weight: var(--font-weight-medium); }
-.woocommerce table.shop_table .product-name dl.variation {
-	margin: 6px 0 0;
-	font-size: var(--text-caption);
-	color: var(--muted);
-}
-.woocommerce table.shop_table .product-name dl.variation dt,
-.woocommerce table.shop_table .product-name dl.variation dd { display: inline; margin: 0; }
-.woocommerce table.shop_table .product-name dl.variation dt::after { content: " "; white-space: pre; }
-.woocommerce table.shop_table .product-name dl.variation dd + dt::before { content: " · "; }
-.woocommerce table.shop_table .product-name dl.variation p { margin: 0; display: inline; }
-.woocommerce table.shop_table .amount { font-variant-numeric: tabular-nums; }
-
-/* --- Cart --- */
-.woocommerce-cart table.cart td.actions {
-	padding: var(--spacing-24) 0;
-	border-bottom: none;
-}
-.woocommerce-cart table.cart td.actions .coupon {
-	display: flex;
-	gap: var(--spacing-12);
-	align-items: center;
-	float: none;
-	margin-bottom: var(--spacing-16);
-}
-.woocommerce-cart table.cart td.actions .coupon label { display: none; }
-.woocommerce-cart table.cart td.actions .coupon .input-text {
-	width: auto;
-	min-width: 200px;
-	margin: 0;
-	padding: var(--spacing-12) var(--spacing-16);
-}
-.woocommerce-cart table.cart td.actions .button { float: none; }
-
-/* Dua kolom: daftar item di kiri, ringkasan total di kanan. Tanpa ini,
- * di tata letak full-bleed ringkasan totalnya terlempar ke tepi kanan
- * layar dan meninggalkan lubang kosong selebar setengah halaman. */
-.woocommerce-cart .woocommerce {
+.editorial-feed {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 360px;
-	gap: var(--section-rhythm);
-	align-items: start;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 88px 32px;
 }
-.woocommerce-cart .woocommerce > .woocommerce-notices-wrapper,
-.woocommerce-cart .woocommerce > .cart-empty,
-.woocommerce-cart .woocommerce > .return-to-shop { grid-column: 1 / -1; }
-
-.cart-collaterals { width: 100%; }
-.cart-collaterals .cart_totals {
-	float: none;
-	width: 100%;
-	border-top: 1px solid var(--ink);
-	padding-top: var(--spacing-24);
-}
-.cart-collaterals .cart_totals h2 {
-	font-size: var(--text-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	margin-bottom: var(--spacing-16);
-}
-.cart-collaterals .cart_totals table.shop_table th {
-	font-size: var(--text-body-sm);
-	font-weight: var(--font-weight-regular);
-	text-transform: none;
-	letter-spacing: var(--tracking-body-sm);
-	width: 50%;
-}
-/* Ringkasan total memakai <th> di dalam <tbody>, bukan thead/tfoot — tanpa
- * aturan ini garis barisnya cuma muncul di bawah kolom nilai dan terlihat
- * putus-putus. */
-.cart-collaterals .cart_totals table.shop_table tbody th {
-	border-bottom: 1px solid var(--hairline);
-	padding: var(--spacing-20) var(--spacing-16) var(--spacing-20) 0;
-	vertical-align: middle;
-}
-.cart-collaterals .cart_totals table.shop_table tr.order-total th,
-.cart-collaterals .cart_totals table.shop_table tr.order-total td {
-	border-bottom: none;
-	border-top: 1px solid var(--ink);
-	font-size: var(--text-body);
-	font-weight: var(--font-weight-medium);
-}
-.wc-proceed-to-checkout { padding: var(--spacing-24) 0 0; }
-.wc-proceed-to-checkout a.checkout-button {
-	display: block;
-	width: 100%;
-	text-align: center;
-	font-size: var(--text-body-sm);
-	padding: var(--spacing-16) var(--spacing-24);
-}
-.woocommerce .cart-empty { font-size: var(--text-body); }
-.woocommerce .return-to-shop { margin-top: var(--spacing-24); }
-
-/* --- Checkout --- */
-.woocommerce .col2-set { display: block; }
-
-/* Checkout dua kolom: data pembeli di kiri, ringkasan pesanan di kanan.
- * Tanpa ini tabel ringkasan memakai lebar penuh halaman (tema ini
- * full-bleed), sehingga nilai "Rp 240.000" berjarak hampir seribu piksel
- * dari nama produknya dan baris itu praktis tidak terbaca. Grid-nya
- * eksplisit per item karena urutan DOM WooCommerce sudah tetap:
- * #customer_details, lalu judul, lalu #order_review. */
-.woocommerce form.checkout {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) 420px;
-	grid-template-rows: auto 1fr;
-	gap: 0 var(--section-rhythm);
-	align-items: start;
-}
-.woocommerce form.checkout > #customer_details { grid-column: 1; grid-row: 1 / span 2; }
-.woocommerce form.checkout > #order_review_heading { grid-column: 2; grid-row: 1; }
-.woocommerce form.checkout > #order_review { grid-column: 2; grid-row: 2; }
-/* Notice & toggle kupon tetap selebar halaman. */
-.woocommerce form.checkout > .woocommerce-NoticeGroup,
-.woocommerce form.checkout > .woocommerce-notices-wrapper { grid-column: 1 / -1; }
-
-.woocommerce form.checkout #customer_details {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: var(--section-rhythm);
-	margin-bottom: var(--section-rhythm);
-}
-.woocommerce form.checkout #customer_details .col-1,
-.woocommerce form.checkout #customer_details .col-2 {
-	float: none;
-	width: 100%;
-}
-.woocommerce form.checkout h3,
-.woocommerce #order_review_heading {
-	font-size: var(--text-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	padding-bottom: var(--spacing-12);
-	margin-bottom: var(--spacing-24);
-	border-bottom: 1px solid var(--ink);
-}
-
-.woocommerce form .form-row {
-	padding: 0;
-	margin: 0 0 var(--spacing-16);
-}
-.woocommerce form .form-row label {
-	display: block;
-	margin-bottom: 6px;
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	color: var(--muted);
-}
-.woocommerce form .form-row .required { color: var(--ink); text-decoration: none; }
-.woocommerce form .form-row input.input-text,
-.woocommerce form .form-row textarea,
-.woocommerce form .form-row select { margin-bottom: 0; }
-.woocommerce form .form-row-first,
-.woocommerce form .form-row-last { width: calc(50% - (var(--spacing-16) / 2)); }
-.woocommerce form .form-row-first { float: left; }
-.woocommerce form .form-row-last { float: right; }
-
-/* select2 dipakai WooCommerce untuk negara/provinsi — samakan dengan
- * input biasa supaya tidak muncul kotak abu-abu bersudut membulat. */
-.select2-container--default .select2-selection--single {
-	height: auto;
-	padding: var(--spacing-12) var(--spacing-16);
-	border: 1px solid var(--hairline-strong);
-	border-radius: var(--radius-sm);
-	background: var(--paper);
-}
-.select2-container--default .select2-selection--single .select2-selection__rendered {
-	line-height: 1.2;
-	padding: 0;
-	color: var(--ink);
-	font-size: var(--text-body-sm);
-}
-.select2-container--default .select2-selection--single .select2-selection__arrow { height: 100%; }
-.select2-dropdown {
-	border-color: var(--hairline-strong);
-	border-radius: var(--radius-sm);
-}
-.select2-container--default .select2-results__option--highlighted[aria-selected] {
-	background: var(--ink);
-	color: var(--paper);
-}
-
-.woocommerce #order_review { border-top: none; padding-top: 0; }
-.woocommerce #payment { background: transparent; border-radius: 0; }
-.woocommerce #payment ul.payment_methods {
-	border-bottom: 1px solid var(--hairline);
-	padding: 0 0 var(--spacing-16);
-	margin-bottom: var(--spacing-24);
-	list-style: none;
-}
-.woocommerce #payment ul.payment_methods li {
-	padding: var(--spacing-12) 0;
-	border-bottom: 1px solid var(--hairline);
-	font-size: var(--text-body-sm);
-}
-.woocommerce #payment ul.payment_methods li:last-child { border-bottom: none; }
-.woocommerce #payment ul.payment_methods li input[type="radio"] { accent-color: var(--ink); margin-right: 8px; }
-.woocommerce #payment div.payment_box {
-	background: transparent;
-	border: 1px solid var(--hairline-strong);
-	border-radius: var(--radius-sm);
-	margin: var(--spacing-12) 0 0;
-	padding: var(--spacing-16);
-	font-size: var(--text-body-sm);
-	color: var(--ink);
-}
-/* Segitiga penunjuk bawaan WooCommerce mengasumsikan latar abu-abu. */
-.woocommerce #payment div.payment_box::before { display: none; }
-.woocommerce #payment div.form-row.place-order { padding: var(--spacing-24) 0 0; margin: 0; }
-.woocommerce #payment #place_order {
-	width: 100%;
-	font-size: var(--text-body-sm);
-	padding: var(--spacing-16) var(--spacing-24);
-}
-.woocommerce-terms-and-conditions-wrapper { font-size: var(--text-caption); margin-bottom: var(--spacing-16); }
-
-.woocommerce-form-coupon-toggle .woocommerce-info,
-.woocommerce form.checkout_coupon { margin-bottom: var(--spacing-24); }
-.woocommerce form.checkout_coupon {
-	border: 1px solid var(--hairline-strong);
-	border-radius: var(--radius-sm);
-	padding: var(--spacing-20);
-}
-
-/* --- My Account --- */
-.woocommerce-account .woocommerce {
-	display: grid;
-	grid-template-columns: 220px minmax(0, 1fr);
-	gap: var(--section-rhythm);
-	align-items: start;
-}
-/* Halaman login belum punya navigasi, jadi jangan dipaksa dua kolom. */
-.woocommerce-account:not(.logged-in) .woocommerce { display: block; }
-.woocommerce-account .woocommerce-MyAccount-navigation { width: auto; float: none; }
-.woocommerce-account .woocommerce-MyAccount-navigation ul { list-style: none; margin: 0; padding: 0; }
-.woocommerce-account .woocommerce-MyAccount-navigation li {
-	border-bottom: 1px solid var(--hairline);
-}
-.woocommerce-account .woocommerce-MyAccount-navigation li a {
-	display: block;
-	padding: var(--spacing-12) 0;
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	color: var(--muted);
-}
-.woocommerce-account .woocommerce-MyAccount-navigation li a:hover { color: var(--ink); text-decoration: none; }
-.woocommerce-account .woocommerce-MyAccount-navigation li.is-active a {
-	color: var(--ink);
-	font-weight: var(--font-weight-medium);
-}
-.woocommerce-account .woocommerce-MyAccount-content { width: auto; float: none; }
-.woocommerce-account .woocommerce-MyAccount-content h2,
-.woocommerce-account .woocommerce-MyAccount-content h3 {
-	font-size: var(--text-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	padding-bottom: var(--spacing-12);
-	margin-bottom: var(--spacing-24);
-	border-bottom: 1px solid var(--ink);
-}
-.woocommerce-account .woocommerce form.login,
-.woocommerce-account .woocommerce form.register {
-	border: 1px solid var(--hairline-strong);
-	border-radius: var(--radius-sm);
-	padding: var(--spacing-24);
-	margin: 0;
-}
-.woocommerce-account .u-columns.col2-set {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: var(--section-rhythm);
-}
-.woocommerce-account .u-columns .col-1,
-.woocommerce-account .u-columns .col-2 { float: none; width: 100%; }
-
-/* --- Order received / detail order --- */
-.woocommerce ul.order_details {
-	list-style: none;
-	margin: 0 0 var(--section-rhythm);
-	padding: 0;
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--spacing-36);
-	border-top: 1px solid var(--hairline);
-	border-bottom: 1px solid var(--hairline);
-	padding-block: var(--spacing-24);
-}
-.woocommerce ul.order_details li {
-	float: none;
-	border: none;
+.editorial-index .editorial-card,
+.editorial-related .editorial-card {
 	margin: 0;
 	padding: 0;
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	color: var(--muted);
+	border: 0;
 }
-.woocommerce ul.order_details li strong {
-	display: block;
-	margin-top: 6px;
-	font-size: var(--text-body);
-	letter-spacing: 0;
-	text-transform: none;
-	color: var(--ink);
-	font-weight: var(--font-weight-medium);
-}
-.woocommerce .woocommerce-order-details,
-.woocommerce .woocommerce-customer-details { margin-top: var(--section-rhythm); }
-.woocommerce .woocommerce-customer-details address {
-	border: 1px solid var(--hairline-strong);
-	border-radius: var(--radius-sm);
-	padding: var(--spacing-20);
-	font-style: normal;
-	font-size: var(--text-body-sm);
-}
+.editorial-card__image { display: block; overflow: hidden; border-radius: 8px; background: #ddd; }
+.editorial-card__image img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; transition: transform 420ms ease; }
+.editorial-card__image:hover img { transform: scale(1.018); }
+.editorial-card__copy { padding-top: 24px; }
+.editorial-card__meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #7c7c7c; }
+.editorial-card__meta a { color: #111118; border-bottom: 1px solid #333; }
+.editorial-card h2 { margin: 18px 0 14px; font-family: var(--font-editorial); font-size: clamp(36px, 4.2vw, 64px); line-height: 1.03; font-weight: 400; letter-spacing: -.035em; }
+.editorial-card h2 a { color: #111118; }
+.editorial-card__excerpt { max-width: 54ch; color: #555; line-height: 1.55; }
+.editorial-card__excerpt > :last-child { margin-bottom: 0; }
+.editorial-read-link { display: inline-flex; gap: 16px; align-items: center; margin-top: 22px; padding: 9px 16px; border: 1px solid #111118; border-radius: 24px; color: #111118; font-size: 12px; font-weight: 600; letter-spacing: .107em; text-transform: uppercase; }
+.editorial-read-link:hover { background: #111118; color: #fff; }
+.editorial-card--featured { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 48px; align-items: center; padding-bottom: 88px !important; border-bottom: 1px solid #bdbdbd !important; }
+.editorial-card--featured .editorial-card__image { border-radius: 999px; }
+.editorial-card--featured .editorial-card__image img { aspect-ratio: 16 / 9; }
+.editorial-card--featured .editorial-card__copy { padding: 0; }
+.editorial-card--featured h2 { font-size: clamp(48px, 6vw, 82px); }
 
-/* --- Arsip toko --- */
-.woocommerce .woocommerce-result-count,
-.woocommerce .woocommerce-ordering {
-	font-size: var(--text-caption);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	color: var(--muted);
-	margin-bottom: var(--component-rhythm);
-}
-.woocommerce .woocommerce-ordering select { width: auto; margin: 0; }
-.woocommerce nav.woocommerce-pagination ul {
-	border: none;
-	display: flex;
-	gap: 8px;
-	justify-content: center;
-	margin-top: var(--section-rhythm);
-}
-.woocommerce nav.woocommerce-pagination ul li { border: none; margin: 0; overflow: visible; }
-.woocommerce nav.woocommerce-pagination ul li a,
-.woocommerce nav.woocommerce-pagination ul li span {
-	padding: 8px var(--spacing-16);
-	border: 1px solid var(--hairline-strong);
-	border-radius: var(--radius-md);
-	font-size: var(--text-body-sm);
-	color: var(--ink);
-}
-.woocommerce nav.woocommerce-pagination ul li span.current {
-	background: var(--ink);
-	color: var(--paper);
-	border-color: var(--ink);
-}
+.editorial-single { color: #111118; padding-top: 72px; }
+.editorial-single article.post { margin: 0; padding: 0; border: 0; }
+.editorial-single__header { text-align: center; }
+.editorial-single__header .editorial-card__meta { justify-content: center; }
+.editorial-single__header h1 { max-width: 1250px; margin: 28px auto 0; font-size: clamp(64px, 10.5vw, 150px); }
+.editorial-single__dek { max-width: 700px; margin: 32px auto 0; font-size: 20px; line-height: 1.5; color: #555; }
+.editorial-single__byline { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 30px; font-size: 13px; letter-spacing: .04em; }
+.editorial-single__byline img { border-radius: 50%; }
+.editorial-single__hero { margin-top: 64px; }
+.editorial-single__hero img { display: block; width: 100%; max-height: 820px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 999px; }
+.editorial-single__hero figcaption { max-width: 760px; margin: 12px auto 0; color: #7c7c7c; font-size: 12px; letter-spacing: .05em; }
+.editorial-single__body { width: min(100% - 32px, 760px); margin: 88px auto; font-size: 18px; line-height: 1.72; }
+.editorial-single__body > p:first-child::first-letter { float: left; margin: .08em .12em 0 0; font-family: var(--font-editorial); font-size: 5.4em; line-height: .72; }
+.editorial-single__body h2,
+.editorial-single__body h3 { font-family: var(--font-editorial); font-weight: 400; line-height: 1.08; letter-spacing: -.025em; }
+.editorial-single__body h2 { margin-top: 2em; font-size: clamp(42px, 6vw, 68px); }
+.editorial-single__body h3 { margin-top: 1.8em; font-size: 34px; }
+.editorial-single__body blockquote { margin: 64px -120px; padding: 0; border: 0; font-family: var(--font-editorial); font-size: clamp(42px, 6vw, 72px); line-height: 1.08; text-align: center; }
+.editorial-single__body img { border-radius: 8px; }
+.editorial-single__footer { padding: 64px 0 88px; border-top: 1px solid #bdbdbd; }
+.editorial-author { display: grid; grid-template-columns: 80px minmax(0, 600px); gap: 24px; align-items: start; }
+.editorial-author img { border-radius: 50%; }
+.editorial-author h2 { margin: 6px 0; font-family: var(--font-editorial); font-size: 36px; font-weight: 400; }
+.editorial-single .post-navigation { margin-top: 64px; }
+.editorial-single .post-navigation .nav-links { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.editorial-single .post-navigation a { display: flex; flex-direction: column; gap: 8px; padding: 24px; border: 1px solid #111118; border-radius: 24px; color: #111118; }
+.editorial-single .post-navigation span { font-size: 11px; letter-spacing: .107em; text-transform: uppercase; color: #7c7c7c; }
+.editorial-single .post-navigation strong { font-family: var(--font-editorial); font-size: 24px; font-weight: 400; }
+.editorial-comments { width: min(100% - 32px, 760px); margin: 0 auto 88px; }
+.editorial-related { padding: 96px 0 112px; background: #f4f4f2; }
+.editorial-related > .wrap > h2 { margin: 12px 0 48px; font-family: var(--font-editorial); font-size: clamp(52px, 7vw, 88px); font-weight: 400; }
+.editorial-related__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.editorial-related .editorial-card h2 { font-size: 34px; }
+.editorial-related .editorial-card__excerpt { display: none; }
+
+.blog .site-footer,
+.single-post .site-footer,
+.category .site-footer,
+.tag .site-footer,
+.date .site-footer,
+.author .site-footer { border: 0; background: #111118; color: #fff; }
+.blog .site-footer a,
+.single-post .site-footer a,
+.category .site-footer a,
+.tag .site-footer a,
+.date .site-footer a,
+.author .site-footer a { color: #fff; }
+.editorial-footer-cta { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding-bottom: 72px; margin-bottom: 56px; border-bottom: 1px solid #33333b; }
+.editorial-footer-cta p { max-width: 34ch; margin: 0; font-size: 18px; color: #ddd; }
+.editorial-footer-cta a { display: inline-flex !important; align-items: center; gap: 28px; margin: 0 !important; padding: 18px 26px; border: 2px solid #fef199; border-radius: 999px; font-family: var(--font-editorial); font-size: clamp(28px, 4vw, 52px) !important; letter-spacing: -.02em !important; }
+.blog .footer-bottom,
+.single-post .footer-bottom,
+.category .footer-bottom,
+.tag .footer-bottom,
+.date .footer-bottom,
+.author .footer-bottom { border-color: #33333b; color: #bdbdbd; }
 
 @media (max-width: 900px) {
-	.woocommerce form.checkout {
-		grid-template-columns: minmax(0, 1fr);
-		grid-template-rows: none;
-		gap: var(--component-rhythm);
-	}
-	.woocommerce form.checkout > #customer_details,
-	.woocommerce form.checkout > #order_review_heading,
-	.woocommerce form.checkout > #order_review { grid-column: 1; grid-row: auto; }
-	.woocommerce form.checkout #customer_details { grid-template-columns: minmax(0, 1fr); gap: var(--component-rhythm); }
-	.woocommerce-account .woocommerce,
-	.woocommerce-account .u-columns.col2-set { grid-template-columns: minmax(0, 1fr); gap: var(--component-rhythm); }
-	.woocommerce-cart .woocommerce { grid-template-columns: minmax(0, 1fr); gap: var(--component-rhythm); }
+	.editorial-card--featured { grid-template-columns: 1fr; gap: 28px; }
+	.editorial-card--featured .editorial-card__image { border-radius: 160px; }
+	.editorial-single__body blockquote { margin-inline: 0; }
+	.editorial-related__grid { grid-template-columns: 1fr 1fr; }
 }
-
-@media (max-width: 560px) {
-	.woocommerce form .form-row-first,
-	.woocommerce form .form-row-last { width: 100%; float: none; }
-	.woocommerce-cart table.cart td.actions .coupon { flex-wrap: wrap; }
-	.woocommerce-cart table.cart td.actions .coupon .input-text { min-width: 0; flex: 1; }
-	.woocommerce ul.order_details { gap: var(--spacing-20); }
+@media (max-width: 640px) {
+	.editorial-index { padding-block: 48px 72px; }
+	.editorial-masthead { grid-template-columns: 1fr; gap: 24px; padding-bottom: 48px; }
+	.editorial-masthead .editorial-kicker { grid-column: auto; }
+	.editorial-masthead h1 { font-size: clamp(68px, 25vw, 110px); }
+	.editorial-feed { grid-template-columns: 1fr; gap: 64px; }
+	.editorial-card--featured { padding-bottom: 64px !important; }
+	.editorial-card--featured .editorial-card__image { border-radius: 80px; }
+	.editorial-single { padding-top: 48px; }
+	.editorial-single__header h1 { font-size: clamp(54px, 17vw, 86px); }
+	.editorial-single__dek { font-size: 17px; }
+	.editorial-single__hero { margin-top: 44px; }
+	.editorial-single__hero img { border-radius: 80px; aspect-ratio: 4 / 3; }
+	.editorial-single__body { margin-block: 64px; font-size: 17px; }
+	.editorial-single__body blockquote { font-size: 40px; }
+	.editorial-single .post-navigation .nav-links,
+	.editorial-related__grid { grid-template-columns: 1fr; }
+	.editorial-footer-cta { align-items: flex-start; flex-direction: column; }
+	.editorial-footer-cta a { font-size: 28px !important; }
 }
-
-/* Judul pengelompokan di halaman hasil pencarian (font vs sisanya). */
-.search-group-title {
-	font-size: var(--text-caption);
-	font-weight: var(--font-weight-regular);
-	letter-spacing: var(--tracking-caption);
-	text-transform: uppercase;
-	padding-bottom: var(--spacing-12);
-	margin: var(--section-rhythm) 0 var(--component-rhythm);
-	border-bottom: 1px solid var(--ink);
+@media (prefers-reduced-motion: reduce) {
+	.editorial-card__image img { transition: none; }
 }
-.search-group-title:first-child { margin-top: 0; }

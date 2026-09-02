@@ -5,11 +5,16 @@ Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
 Requires Plugins: woocommerce
-Stable tag: 0.8.2
+Stable tag: 0.8.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Marketplace WooCommerce pendamping Authentype untuk Canva Template, Canva Element, wishlist, akun, dan storefront bersama. Sejak 0.8.0, Authentype adalah satu-satunya pemilik katalog, preview, harga, variation, cart, dan delivery produk font.
+
+== v0.8.3 - dependency and storage hardening ==
+
+- Authentype mode is selected automatically only when its bootstrap is active; a dependency outage no longer silently hides all legacy Aksara font products.
+- Nginx administrators receive an explicit warning because Nginx does not honor `.htaccess` protection files.
 
 Engine font lama Aksara tetap tersimpan untuk kompatibilitas data historis, tetapi tidak dimuat pada mode default 0.8.0. Ini mencegah dua generator font mengelola produk yang sama. Python Font Preview Service tidak diperlukan pada mode Authentype karena preview dirender menjadi PNG oleh Authentype di server.
 
@@ -309,4 +314,3 @@ REST (endpoint font digerbangi mode Authentype, /certificate/ memeriksa
 kepemilikan order, /download/ memakai token sebagai kredensial, /wishlist/
 terlindungi nonce REST bawaan WordPress); dan sisa string UI - selain tiga
 baris PDF di atas, tidak ada lagi teks Indonesia yang sampai ke pengguna.
-

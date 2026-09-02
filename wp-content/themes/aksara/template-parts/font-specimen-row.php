@@ -13,14 +13,16 @@ $styles  = aksara_authentype_styles( $font_id );
 $default = ! empty( $styles[0] ) ? $styles[0] : null;
 $product = aksara_authentype_linked_product( $font_id );
 $ready   = $product && $product->is_purchasable();
-$gallery = is_front_page() && function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 3 ) : array();
-$archive_gallery = is_post_type_archive( 'ath_font' ) && function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 1 ) : array();
-$archive_image_id = $archive_gallery ? absint( $archive_gallery[0] ) : ( is_post_type_archive( 'ath_font' ) ? absint( get_post_thumbnail_id( $font_id ) ) : 0 );
+$gallery = is_front_page() && function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 0 ) : array();
+$archive_gallery = is_post_type_archive( 'ath_font' ) && function_exists( 'aksara_authentype_product_gallery_ids' ) ? aksara_authentype_product_gallery_ids( $font_id, 0 ) : array();
+if ( is_post_type_archive( 'ath_font' ) && ! $archive_gallery && get_post_thumbnail_id( $font_id ) ) {
+	$archive_gallery = array( absint( get_post_thumbnail_id( $font_id ) ) );
+}
 aksara_authentype_enqueue_preview();
 ?>
 <article class="specimen-row ath-specimen ath-specimen-v7 aksara-catalog-specimen"
 	data-font-post-id="<?php echo esc_attr( $font_id ); ?>"
-	data-text-color="#000000"
+	data-text-color="#111111"
 	data-bg-color="#ffffff">
 	<div class="sp-controls">
 		<div class="sp-label">
@@ -46,52 +48,36 @@ aksara_authentype_enqueue_preview();
 				data-font-size="112"
 				data-fit-single-line="1"
 				aria-label="<?php echo esc_attr( sprintf( __( '%s font preview', 'aksara' ), get_the_title( $font_id ) ) ); ?>"></canvas>
-			<?php
-			/*
-			 * Cadangan tanpa JavaScript. Preview katalog kini 100% bergantung
-			 * pada specimen.js: <canvas> diisi lewat satu POST ke admin-ajax.
-			 * Kalau JS diblokir, gagal dimuat, atau error, canvas tetap kotak
-			 * putih setinggi 112px — tanpa nama font, tanpa apa pun. Baris
-			 * spesimen adalah SATU-SATUNYA isi visual baris ini, jadi
-			 * kegagalannya berarti daftar font terlihat kosong sama sekali.
-			 * (Versi sebelum Authentype memakai <img> hasil render server yang
-			 * selalu tampil; ketergantungan pada JS ini adalah hal baru.)
-			 */
-			?>
-			<?php
-			/*
-			 * Cadangan yang sama juga dipakai saat JS JALAN tapi render-nya
-			 * GAGAL. specimen.js menandai canvas yang gagal dengan class
-			 * .has-error lalu MELUKIS pesan error ke dalam canvas itu — jadi
-			 * tanpa aturan di bawah, pengunjung melihat kotak kosong berisi
-			 * tulisan "Preview unavailable." dan tidak satu pun huruf dari
-			 * keluarga font ini. CSS menyembunyikan canvas ber-.has-error dan
-			 * memunculkan span ini sebagai gantinya (lihat style.css).
-			 *
-			 * Canvas-nya sengaja TIDAK dihapus dari DOM: class .has-error
-			 * tetap bisa diperiksa di DevTools, dan request admin-ajax yang
-			 * gagal tetap terlihat di tab Network. Ini degradasi tampilan,
-			 * bukan penyembuhan penyebabnya.
-			 */
-			?>
-			<span class="sp-specimen-fallback" aria-hidden="true"><?php the_title(); ?></span>
-			<noscript><span class="sp-specimen-fallback sp-specimen-fallback--noscript"><?php the_title(); ?></span></noscript>
 		<?php else : ?>
 			<span class="sp-specimen-fallback"><?php the_title(); ?></span>
 		<?php endif; ?>
 	</a>
-	<?php if ( $archive_image_id ) : ?>
-		<a class="font-archive-image" href="<?php echo esc_url( get_permalink( $font_id ) ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'View %s product images', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
-			<?php echo wp_get_attachment_image( $archive_image_id, 'aksara-preview-md', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 960px) calc(100vw - 32px), 50vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-		</a>
+	<?php if ( $archive_gallery ) : ?>
+		<section class="font-archive-gallery" data-font-gallery aria-label="<?php echo esc_attr( sprintf( __( '%s product gallery', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
+			<?php if ( count( $archive_gallery ) > 1 ) : ?>
+				<button class="font-archive-gallery__arrow font-archive-gallery__arrow--prev" type="button" data-gallery-prev aria-label="<?php esc_attr_e( 'Previous product images', 'aksara' ); ?>">&#8249;</button>
+			<?php endif; ?>
+			<div class="font-archive-gallery__track" data-gallery-track tabindex="0">
+				<?php foreach ( $archive_gallery as $image_index => $image_id ) : ?>
+					<a class="font-archive-gallery__slide" href="<?php echo esc_url( get_permalink( $font_id ) ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'View %1$s — image %2$d of %3$d', 'aksara' ), get_the_title( $font_id ), $image_index + 1, count( $archive_gallery ) ) ); ?>">
+						<?php echo wp_get_attachment_image( $image_id, 'aksara-preview-md', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 640px) 82vw, (max-width: 960px) 44vw, 25vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+					</a>
+				<?php endforeach; ?>
+			</div>
+			<?php if ( count( $archive_gallery ) > 1 ) : ?>
+				<button class="font-archive-gallery__arrow font-archive-gallery__arrow--next" type="button" data-gallery-next aria-label="<?php esc_attr_e( 'Next product images', 'aksara' ); ?>">&#8250;</button>
+			<?php endif; ?>
+		</section>
 	<?php endif; ?>
 	<?php if ( $gallery ) : ?>
-		<div class="font-product-gallery" aria-label="<?php echo esc_attr( sprintf( __( '%s image gallery', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
-			<?php foreach ( $gallery as $image_id ) : ?>
-				<a href="<?php echo esc_url( get_permalink( $font_id ) ); ?>">
-					<?php echo wp_get_attachment_image( $image_id, 'aksara-preview-xl', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 760px) calc(100vw - 32px), 33vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-				</a>
-			<?php endforeach; ?>
-		</div>
+		<section class="font-archive-gallery font-product-gallery" data-font-gallery aria-label="<?php echo esc_attr( sprintf( __( '%s image gallery', 'aksara' ), get_the_title( $font_id ) ) ); ?>">
+			<?php if ( count( $gallery ) > 1 ) : ?><button class="font-archive-gallery__arrow font-archive-gallery__arrow--prev" type="button" data-gallery-prev aria-label="<?php esc_attr_e( 'Previous product images', 'aksara' ); ?>">&#8249;</button><?php endif; ?>
+			<div class="font-archive-gallery__track" data-gallery-track tabindex="0">
+				<?php foreach ( $gallery as $image_index => $image_id ) : ?>
+					<a class="font-archive-gallery__slide" href="<?php echo esc_url( get_permalink( $font_id ) ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'View %1$s — image %2$d of %3$d', 'aksara' ), get_the_title( $font_id ), $image_index + 1, count( $gallery ) ) ); ?>"><?php echo wp_get_attachment_image( $image_id, 'aksara-preview-md', false, array( 'loading' => 'lazy', 'sizes' => '(max-width: 640px) 82vw, (max-width: 960px) 44vw, 25vw' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></a>
+				<?php endforeach; ?>
+			</div>
+			<?php if ( count( $gallery ) > 1 ) : ?><button class="font-archive-gallery__arrow font-archive-gallery__arrow--next" type="button" data-gallery-next aria-label="<?php esc_attr_e( 'Next product images', 'aksara' ); ?>">&#8250;</button><?php endif; ?>
+		</section>
 	<?php endif; ?>
 </article>
