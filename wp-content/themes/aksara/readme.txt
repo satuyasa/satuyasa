@@ -877,3 +877,46 @@ seluruh lebar, baik dengan bilah pengumuman + baris sosial maupun tanpa
 keduanya. Satu-satunya sisa temuan adalah glyph panah pada tombol ajakan
 footer yang advance-nya 23px di kotak 16px - ada juga di 0.9.21, terkurung di
 dalam <a>-nya, dan tidak melebarkan halaman.
+
+== v0.9.23 - logo header yang kekecilan ==
+
+Logo yang diunggah tampil sangat kecil, dan penyebabnya adalah dua baris di
+tema ini yang saling bertentangan:
+
+  functions.php  add_theme_support('custom-logo', height 60, width 200)
+                 -> media uploader menyuruh admin menyiapkan logo 200x60
+  style.css      .custom-logo { max-height: 20px }
+                 -> lalu mengecilkannya jadi 67x20, sepertiga ukuran itu
+
+Diukur di Chromium dengan berkas logo 200x60: terpasang 67x20, sementara
+kotak isi .site-header-inner menyediakan 32px (min-height 56px dikurangi
+padding 12px atas-bawah). Jadi 12px ruang header dibiarkan kosong.
+
+20px kemungkinan diambil dari DESIGN.md yang menyebut logomark 16px. Tapi
+yang dimaksud di sana WORDMARK TEKS - huruf telanjang tanpa apa pun di
+sekelilingnya. Berkas logo hampir selalu membawa ruang kosong di dalam
+gambarnya, sering pula lambang di samping tulisan, sehingga hurufnya sendiri
+jatuh jauh di bawah 16px: wordmark teks setinggi 16px, sedangkan gambar logo
+pada 20px cuma menyisakan huruf setinggi sekitar 9px.
+
+Sekarang 32px, yaitu seluruh kotak isi yang tersedia. Ini TIDAK menambah
+tinggi header sama sekali - diukur 57px sebelum dan sesudah, karena
+min-height 56px yang menentukan, bukan logonya.
+
+Ditambah kontrol "Logo height" di Customizer > Aksara > Header, dijepit
+16-48px. Ini satu-satunya kontrol ukuran yang dibuka ke admin, dan alasannya
+berbeda dari ukuran huruf atau lebar kolom: banyaknya ruang kosong di dalam
+berkas logo hanya diketahui pemilik berkasnya, tidak bisa ditebak tema.
+Batas bawah 16px supaya logo tidak bisa dibuat lebih kecil daripada wordmark
+teks yang digantikannya - persis masalah yang membuat kontrol ini ada. Di
+atas 32px header memang ikut meninggi, dan itu disebutkan di deskripsi
+kontrolnya.
+
+Nilainya dicetak sebagai custom property di wp_head, dan HANYA kalau berbeda
+dari bawaan - situs yang tidak mengubah apa pun tidak mendapat <style>
+tambahan. Aturan .custom-logo tetap hanya ada di style.css; yang dicetak PHP
+cuma angkanya. Angkanya lewat absint lalu dijepit, jadi masukan seperti
+"48px; } body{display:none" keluar sebagai 48 - diuji.
+
+Sepuluh konteks perbandingan HTML dengan 0.9.21 dijalankan ulang: seluruhnya
+masih identik. Perubahan di rilis ini murni CSS.

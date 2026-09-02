@@ -43,6 +43,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function aksara_mod_defaults() {
 	return array(
 		// Header
+		'aksara_logo_height'      => '32',
 		'aksara_topbar_enabled'   => '',
 		'aksara_topbar_text'      => '',
 		'aksara_topbar_url'       => '',
@@ -84,6 +85,19 @@ function aksara_sanitize_checkbox( $value ) {
 	return $value ? '1' : '';
 }
 
+/**
+ * Tinggi logo, dijepit 16-48px.
+ *
+ * Batas bawahnya bukan basa-basi: di bawah 16px logo jadi lebih kecil daripada
+ * wordmark teks yang digantikannya, dan itu justru masalah yang membuat kontrol
+ * ini ada. Batas atasnya juga: di atas 32px header memang ikut meninggi (32px
+ * adalah seluruh kotak isi .site-header-inner), dan 48px adalah titik di mana
+ * header masih terbaca sebagai bilah tipis, bukan panel.
+ */
+function aksara_sanitize_logo_height( $value ) {
+	return (string) min( 48, max( 16, absint( $value ) ) );
+}
+
 /** Cakupan ajakan footer: hanya tiga nilai yang diterima. */
 function aksara_sanitize_cta_scope( $value ) {
 	return in_array( $value, array( 'editorial', 'all', 'off' ), true ) ? $value : 'editorial';
@@ -107,6 +121,19 @@ function aksara_customize_register( $wp_customize ) {
 	$wp_customize->add_section( 'aksara_header', array(
 		'title' => __( 'Header', 'aksara' ),
 		'panel' => 'aksara_panel',
+	) );
+
+	$wp_customize->add_setting( 'aksara_logo_height', array(
+		'default'           => $defaults['aksara_logo_height'],
+		'sanitize_callback' => 'aksara_sanitize_logo_height',
+		'transport'         => 'refresh',
+	) );
+	$wp_customize->add_control( 'aksara_logo_height', array(
+		'section'     => 'aksara_header',
+		'label'       => __( 'Logo height', 'aksara' ),
+		'description' => __( 'Only applies when a logo image is set. Up to 32px the header keeps its height; above that it grows. If the logo still looks small at 32px, the file itself probably has empty space around it — trimming that in the image works better than making it taller.', 'aksara' ),
+		'type'        => 'number',
+		'input_attrs' => array( 'min' => 16, 'max' => 48, 'step' => 1 ),
 	) );
 
 	$wp_customize->add_setting( 'aksara_topbar_enabled', array(
@@ -315,3 +342,26 @@ function aksara_customize_register( $wp_customize ) {
 	}
 }
 add_action( 'customize_register', 'aksara_customize_register' );
+
+/**
+ * Satu-satunya setting di sini yang berujung ke CSS, bukan ke teks.
+ *
+ * Dicetak sebagai custom property, bukan aturan .custom-logo utuh, supaya
+ * style.css tetap satu-satunya tempat yang tahu bentuk aturannya — di sini
+ * cuma angkanya. Dan tidak dicetak sama sekali kalau nilainya masih bawaan,
+ * jadi situs yang tidak mengubah apa pun tidak mendapat <style> tambahan.
+ */
+function aksara_logo_height_css() {
+	$height   = aksara_mod( 'aksara_logo_height' );
+	$defaults = aksara_mod_defaults();
+
+	if ( $height === $defaults['aksara_logo_height'] ) {
+		return;
+	}
+
+	printf(
+		'<style id="aksara-logo-height">:root{--aksara-logo-height:%dpx}</style>' . "\n",
+		(int) aksara_sanitize_logo_height( $height )
+	);
+}
+add_action( 'wp_head', 'aksara_logo_height_css' );

@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.22
+Version: 0.9.23
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -310,7 +310,27 @@ button[type="submit"], input[type="submit"],
 }
 .site-title a { color: var(--ink); }
 .site-title a:hover { text-decoration: none; }
-.custom-logo { max-height: 20px; width: auto; }
+/* KENAPA 32px, DAN KENAPA DULU 20px KELIRU
+ *
+ * add_theme_support('custom-logo') meminta berkas 200x60, jadi media uploader
+ * memberi tahu admin "siapkan logo setinggi 60px" — lalu baris ini dulu
+ * mengecilkannya ke 20px. Logo yang diunggah tampil sepertiga ukuran yang
+ * diminta, dan itulah kenapa ia terasa kecil sekali.
+ *
+ * 20px kemungkinan diambil dari DESIGN.md, yang menyebut logomark 16px. Tapi
+ * yang dimaksud di sana adalah WORDMARK TEKS — huruf telanjang tanpa apa pun
+ * di sekelilingnya. Berkas logo hampir selalu membawa ruang kosong di dalam
+ * gambarnya, sering pula lambang di samping tulisan, sehingga hurufnya sendiri
+ * jatuh jauh di bawah 16px. Diukur: wordmark teks setinggi 16px, sedangkan
+ * gambar logo pada 20px hanya menyisakan huruf setinggi ~9px.
+ *
+ * 32px adalah SELURUH kotak isi .site-header-inner (min-height 56px dikurangi
+ * padding 12px atas-bawah), jadi menaikkannya ke sini TIDAK menambah tinggi
+ * header sama sekali — diukur: 57px sebelum dan sesudah.
+ *
+ * Bisa diubah dari Customizer, karena banyaknya ruang kosong di dalam berkas
+ * logo cuma diketahui pemilik berkasnya. Lihat inc/customizer.php. */
+.custom-logo { max-height: var(--aksara-logo-height, 32px); width: auto; }
 
 .main-navigation ul { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--spacing-20); }
 .main-navigation a {
