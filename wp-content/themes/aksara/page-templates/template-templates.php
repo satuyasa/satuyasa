@@ -70,7 +70,12 @@ $categories = get_terms( array(
 		</div>
 
 		<?php
-		the_posts_pagination( array( 'total' => $templates->max_num_pages ) );
+		/* aksara_pagination(), bukan the_posts_pagination(): fungsi bawaan itu
+		 * keluar lebih awal kalau query UTAMA hanya punya satu halaman — dan di
+		 * Page template memang selalu begitu, jadi selama ini tidak ada paginasi
+		 * yang tercetak sama sekali dan produk ke-25 dan seterusnya tidak bisa
+		 * dijangkau. Penjelasan lengkapnya di inc/template-tags.php. */
+		aksara_pagination( $templates->max_num_pages, $paged );
 		wp_reset_postdata();
 		?>
 	<?php else : ?>

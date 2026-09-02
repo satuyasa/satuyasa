@@ -755,11 +755,52 @@ body.foundry-page {
 }
 .foundry-card:hover h3 { color: var(--fd-ember); }
 
+/* Gambar kartu. Rasio dikunci 3:2 di sini dan bukan lewat ukuran berkas,
+ * karena gambar unggulan diunggah admin dengan rasio apa pun dan kartu yang
+ * tingginya berbeda-beda akan merusak grid. object-fit: cover memotong,
+ * bukan menggepengkan. */
+.foundry-card__image {
+	display: block;
+	aspect-ratio: 3 / 2;
+	margin-bottom: 4px;
+	background: var(--fd-soot);
+	border-radius: var(--fd-radius);
+	overflow: hidden;
+}
+.foundry-card__image img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+/* Cadangan saat belum ada gambar unggulan: nama rilis, DIREDUPKAN dan dalam
+ * font UI. Ia tidak boleh terbaca sebagai spesimen — ini toko huruf, dan
+ * nama font yang dicetak besar bisa dikira wujud fontnya. Prinsip yang sama
+ * dipakai .foundry-placeholder di atas. */
+.foundry-card__image-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	padding: 12px;
+	font-family: var(--fd-sans);
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	text-align: center;
+	color: var(--fd-ash-text);
+}
+
 .foundry-empty { padding: var(--fd-section-gap) var(--fd-pad); color: var(--fd-ash-text); }
 .foundry-empty .foundry-actions { margin-top: 20px; }
 
 .foundry-pagination { padding: 32px var(--fd-pad) var(--fd-section-gap); }
-.foundry-pagination ul { display: flex; flex-wrap: wrap; gap: 6px; }
+/* padding: 0 menetralkan "ul.page-numbers { padding: 40px 0 0 }" di
+ * style.css, yang ikut kena karena paginate_links(type=>list) mencetak
+ * kelas itu. Tanpa ini jarak di atas paginasi jadi 32px milik
+ * .foundry-pagination DITAMBAH 40px warisan — 72px yang tidak diminta
+ * siapa pun. */
+.foundry-pagination ul { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; }
 .foundry-pagination a,
 .foundry-pagination span {
 	display: inline-block;

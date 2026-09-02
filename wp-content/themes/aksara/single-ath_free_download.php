@@ -182,6 +182,28 @@ while ( have_posts() ) :
 				$fd_more->the_post();
 				?>
 				<a class="foundry-card" href="<?php the_permalink(); ?>">
+					<?php
+					/*
+					 * Gambar unggulan, dengan cadangan teks kalau belum ada —
+					 * pola yang sama persis dengan kartu font retail di
+					 * template-parts/font-product-card.php. Sebelumnya kartu di
+					 * sini tidak pernah punya gambar sama sekali, jadi blok
+					 * "More free releases" terlihat berbeda dari blok "Related
+					 * font families" di halaman font berbayar padahal keduanya
+					 * mengerjakan hal yang sama.
+					 *
+					 * Rasio 3:2 dikunci lewat CSS, bukan lewat ukuran gambar:
+					 * gambar unggulan diunggah admin dengan rasio apa pun, dan
+					 * kartu yang tingginya berbeda-beda akan merusak grid.
+					 */
+					?>
+					<span class="foundry-card__image">
+						<?php if ( has_post_thumbnail() ) : ?>
+							<?php the_post_thumbnail( 'aksara-preview-sm', array( 'loading' => 'lazy', 'sizes' => '(max-width: 900px) 50vw, 240px' ) ); ?>
+						<?php else : ?>
+							<span class="foundry-card__image-fallback" aria-hidden="true"><?php echo esc_html( get_the_title() ); ?></span>
+						<?php endif; ?>
+					</span>
 					<span class="foundry-kicker"><?php echo esc_html( aksara_free_type_label( aksara_free_meta( get_the_ID(), '_ath_free_download_type', 'font' ) ) ); ?></span>
 					<h3><?php the_title(); ?></h3>
 					<?php if ( has_excerpt() ) : ?><span class="muted"><?php echo esc_html( wp_trim_words( get_the_excerpt(), 14 ) ); ?></span><?php endif; ?>

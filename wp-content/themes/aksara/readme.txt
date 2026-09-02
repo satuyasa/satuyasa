@@ -1079,3 +1079,98 @@ Ditambah satu kelas jadi ".foundry .foundry-body > * + *" (0,2,0) dan aturan
 itu menang tanpa perlu !important - terukur kini 16px.
 
 Regresi luber/gutter untuk kedua halaman di 9 lebar: bersih seluruhnya.
+
+== v0.9.26 - gambar di kartu related free, audit paginasi seluruh halaman ==
+
+GAMBAR DI "MORE FREE RELEASES"
+
+Kartu related di halaman tunggal Free Font tidak pernah punya gambar, padahal
+blok yang setara di halaman font berbayar (template-parts/font-product-card.php,
+"Related font families") sudah lama menampilkannya. Kini keduanya memakai pola
+yang sama: gambar unggulan dengan cadangan teks kalau belum ada.
+
+Rasionya dikunci 3:2 lewat CSS, bukan lewat ukuran berkas - gambar unggulan
+diunggah admin dengan rasio apa pun, dan kartu yang tingginya berbeda-beda
+akan merusak grid hairline .foundry-grid. object-fit: cover memotong, bukan
+menggepengkan.
+
+Cadangannya diredupkan dan memakai font UI, bukan nama rilis yang dicetak
+besar - prinsip yang sama dengan .foundry-placeholder: ini toko huruf, dan
+nama font berukuran besar bisa dikira wujud fontnya.
+
+AUDIT PAGINASI: DUA HALAMAN KATALOG TIDAK PUNYA PAGINASI SAMA SEKALI
+
+Delapan template punya loop arsip yang butuh paginasi. Diperiksa satu per
+satu, dan dua di antaranya rusak.
+
+1. HALAMAN CANVA TEMPLATE & CANVA ELEMENT — PRODUK KE-25 TIDAK BISA DIJANGKAU
+
+Keduanya memuat 24 produk per halaman lalu memanggil
+the_posts_pagination( array( 'total' => $q->max_num_pages ) ). Itu tidak
+bekerja, dan alasannya diverifikasi langsung di sumber WordPress
+(wp-includes/link-template.php):
+
+    function get_the_posts_pagination( $args = array() ) {
+        global $wp_query;
+        $navigation = '';
+        // Don't print empty markup if there's only one page.
+        if ( $wp_query->max_num_pages > 1 ) {
+
+Fungsi itu membaca query UTAMA, bukan argumen yang kita kirim. Di Page
+template query utamanya satu halaman, jadi max_num_pages bernilai 1, fungsi
+keluar lebih awal, dan argumen 'total' bahkan tidak pernah dibaca. Hasilnya:
+tidak ada paginasi yang tercetak sama sekali, dan produk ke-25 dan seterusnya
+tidak bisa dijangkau dari mana pun.
+
+Masalah kedua di fungsi yang sama, dari wp-includes/general-template.php:
+
+    $current = get_query_var( 'paged' ) ? (int) get_query_var( 'paged' ) : 1;
+
+Di Page template get_query_var('paged') selalu 0 (WordPress memakai 'page'
+di sana), jadi nomor halaman yang disorot akan selalu 1 sekalipun markupnya
+tercetak.
+
+2. ARSIP FONT — PAGINASINYA TIDAK BERGAYA SAMA SEKALI
+
+archive-ath_font.php memanggil paginate_links( type => list ) mentah dan
+mencetaknya langsung. Aturan .pagination .page-numbers di style.css menuntut
+leluhur .pagination, dan <ul class="page-numbers"> polos tidak punya itu.
+Terukur di Chromium: padding 0px, border 0px, radius 0px - jadi nomor
+halamannya tampil sebagai teks telanjang tanpa kotak dan tanpa penanda
+halaman aktif, sementara semua halaman lain punya tombol berkotak. Ia juga
+tidak punya <nav> maupun label, jadi pembaca layar mendapat daftar tanpa nama.
+
+Catatan jujur: dugaan awal saya justru terbalik - saya mengira keluaran
+the_posts_pagination() yang salah gaya karena .pagination memakai flex
+sedangkan .nav-links tidak. Diukur, ternyata keluaran itu BENAR (aturannya
+menjangkau ke dalam .nav-links sebagai keturunan), dan yang rusak justru
+arsip font. Angkanya yang menentukan, bukan tebakannya.
+
+PERBAIKANNYA: SATU FUNGSI BERSAMA
+
+aksara_pagination( $total, $current, $args ) ditambahkan di
+inc/template-tags.php. Ia mengirim total DAN current secara eksplisit, dan
+mencetak markup yang meniru persis keluaran the_posts_pagination()
+(nav.navigation.pagination > h2.screen-reader-text + div.nav-links) supaya
+CSS .pagination yang sudah ada berlaku tanpa aturan baru. Dipakai di tiga
+tempat: template-elements, template-templates, dan archive-ath_font.
+
+Diverifikasi: kotak nomor aktif di paginasi bawaan dan paginasi baru kini
+identik - padding 8px 16px, border 1px, radius 6px, latar hitam.
+
+YANG SUDAH BENAR DAN TIDAK DIUBAH
+
+search.php, archive.php, home.php dan index.php memakai the_posts_pagination()
+di query UTAMA, tempat fungsi itu memang bekerja dengan benar.
+
+Arsip Free Font memakai .foundry-pagination miliknya sendiri - monospace 12px
+mengikuti chrome Foundry, dan itu disengaja. Satu hal yang diperbaiki di
+sana: ul.page-numbers di style.css menambahkan padding-top 40px yang ikut
+kena karena paginate_links(type=>list) mencetak kelas itu, sehingga jarak di
+atas paginasi jadi 32px + 40px = 72px yang tidak diminta siapa pun. Kini 0.
+
+Blok related di single-ath_font dan single-ath_free_download sengaja TIDAK
+diberi paginasi: keduanya hanya menampilkan enam item sebagai jalan keluar,
+bukan katalog yang perlu ditelusuri.
+
+Regresi luber/gutter halaman Free Font di 9 lebar: bersih seluruhnya.
