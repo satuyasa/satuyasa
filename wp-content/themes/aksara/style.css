@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.12
+Version: 0.9.13
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -146,6 +146,18 @@ hr { border: 0; border-top: 1px solid var(--hairline); margin: var(--spacing-36)
 
 /* Full-bleed adalah default (DESIGN.md > Layout: "no max-width container").
  * Hanya bar navigasi & konten prosa yang punya batasan lebar. */
+/* Gutter kiri/kanan seluruh situs.
+ *
+ * ATURAN UNTUK SIAPA PUN YANG MENAMBAH KELAS DI ELEMEN BER-.wrap:
+ * gunakan padding-block, JANGAN shorthand `padding`. Shorthand menulis ulang
+ * keempat sisi, dan karena selektor kelas Anda hampir pasti muncul belakangan
+ * di berkas ini, ia menang atas aturan di bawah dan gutter horizontalnya jadi
+ * 0 - elemen menempel rata di tepi halaman, tanpa pesan error apa pun.
+ *
+ * Ini sudah terjadi tiga kali: .content-area, .aksara-product-summary, dan
+ * .editorial-single__footer. Yang terakhir bahkan lolos dari audit responsif
+ * 0.9.11 karena audit itu mengukur overflow, sedangkan gejalanya justru
+ * kebalikannya - elemennya berhenti tepat di 0, bukan melewatinya. */
 .wrap {
 	width: 100%;
 	margin: 0;
@@ -821,7 +833,12 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    10. Konten generik (blog, page, single, komentar) — pakai lebar baca
 ------------------------------------------------------------------------ */
-.content-area { padding: var(--page-top) 0 var(--page-bottom); }
+/* padding-block, bukan shorthand: elemen ini juga berkelas .wrap, dan
+ * shorthand `padding` akan menulis ulang keempat sisi sehingga gutter
+ * horizontal dari .wrap ikut jadi 0. Nilai sumbu blok-nya sendiri kini
+ * ditetapkan blok SPACING AUDIT 0.8.4 di bawah; baris ini dipertahankan
+ * hanya sebagai dasar dan karena itu cukup menyebut sumbu blok saja. */
+.content-area { padding-block: var(--page-top) var(--page-bottom); }
 .entry-card, article.post, article.page {
 	margin-bottom: var(--spacing-36);
 	padding-bottom: var(--spacing-36);
@@ -993,7 +1010,12 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 /* -----------------------------------------------------------------------
    11. Single product & WooCommerce
 ------------------------------------------------------------------------ */
-.aksara-product-summary { padding: var(--page-top) 0 var(--page-bottom); }
+/* padding-block, bukan shorthand: elemen ini juga berkelas .wrap, dan
+ * shorthand `padding` akan menulis ulang keempat sisi sehingga gutter
+ * horizontal dari .wrap ikut jadi 0. Nilai sumbu blok-nya sendiri kini
+ * ditetapkan blok SPACING AUDIT 0.8.4 di bawah; baris ini dipertahankan
+ * hanya sebagai dasar dan karena itu cukup menyebut sumbu blok saja. */
+.aksara-product-summary { padding-block: var(--page-top) var(--page-bottom); }
 .aksara-product-summary .product_title {
 	font-size: clamp(40px, 8vw, 115px);
 	line-height: 1;
@@ -1736,7 +1758,22 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-single__body blockquote { margin: 64px 0; padding: 0; border: 0; font-family: var(--font-editorial); font-size: clamp(42px, 6vw, 72px); line-height: 1.08; text-align: center; }
 @media (min-width: 1040px) { .editorial-single__body blockquote { margin-inline: -120px; } }
 .editorial-single__body img { border-radius: 8px; }
-.editorial-single__footer { padding: 64px 0 88px; border-top: 1px solid #bdbdbd; }
+/* padding-block, BUKAN shorthand `padding: 64px 0 88px`.
+ *
+ * Elemen ini di markup berkelas "editorial-single__footer wrap", dan .wrap
+ * menyetel padding: 0 var(--gutter). Kedua selektor sama-sama berbobot
+ * (0,1,0), jadi yang menang adalah yang muncul BELAKANGAN di stylesheet -
+ * yaitu aturan ini. Shorthand `padding` menulis ulang KEEMPAT sisi, jadi
+ * padding kiri/kanan dari .wrap ikut jadi 0 dan kotak About the author
+ * beserta kartu Previous/Next menempel rata di tepi 0 halaman, sementara
+ * badan artikel di atasnya tetap masuk karena ia punya width sendiri.
+ *
+ * Ini regresi dari blok SPACING AUDIT 0.8.4 di atas, yang justru mengubah
+ * .content-area dan .aksara-product-summary dari shorthand ke padding-block
+ * untuk alasan yang sama persis. Aturan editorial di 0.9.8 memasukkannya
+ * kembali. Setiap elemen yang ikut memakai .wrap HANYA boleh menyetel
+ * padding sumbu blok. */
+.editorial-single__footer { padding-block: 64px 88px; border-top: 1px solid #bdbdbd; }
 .editorial-author { display: grid; grid-template-columns: 80px minmax(0, 600px); gap: 24px; align-items: start; }
 .editorial-author img { border-radius: 50%; }
 .editorial-author h2 { margin: 6px 0; font-family: var(--font-editorial); font-size: 36px; font-weight: 400; }

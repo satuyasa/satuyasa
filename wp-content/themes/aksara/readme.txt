@@ -422,3 +422,65 @@ HASIL AKHIR. 21 fixture (15 jenis halaman + bagian bawah single post + 5
 fixture isi artikel) x 10 lebar viewport, pada kedua suite: nol overflow
 horizontal.
 
+
+== v0.9.13 - gutter yang hilang: shorthand padding menimpa .wrap ==
+
+Gejalanya bukan overflow, melainkan KEBALIKANNYA: kotak About the author dan
+kartu Previous/Next berhenti tepat di 0 - menempel rata di tepi kiri dan
+kanan halaman - sementara badan artikel di atasnya tetap masuk karena ia
+punya width sendiri.
+
+Itulah sebabnya audit 0.9.11 dan 0.9.12 melewatkannya. Keduanya mengukur
+scrollWidth vs clientWidth, dan elemen yang berhenti PERSIS di 0 tidak
+menghasilkan overflow sama sekali. Pemeriksaan gutter-nya pun cacat: ia hanya
+mengukur .wrap PERTAMA di setiap halaman - yaitu header - lalu menyimpulkan
+seluruh halaman konsisten.
+
+PENYEBABNYA
+
+  .wrap                       { padding: 0 var(--gutter); }        /* baris 152 */
+  .editorial-single__footer   { padding: 64px 0 88px; }            /* baris 1739 */
+
+Elemen itu di markup berkelas "editorial-single__footer wrap". Kedua selektor
+sama-sama berbobot (0,1,0), jadi yang menang adalah yang muncul BELAKANGAN -
+aturan editorial. Shorthand `padding` menulis ulang KEEMPAT sisi, sehingga
+padding kiri/kanan dari .wrap ikut jadi 0.
+
+Ini regresi. Blok SPACING AUDIT 0.8.4 sudah pernah mengenali pola yang sama
+persis dan menambahkan padding-block untuk .content-area dan
+.aksara-product-summary. Kerja editorial di 0.9.8 memasukkannya kembali lewat
+selektor baru.
+
+DAN PERBAIKAN 0.8.4 ITU SENDIRI TERNYATA TIDAK TUNTAS
+
+Begitu pemeriksaan gutter diperbaiki supaya memeriksa SETIAP .wrap, bukan
+hanya yang pertama, dua korban lama langsung muncul:
+
+  .content-area              0/0 padahal harus 16/24  (404, index, page,
+                             search, dan tiga page template)
+  .aksara-product-summary    0/0 padahal harus 16/24  (halaman WooCommerce)
+
+Sebabnya: 0.8.4 MENAMBAHKAN aturan padding-block di baris 1534-1535, tapi
+tidak pernah MENGHAPUS shorthand aslinya di baris 824 dan 996. Shorthand itu
+sudah menolkan padding horizontal lebih dulu, dan padding-block hanya
+menyetel sumbu atas-bawah - horizontalnya tetap 0. Jadi tujuh halaman lain
+sebenarnya juga menempel di tepi selama ini, tanpa pernah terdeteksi.
+
+Ketiganya kini memakai padding-block.
+
+PENCEGAHAN
+
+Aturan .wrap diberi catatan eksplisit: elemen apa pun yang ikut memakai .wrap
+HANYA boleh menyetel padding sumbu blok, tidak boleh shorthand. Pemeriksaan
+gutter di harness juga diperbaiki permanen - ia kini memeriksa setiap .wrap
+di setiap halaman dan membandingkan padding kiri DAN kanan terhadap nilai yang
+diharapkan menurut lebar viewport (16px di <=600px, 24px di atasnya).
+
+VERIFIKASI
+
+Tiga pemeriksaan, seluruhnya lulus: gutter setiap .wrap di 21 fixture x 6
+lebar; overflow horizontal dengan konten normal; dan overflow horizontal pada
+uji tekan token 88 karakter. Ditambah pemeriksaan visual: screenshot 1440px
+memastikan avatar, About the author, kartu Previous/Next, dan Related stories
+semuanya mulai di 24px, bukan 0.
+
