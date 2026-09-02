@@ -920,3 +920,88 @@ cuma angkanya. Angkanya lewat absint lalu dijepit, jadi masukan seperti
 
 Sepuluh konteks perbandingan HTML dengan 0.9.21 dijalankan ulang: seluruhnya
 masih identik. Perubahan di rilis ini murni CSS.
+
+== v0.9.24 - audit jarak atas-bawah seluruh halaman ==
+
+Diukur, bukan dikira-kira: 24 halaman dirender di Chromium dan setiap jarak
+vertikal antar-elemen di tingkat alur utama dicatat (padding, margin, dan
+jarak nyata antar-saudara sesudah margin collapsing), di 1280px dan 375px.
+
+APA YANG DITEMUKAN
+
+1. --section-gap adalah token MATI. .section memakainya di satu tempat, tapi
+   blok SPACING AUDIT di bawahnya menimpa dengan --section-rhythm - dua token
+   bernilai 80px untuk satu ritme, dan yang satu tidak pernah menang. Akibat
+   lanjutannya: @media (max-width: 600px) yang mengecilkan --section-gap ke
+   56px selama ini TIDAK berpengaruh apa pun. Token dan override-nya dihapus;
+   --gutter di media query yang sama tetap, karena itu memang dipakai.
+
+2. Enam wadah utama dideklarasikan DUA KALI dengan nilai persis sama
+   (.content-area, .aksara-product-summary, .font-library, .authentype-single,
+   .site-footer, .section). Tidak salah, tapi membuat berkas berbohong soal di
+   mana jaraknya diputuskan. Disatukan ke blok SPACING AUDIT.
+
+3. .font-library .specimen-list punya margin-top 28px lalu 24px. Yang 28px
+   tidak pernah menang; dihapus.
+
+4. .trust di Home memakai 72px di desktop tapi 56px di ponsel - dan 56px itu
+   PERSIS --section-rhythm di lebar tersebut. Jadi di ponsel bagian ini sudah
+   seirama dengan .section di atasnya, sementara di desktop meleset 8px tanpa
+   alasan. Kini memakai tokennya di kedua lebar.
+
+   Efek sampingnya: jarak bagian terakhir ke footer di Home tadinya 72+72=144,
+   sedangkan semua halaman lain 80+72=152. Sekarang Home ikut 152.
+
+5. .hero memakai angka lepas 76px (desktop) dan 56px (ponsel). Keduanya
+   ternyata BUKAN sembarang angka: --page-top bernilai 64px dan 44px, dan hero
+   selalu tepat 12px lebih lapang di kedua lebar. Itu keputusan yang konsisten,
+   cuma tidak pernah ditulis sebagai hubungan - jadi kalau --page-top berubah,
+   hero diam-diam berhenti mengikutinya. Ditulis ulang jadi
+   calc(var(--page-top) + var(--spacing-12)); nilainya identik, dan override
+   .hero di @media 782px jadi tidak perlu.
+
+   Bagian bawah hero (44px) SENGAJA dibiarkan. Sesudahnya datang .categories
+   yang tidak punya padding sendiri; yang memberi ruang adalah padding 36px
+   milik .cat-card. Jarak yang benar-benar terlihat karena itu 44+36 = 80px,
+   yaitu --section-rhythm. Menyamakan 44px ke token mana pun justru merusak
+   jumlah itu.
+
+6. DESIGN.md menetapkan base unit 4px. Ada 21 nilai vertikal yang melanggarnya.
+   Sebelas yang merupakan jarak ANTAR-ELEMEN dibawa ke kelipatan 4 (masing-
+   masing bergeser paling banyak 2px): .eyebrow 18->16, .font-breadcrumb 18->16,
+   .editorial-card h2 18/14->16/16, .editorial-read-link 22->24,
+   .editorial-single__byline 30->32, .editorial-author h2 6->8, dua margin
+   .editorial-masthead 10->12, dan .site-topbar__inner 10->12 (buatan 0.9.22
+   sendiri, jadi ikut melanggar sejak awal).
+
+   Sepuluh sisanya SENGAJA tidak diubah: semuanya padding DI DALAM komponen
+   (tombol, pil harga, badge diskon), bukan jarak antar-elemen. Membulatkannya
+   akan mengubah tinggi tombol, dan itu perubahan yang berbeda jenis dari yang
+   diminta.
+
+YANG SENGAJA TIDAK DISERAGAMKAN
+
+Halaman editorial memakai 72px atas / 112px bawah, bukan 64/80 seperti halaman
+lain. Itu sistem terpisah yang diadaptasi dari DESIGN-2 dan memang dilingkupi
+ke template blog saja. Menyamakannya bukan merapikan, itu mendesain ulang satu
+keluarga halaman.
+
+Begitu juga .single-product (40px atas, karena judul produknya raksasa) dan
+.authentype-single (0px atas, karena diawali breadcrumb full-bleed yang punya
+padding sendiri). Keduanya punya alasan, bukan kelalaian.
+
+DAMPAK YANG DIUKUR
+
+Tahap buang-kode-mati: 24 halaman diukur ulang, SELURUHNYA identik - nol
+perubahan tampilan, seperti yang seharusnya.
+
+Setelah semua perubahan, tinggi halaman bergeser di 7 dari 24 halaman, paling
+besar +14px (Home: trust +16, eyebrow -2). Setiap selisih cocok dengan
+aritmetika perubahannya, tidak ada yang tak terjelaskan. Di 375px, jarak di
+tingkat alur utama tidak berubah sama sekali.
+
+Regresi luber/gutter dijalankan di 9 lebar untuk 24 halaman, sebelum dan
+sesudah: hasilnya sama persis - overflow halaman 0 dan gutter tepat di
+semuanya. Empat halaman menandai scroll DI DALAM elemen (tabel di dalam
+overflow-x:auto seperti yang dirancang, dan dua fixture potongan tanpa
+kerangka halaman); keempatnya sudah begitu sebelum rilis ini.

@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.23
+Version: 0.9.24
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -100,7 +100,6 @@ Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
 	--spacing-136: 136px;
 	--spacing-160: 160px;
 
-	--section-gap: 80px;
 	--gutter: 24px;
 	--page-top: 64px;
 	--page-bottom: 80px;
@@ -277,8 +276,7 @@ button[type="submit"], input[type="submit"],
 /* text-align, bukan flex: pengumuman yang panjang harus boleh membungkus
  * seperti kalimat biasa, dan panahnya ikut mengalir bersama kata terakhir. */
 .site-topbar__inner {
-	padding-top: 10px;
-	padding-bottom: 10px;
+	padding-block: var(--spacing-12);
 	text-align: center;
 }
 .site-topbar__link { color: inherit; }
@@ -385,7 +383,24 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    3. Hero
 ------------------------------------------------------------------------ */
-.hero { padding: 76px 0 44px; border-bottom: 1px solid var(--hairline); }
+/* 76px dan 56px dulu ditulis sebagai angka lepas, padahal keduanya BUKAN
+ * angka sembarang: --page-top bernilai 64px di desktop dan 44px di ponsel,
+ * dan hero selalu 12px lebih lapang dari itu di KEDUA lebar. Itu keputusan
+ * yang konsisten, cuma tidak pernah dituliskan sebagai hubungan — jadi kalau
+ * --page-top berubah, hero diam-diam berhenti mengikutinya. Ditulis ulang
+ * sebagai hubungannya: nilainya persis sama, tapi sekarang tidak bisa hanyut.
+ * Efek sampingnya, override .hero di @media 782px jadi tidak perlu lagi dan
+ * ikut dihapus — 44px + 12px memang 56px.
+ *
+ * Bagian bawahnya (44px) DIBIARKAN, dan itu disengaja. Sesudah hero datang
+ * .categories yang tidak punya padding sendiri; yang memberi ruang adalah
+ * padding 36px milik .cat-card. Jadi jarak yang benar-benar terlihat adalah
+ * 44 + 36 = 80px, yaitu --section-rhythm. Menyamakan 44px ke token mana pun
+ * justru merusak jumlah itu. */
+.hero {
+	padding-block: calc(var(--page-top) + var(--spacing-12)) 44px;
+	border-bottom: 1px solid var(--hairline);
+}
 .hero-eyebrow { margin-bottom: 20px; }
 .hero-headline {
 	font-size: clamp(52px, 8vw, 112px);
@@ -542,7 +557,11 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    5. Bagian & judul bagian
 ------------------------------------------------------------------------ */
-.section { padding: var(--section-gap) 0; border-bottom: 1px solid var(--hairline); }
+/* padding-block saja, dan lewat --section-rhythm. Dulu baris ini memakai
+ * --section-gap, tapi blok SPACING AUDIT di bawah menimpanya dengan
+ * --section-rhythm; jadi ada dua token bernilai 80px untuk satu ritme, dan
+ * yang satu tidak pernah menang. --section-gap kini dihapus seluruhnya. */
+.section { padding-block: var(--section-rhythm); border-bottom: 1px solid var(--hairline); }
 .section--last { border-bottom: none; }
 .section-head {
 	display: flex;
@@ -798,7 +817,12 @@ button[type="submit"], input[type="submit"],
 .trust {
 	background: var(--paper);
 	color: var(--ink);
-	padding: 72px 0;
+	/* Dulu 72px di desktop tapi 56px di ponsel — dan 56px itu persis
+	 * --section-rhythm di lebar tersebut. Jadi di ponsel bagian ini sudah
+	 * seirama dengan .section di atasnya, sementara di desktop meleset 8px
+	 * tanpa alasan. Disamakan ke tokennya: .trust dan .section kini satu
+	 * ritme di semua lebar, dan override 56px di @media jadi tidak perlu. */
+	padding-block: var(--section-rhythm);
 	border-top: 1px solid var(--hairline);
 	border-bottom: 1px solid var(--hairline);
 }
@@ -836,7 +860,8 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    9. Footer
 ------------------------------------------------------------------------ */
-.site-footer { padding: 72px 0 32px; border-top: 1px solid var(--hairline); }
+/* Nilai sumbu bloknya ditetapkan blok SPACING AUDIT di bawah. */
+.site-footer { border-top: 1px solid var(--hairline); }
 .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: var(--spacing-36); }
 .footer-tagline {
 	font-size: var(--text-caption);
@@ -908,7 +933,6 @@ button[type="submit"], input[type="submit"],
  * horizontal dari .wrap ikut jadi 0. Nilai sumbu blok-nya sendiri kini
  * ditetapkan blok SPACING AUDIT 0.8.4 di bawah; baris ini dipertahankan
  * hanya sebagai dasar dan karena itu cukup menyebut sumbu blok saja. */
-.content-area { padding-block: var(--page-top) var(--page-bottom); }
 .entry-card, article.post, article.page {
 	margin-bottom: var(--spacing-36);
 	padding-bottom: var(--spacing-36);
@@ -1086,7 +1110,6 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
  * horizontal dari .wrap ikut jadi 0. Nilai sumbu blok-nya sendiri kini
  * ditetapkan blok SPACING AUDIT 0.8.4 di bawah; baris ini dipertahankan
  * hanya sebagai dasar dan karena itu cukup menyebut sumbu blok saja. */
-.aksara-product-summary { padding-block: var(--page-top) var(--page-bottom); }
 .aksara-product-summary .product_title {
 	font-size: clamp(40px, 8vw, 115px);
 	line-height: 1;
@@ -1158,13 +1181,15 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 .license-page-item > div { max-width: var(--measure); font-size: var(--text-body-sm); line-height: var(--leading-body-sm); }
 
 @media (max-width: 600px) {
-	:root { --section-gap: 56px; --gutter: 16px; }
+	/* --section-gap dulu juga disetel di sini, tapi tidak pernah berpengaruh:
+	 * .section memakai --section-rhythm, yang mengecil di 782px. Yang tersisa
+	 * di sini hanya --gutter, dan itu memang dipakai. */
+	:root { --gutter: 16px; }
 }
 
 /* -----------------------------------------------------------------------
    12. Authentype catalog integration — Google Fonts-inspired utility UI
 ------------------------------------------------------------------------ */
-.font-library { padding: var(--page-top) 0 var(--page-bottom); }
 .font-library-header,
 .font-detail-header {
 	display: grid;
@@ -1193,7 +1218,7 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 	font-size: 11px;
 	letter-spacing: .12em;
 	text-transform: uppercase;
-	margin: 0 0 18px;
+	margin: 0 0 var(--spacing-16);
 }
 .catalog-toolbar {
 	display: grid;
@@ -1225,7 +1250,6 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 	color: var(--muted);
 	white-space: nowrap;
 }
-.font-library .specimen-list { margin-top: 28px; }
 .aksara-catalog-specimen { padding-bottom: 20px; margin-bottom: 24px; }
 /* Archive preview is intentionally tighter than the reusable specimen row:
  * keep the type large, but remove the oversized air above/below the raster. */
@@ -1256,7 +1280,6 @@ ul.page-numbers {
 	font-size: 12px;
 	color: var(--muted);
 }
-.authentype-single { padding-bottom: var(--page-bottom); }
 .font-detail-header { padding: 48px 0 36px; }
 .font-detail-meta {
 	display: flex;
@@ -1619,7 +1642,7 @@ form.hero-search input[type="search"]:focus-visible {
 }
 
 /* =======================================================================
-   SPACING AUDIT 0.8.4
+   SPACING AUDIT 0.8.4 (diperiksa ulang & dirapikan di 0.9.24)
    One rhythm shared by generic pages, product pages and catalog pages.
    Context-specific values replace the previous blanket 112px spacing.
 ======================================================================= */
@@ -1696,15 +1719,14 @@ form.hero-search input[type="search"]:focus-visible {
 		--section-rhythm: 56px;
 		--component-rhythm: 28px;
 	}
-	.hero { padding-block: 56px 36px; }
+	.hero { padding-bottom: 36px; }
 	.hero-search { margin-top: 28px; }
 	.hero-stats { margin-top: 28px; gap: 24px; }
 	.cat-card { min-height: 0; padding-block: 28px; }
-	.trust { padding-block: 56px; }
 	.trust .wrap { gap: 40px; }
 	.site-footer { padding-block: 56px 28px; }
 	.footer-grid { row-gap: 32px; }
-	.font-breadcrumb { padding-block: 18px; }
+	.font-breadcrumb { padding-block: var(--spacing-16); }
 	.font-detail-header { padding-block: 28px; }
 	.font-description { margin-block: 28px 40px; }
 	.authentype-specimen-shell { padding-top: 28px; }
@@ -1762,9 +1784,9 @@ form.hero-search input[type="search"]:focus-visible {
 	letter-spacing: -.045em;
 }
 .editorial-masthead h1 { font-size: clamp(76px, 13vw, 160px); }
-.editorial-masthead > p:last-child { max-width: 34ch; margin: 0 0 10px; color: #7c7c7c; line-height: 1.5; }
+.editorial-masthead > p:last-child { max-width: 34ch; margin: 0 0 12px; color: #7c7c7c; line-height: 1.5; }
 .editorial-masthead--archive { border-bottom: 1px solid #bdbdbd; margin-bottom: 56px; }
-.editorial-masthead--archive .archive-description { margin: 0 0 10px; }
+.editorial-masthead--archive .archive-description { margin: 0 0 12px; }
 
 .editorial-feed {
 	display: grid;
@@ -1783,11 +1805,11 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-card__copy { padding-top: 24px; }
 .editorial-card__meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #7c7c7c; }
 .editorial-card__meta a { color: #111118; border-bottom: 1px solid #333; }
-.editorial-card h2 { margin: 18px 0 14px; font-family: var(--font-editorial); font-size: clamp(36px, 4.2vw, 64px); line-height: 1.03; font-weight: 400; letter-spacing: -.035em; }
+.editorial-card h2 { margin: 16px 0 16px; font-family: var(--font-editorial); font-size: clamp(36px, 4.2vw, 64px); line-height: 1.03; font-weight: 400; letter-spacing: -.035em; }
 .editorial-card h2 a { color: #111118; }
 .editorial-card__excerpt { max-width: 54ch; color: #555; line-height: 1.55; }
 .editorial-card__excerpt > :last-child { margin-bottom: 0; }
-.editorial-read-link { display: inline-flex; gap: 16px; align-items: center; margin-top: 22px; padding: 9px 16px; border: 1px solid #111118; border-radius: 24px; color: #111118; font-size: 12px; font-weight: 600; letter-spacing: .107em; text-transform: uppercase; }
+.editorial-read-link { display: inline-flex; gap: 16px; align-items: center; margin-top: 24px; padding: 9px 16px; border: 1px solid #111118; border-radius: 24px; color: #111118; font-size: 12px; font-weight: 600; letter-spacing: .107em; text-transform: uppercase; }
 .editorial-read-link:hover { background: #111118; color: #fff; }
 .editorial-card--featured { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 48px; align-items: center; padding-bottom: 88px !important; border-bottom: 1px solid #bdbdbd !important; }
 .editorial-card--featured .editorial-card__image { border-radius: 999px; }
@@ -1801,7 +1823,7 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-single__header .editorial-card__meta { justify-content: center; }
 .editorial-single__header h1 { max-width: 1250px; margin: 28px auto 0; font-size: clamp(64px, 10.5vw, 150px); }
 .editorial-single__dek { max-width: 700px; margin: 32px auto 0; font-size: 20px; line-height: 1.5; color: #555; }
-.editorial-single__byline { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 30px; font-size: 13px; letter-spacing: .04em; }
+.editorial-single__byline { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 32px; font-size: 13px; letter-spacing: .04em; }
 .editorial-single__byline img { border-radius: 50%; }
 .editorial-single__hero { margin-top: 64px; }
 .editorial-single__hero img { display: block; width: 100%; max-height: 820px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 999px; }
@@ -1847,7 +1869,7 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-single__footer { padding-block: 64px 88px; border-top: 1px solid #bdbdbd; }
 .editorial-author { display: grid; grid-template-columns: 80px minmax(0, 600px); gap: 24px; align-items: start; }
 .editorial-author img { border-radius: 50%; }
-.editorial-author h2 { margin: 6px 0; font-family: var(--font-editorial); font-size: 36px; font-weight: 400; }
+.editorial-author h2 { margin: 8px 0; font-family: var(--font-editorial); font-size: 36px; font-weight: 400; }
 .editorial-single .post-navigation { margin-top: 64px; }
 .editorial-single .post-navigation .nav-links { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .editorial-single .post-navigation a { display: flex; flex-direction: column; gap: 8px; padding: 24px; border: 1px solid #111118; border-radius: 24px; color: #111118; }
