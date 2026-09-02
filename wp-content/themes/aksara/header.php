@@ -1,6 +1,24 @@
 <?php
 /**
- * Template header.
+ * Kerangka header situs.
+ *
+ * Berkas ini SENGAJA hanya menyusun, tidak berisi markup komponen. Isinya
+ * ada di template-parts/header/, satu berkas per komponen.
+ *
+ * KENAPA BEGINI — ini bukan selera, ini pelajaran dari kode ini sendiri.
+ * Dulu ada header-foundry.php: sebuah header kedua untuk halaman Free Font
+ * yang MENGGANDAKAN branding, navigasi, Sign in dan Cart dari berkas ini.
+ * Begitu header utama berubah, salinannya tidak ikut. Ia melenceng, lalu
+ * ditinggalkan sama sekali (dan kini dihapus). Dengan pemecahan ini, varian
+ * header apa pun cukup menyusun ulang PART YANG SAMA — jadi perubahan pada
+ * penghitung keranjang, misalnya, mendarat di semua tempat sekaligus dan
+ * tidak bisa lagi melenceng diam-diam.
+ *
+ * Kalau suatu saat perlu header berbeda untuk sebagian halaman: buat
+ * header-<nama>.php yang memanggil part yang sama, lalu panggil
+ * get_header( '<nama>' ). Tapi lakukan itu hanya kalau KERANGKA halamannya
+ * memang berbeda — landmark lain, tata letak lain. Kalau bedanya cuma warna,
+ * itu urusan body class dan CSS, bukan berkas header baru.
  *
  * @package Aksara
  */
@@ -25,40 +43,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 	<header id="masthead" class="site-header">
 		<div class="wrap site-header-inner">
-			<div class="site-branding">
-				<?php if ( has_custom_logo() ) : ?>
-					<?php the_custom_logo(); ?>
-				<?php else : ?>
-					<p class="site-title"><a href="<?php echo esc_url( home_url( '/' ) ); ?>" rel="home"><?php bloginfo( 'name' ); ?></a></p>
-				<?php endif; ?>
-			</div>
-
-			<button class="menu-toggle" aria-controls="primary-menu" aria-expanded="false">
-				<?php esc_html_e( 'Menu', 'aksara' ); ?>
-			</button>
-
-			<nav id="site-navigation" class="main-navigation" aria-label="<?php esc_attr_e( 'Primary menu', 'aksara' ); ?>">
-				<?php
-				if ( has_nav_menu( 'primary' ) ) {
-					wp_nav_menu( array(
-						'theme_location' => 'primary',
-						'menu_id'        => 'primary-menu',
-					) );
-				} else {
-					aksara_fallback_menu();
-				}
-				?>
-			</nav>
-
-			<div class="header-actions">
-				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
-					<a href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>"><?php esc_html_e( 'Sign in', 'aksara' ); ?></a>
-					<a href="<?php echo esc_url( wc_get_cart_url() ); ?>">
-						<?php esc_html_e( 'Cart', 'aksara' ); ?>
-						<span class="cart-count"><?php echo esc_html( WC()->cart ? WC()->cart->get_cart_contents_count() : 0 ); ?></span>
-					</a>
-				<?php endif; ?>
-			</div>
+			<?php get_template_part( 'template-parts/header/branding' ); ?>
+			<?php get_template_part( 'template-parts/header/nav-primary' ); ?>
+			<?php get_template_part( 'template-parts/header/actions' ); ?>
 		</div>
 	</header>
 

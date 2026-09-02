@@ -735,3 +735,66 @@ Kontras diukur ulang di Chromium pada dua konteks:
 Sebelumnya 1:1. Regresi responsif dijalankan ulang pada template 0.9.19: 9
 lebar viewport, suite konten normal dan uji tekan, nol overflow.
 
+
+== v0.9.21 - header & footer dipecah jadi template-parts ==
+
+header.php (65 baris) dan footer.php (60 baris) tadinya monolit: doctype,
+branding, navigasi, aksi keranjang, CTA, tiga menu footer, dan baris hak
+cipta semuanya bercampur di dua berkas. Sekarang keduanya HANYA MENYUSUN:
+
+  template-parts/header/branding.php      logo / judul situs
+  template-parts/header/nav-primary.php   toggle + menu utama
+  template-parts/header/actions.php       Sign in + Cart
+  template-parts/footer/cta.php           "Explore the font library"
+  template-parts/footer/menus.php         identitas + tiga kolom menu
+  template-parts/footer/bottom.php        hak cipta
+
+header.php tinggal 52 baris, footer.php 28 baris.
+
+KENAPA — INI PELAJARAN DARI KODE INI SENDIRI
+
+Dulu ada header-foundry.php: header kedua untuk halaman Free Font yang
+MENGGANDAKAN branding, navigasi, Sign in dan Cart dari header.php. Begitu
+header utama berubah, salinannya tidak ikut. Ia melenceng, lalu ditinggalkan
+sama sekali — di 0.9.19 seluruh template sudah kembali memanggil get_header()
+biasa dan kedua berkas foundry itu jadi yatim, 108 baris kode mati. Keduanya
+kini dihapus.
+
+Dengan pemecahan ini, varian header apa pun cukup menyusun ulang PART YANG
+SAMA. Perubahan pada penghitung keranjang mendarat di semua tempat sekaligus
+dan tidak bisa lagi melenceng diam-diam.
+
+Aturan yang dipegang ke depan, ditulis di docblock header.php: buat
+header-<nama>.php hanya kalau KERANGKA halamannya memang berbeda — landmark
+lain, tata letak lain. Kalau bedanya cuma warna, itu urusan body class dan
+CSS. Halaman Free Font membuktikannya: kerangka kedua dibuat untuk sesuatu
+yang ternyata varian palet, dan akhirnya dilipat kembali.
+
+PEMBUKTIAN: KELUARANNYA HARUS IDENTIK
+
+Refactor yang mengubah HTML bukan refactor. Dibuat harness PHP yang benar-
+benar MENJALANKAN header.php dan footer.php dengan stub WordPress
+deterministik, lalu membandingkan keluaran versi lama (diambil dari git) dan
+versi baru — dinormalkan seperti cara browser meruntuhkan whitespace, supaya
+perbedaan indentasi tidak dihitung tapi perbedaan nyata sekecil apa pun
+tetap terlihat.
+
+Sepuluh konteks diuji, seluruhnya identik: logo teks vs custom logo, menu
+primary terisi vs fallback, ketiga menu footer terisi vs kosong sebagian vs
+kosong semua, halaman editorial vs non-editorial (CTA muncul/hilang),
+keranjang berisi vs kosong, dan WooCommerce aktif vs nonaktif.
+
+SATU KESALAHAN SAYA SENDIRI, DITANGKAP OLEH PENGUJIAN ITU
+
+Draf pertama template-parts/header/actions.php melakukan `return` lebih awal
+saat WooCommerce nonaktif — kelihatan lebih rapi, tapi header.php lama SELALU
+mencetak pembungkus <div class="header-actions"> dan hanya isinya yang
+bersyarat. Menghilangkan div itu mengubah jumlah anak .site-header-inner yang
+memakai justify-content: space-between, jadi posisi branding dan navigasi ikut
+bergeser saat Woo nonaktif. Dikembalikan persis seperti semula.
+
+Ada juga celah di pengujiannya sendiri: kasus "WooCommerce nonaktif" awalnya
+tidak benar-benar teruji karena stub mendeklarasikan kelas WooCommerce tanpa
+syarat, dan class_exists() tidak bisa ditimpa. Kasus itu kini dijalankan
+sebagai proses tersendiri dengan deklarasi kelasnya dilewati.
+
