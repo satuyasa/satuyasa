@@ -1174,3 +1174,60 @@ diberi paginasi: keduanya hanya menampilkan enam item sebagai jalan keluar,
 bukan katalog yang perlu ditelusuri.
 
 Regresi luber/gutter halaman Free Font di 9 lebar: bersih seluruhnya.
+
+== v0.9.27 - dropdown satu tingkat di menu utama ==
+
+MASALAHNYA BUKAN "TIDAK ADA DROPDOWN", TAPI SUB-MENU YANG HILANG DIAM-DIAM
+
+Menu utama dirender wp_nav_menu() polos tanpa depth, lalu satu baris di
+style.css menutup semuanya:
+
+    .main-navigation ul ul { display: none; }
+
+Jadi sub-item yang dibuat admin di Appearance > Menus TETAP dicetak ke HTML
+tapi tidak pernah terlihat. Diukur di Chromium dengan menu berisi satu induk
+dan tiga anak: 6 tautan di HTML, hanya 3 yang tampil - di 1280px maupun di
+700px dengan menu ponsel sudah dibuka. Tidak ada tanda apa pun bahwa item itu
+disembunyikan; admin hanya melihat pekerjaannya tidak muncul.
+
+YANG SEKARANG
+
+Dropdown satu tingkat, murni CSS, dibuka oleh :hover DAN :focus-within.
+
+Yang kedua itulah yang membuatnya bisa dipakai keyboard: Tab masuk ke tautan
+induk membuka panelnya, Tab berikutnya masuk ke anak-anaknya, Tab terakhir
+keluar dan menutupnya - urutan fokus alami, tanpa satu baris skrip pun.
+Terukur di 1280px: diam = display none; fokus di tautan induk = panel terbuka
+dan anaknya terjangkau; fokus pindah ke anak = tetap terbuka; fokus keluar =
+tertutup lagi.
+
+Panelnya position: absolute, jadi membukanya tidak mengubah tinggi header -
+terukur 57px baik tertutup maupun terbuka.
+
+Di bawah 860px panelnya kembali ke alur normal dan selalu terbuka, menjorok
+16px. Alasannya: di sana tidak ada hover, dan panel yang hanya bisa dibuka
+lewat fokus akan sulit dijangkau dengan sentuhan.
+
+KENAPA TIDAK ADA aria-expanded
+
+Karena tidak ada JavaScript yang bisa memperbaruinya. Atribut itu harus
+mencerminkan keadaan sebenarnya; dipasang tanpa skrip ia akan selalu berbunyi
+"false" sementara panelnya terbuka - pembaca layar dibohongi, dan itu lebih
+buruk daripada tidak ada atributnya sama sekali. Kalau suatu saat perlu tombol
+yang bisa ditutup dengan Escape, polanya harus diganti utuh jadi pola
+disclosure ber-JS, bukan ditambal atributnya.
+
+DEPTH 2, DAN KENAPA ITU BUKAN HAL YANG SAMA DENGAN MENYEMBUNYIKAN
+
+nav-primary.php kini mengirim 'depth' => 2, jadi tingkat KETIGA tidak dicetak
+sama sekali. Bedanya penting dan itu persis pelajaran dari bug di atas: kalau
+memang tidak didukung, lebih jujur tidak mencetaknya - admin melihat item
+ketiganya tidak muncul di mana pun dan tahu itu batasnya, alih-alih mencarinya
+di sumber halaman dan menemukannya ada tapi tak terlihat.
+
+Penanda item berisi anak: segitiga kecil dalam tinta (border CSS), bukan ikon
+berwarna - sistemnya akromatik.
+
+Regresi: 24 halaman diukur ulang, jarak vertikalnya tidak berubah sama sekali
+(position: relative pada <li> tidak menggeser apa pun), dan regresi
+luber/gutter di 9 lebar memberi hasil sama persis seperti sebelumnya.
