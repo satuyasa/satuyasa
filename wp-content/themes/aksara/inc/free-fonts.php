@@ -77,6 +77,12 @@ function aksara_free_fonts_archive_url() {
  * @return array{token:string,font_id:int}|null
  */
 function aksara_free_font_specimen( $download_id ) {
+	if ( function_exists( 'ath_free_download_preview_data' ) ) {
+		$preview = ath_free_download_preview_data( $download_id );
+		if ( ! empty( $preview['token'] ) && ! empty( $preview['font_id'] ) ) {
+			return $preview;
+		}
+	}
 	$font_id = absint( aksara_free_meta( $download_id, '_ath_free_download_related_font', 0 ) );
 	if ( ! $font_id || ! function_exists( 'aksara_authentype_styles' ) ) {
 		return null;
@@ -132,21 +138,8 @@ function aksara_free_fonts_assets() {
 		aksara_authentype_enqueue_preview();
 	}
 
-	/*
-	 * Dependency 'authentype-font-specimen' bukan formalitas — ia yang
-	 * menjamin skrip ini DICETAK sesudah specimen.js, sehingga listener
-	 * DOMContentLoaded-nya juga terdaftar dan berjalan sesudah initRoot().
-	 * Itulah satu-satunya cara memasang palet gelap tanpa mengedit berkas
-	 * plugin, karena initRoot() menimpa warna tanpa syarat di dua baris
-	 * pertamanya. Lihat komentar lengkap di berkas JS-nya.
-	 */
-	wp_enqueue_script(
-		'aksara-foundry-tester',
-		AKSARA_THEME_URI . '/assets/js/foundry-tester.js',
-		array( 'authentype-font-specimen' ),
-		AKSARA_THEME_VERSION,
-		true
-	);
+	/* Authentype 1.0.7 menghormati data-text-color/data-bg-color langsung.
+	 * Tidak diperlukan lagi skrip penimpa warna atau handler reset kedua. */
 }
 add_action( 'wp_enqueue_scripts', 'aksara_free_fonts_assets', 20 );
 
@@ -226,8 +219,11 @@ function aksara_foundry_placeholder( $name, $note, $on_error = false ) {
 
 /** Tandai halaman Foundry lewat body class, untuk keperluan CSS & debugging. */
 function aksara_free_fonts_body_class( $classes ) {
-	if ( is_post_type_archive( 'ath_free_download' ) || is_singular( 'ath_free_download' ) ) {
-		$classes[] = 'foundry-page';
+	if ( is_singular( 'ath_free_download' ) ) {
+		$classes[] = 'aksara-free-font-single';
+	}
+	if ( is_post_type_archive( 'ath_free_download' ) ) {
+		$classes[] = 'aksara-free-font-archive';
 	}
 	return $classes;
 }

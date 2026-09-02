@@ -1,11 +1,9 @@
 <?php
 /**
- * Arsip Free Font — sistem visual Foundry (docs/DESIGN3.md).
+ * Arsip Free Font — tester Foundry di dalam kerangka utama Aksara.
  *
- * Susunannya mengikuti Layout di DESIGN3: ticker, lalu hero selebar kolom
- * konten dengan spesimen besar dan catatan singkat, lalu tumpukan pita
- * spesimen selebar penuh yang dipisahkan garis rambut 1px. Sidebar dan
- * ticker-nya ada di header-foundry.php.
+ * Struktur specimen mengikuti DESIGN3, sedangkan warna, lebar container,
+ * header, dan footer mengikuti sistem visual utama theme.
  *
  * @package Aksara
  */
@@ -14,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-get_header( 'foundry' );
+get_header();
 
 $paged = max( 1, (int) get_query_var( 'paged' ) );
 $type  = isset( $_GET['type'] ) ? sanitize_key( wp_unslash( $_GET['type'] ) ) : 'font'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -22,6 +20,8 @@ $items = function_exists( 'aksara_query_free_fonts' ) ? aksara_query_free_fonts(
 $total = $items ? (int) $items->found_posts : 0;
 $types = function_exists( 'ath_free_download_types' ) ? ath_free_download_types() : array();
 ?>
+<main id="primary" class="foundry freefonts-archive">
+<div class="freefonts-archive__inner">
 
 <section class="foundry-hero">
 	<p class="foundry-kicker"><?php esc_html_e( 'Free downloads', 'aksara' ); ?></p>
@@ -83,4 +83,6 @@ $types = function_exists( 'ath_free_download_types' ) ? ath_free_download_types(
 	</div>
 <?php endif; ?>
 
-<?php get_footer( 'foundry' ); ?>
+</div>
+</main>
+<?php get_footer(); ?>

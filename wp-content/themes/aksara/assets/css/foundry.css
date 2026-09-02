@@ -98,6 +98,118 @@ body.foundry-page {
 	-webkit-font-smoothing: antialiased;
 }
 
+/* Archive Free Font menyatu dengan sistem visual utama Aksara. Single page
+ * tetap memakai Foundry gelap; override ini hanya hidup di template archive. */
+.freefonts-archive {
+	--fd-ember: #000000;
+	--fd-black: #ffffff;
+	--fd-chalk: #d9d9d9;
+	--fd-bone: #111111;
+	--fd-soot: #eeeeee;
+	--fd-ash: #858585;
+	--fd-ash-text: #666666;
+	width: 100%;
+	background: #ffffff;
+	color: #111111;
+}
+.freefonts-archive__inner {
+	width: min(100% - 48px, 1440px);
+	margin-inline: auto;
+	border-inline: 1px solid var(--fd-soot);
+}
+.freefonts-archive .foundry-hero {
+	padding-block: clamp(56px, 7vw, 104px) clamp(44px, 5vw, 72px);
+}
+.freefonts-archive .foundry-hero h1 {
+	max-width: 12ch;
+	font-size: clamp(48px, 7vw, 104px);
+	color: #000000;
+}
+.freefonts-archive .foundry-hero h1 b { color: inherit; }
+.freefonts-archive .foundry-lede { max-width: 58ch; color: #555555; }
+.freefonts-archive .foundry-tag {
+	background: #000000;
+	color: #ffffff;
+}
+.freefonts-archive .foundry-tag[aria-current='page'] {
+	background: #ffffff;
+	color: #000000;
+	box-shadow: inset 0 0 0 1px #000000;
+}
+.freefonts-archive .foundry-btn {
+	border-color: #000000;
+	color: #000000;
+}
+.freefonts-archive .foundry-btn-ghost {
+	border-color: #999999;
+	color: #333333;
+}
+.freefonts-archive .foundry-specimen { padding-block: 28px 36px; }
+.freefonts-archive .foundry-specimen canvas { background: #ffffff; }
+.freefonts-archive .ath-free-live-preview {
+	--ath-free-bg: #ffffff;
+	--ath-free-text: #111111;
+	--ath-free-line: #d9d9d9;
+	--ath-free-accent: #000000;
+	background: #ffffff;
+	color: #111111;
+}
+.freefonts-archive .ath-free-live-preview__toolbar .ath-master-text {
+	color: #111111;
+	background: #ffffff;
+}
+.freefonts-archive .ath-free-live-preview__toolbar .ath-reset {
+	color: #000000;
+	border-color: #000000;
+}
+.freefonts-archive .ath-free-live-preview__toolbar .ath-size { accent-color: #000000; }
+.freefonts-single .foundry-single-head {
+	padding-block: clamp(48px, 6vw, 88px) 32px;
+}
+.freefonts-single .foundry-single-head h1 {
+	max-width: 14ch;
+	font-size: clamp(42px, 6vw, 88px);
+	color: #000000;
+}
+.freefonts-single .foundry-specimen { padding-block: 28px 40px; }
+.freefonts-single .foundry-specs { background: #eeeeee; }
+.freefonts-single .foundry-spec { background: #ffffff; }
+.freefonts-single .foundry-spec dd { color: #111111; }
+.freefonts-single .foundry-body { color: #333333; }
+.freefonts-single .foundry-download {
+	padding-top: 36px;
+	background: #ffffff;
+}
+.freefonts-single .foundry-download .ath-free-download-license-info {
+	background: #f7f7f7;
+	border-color: #d9d9d9;
+}
+.freefonts-single .foundry-download .ath-free-download-license-icon {
+	color: #000000;
+	border-color: #000000;
+}
+.freefonts-single .foundry-download .ath-free-download-button,
+.freefonts-single .foundry-download .ath-free-download-submit {
+	border-color: #000000;
+	background: #000000;
+	color: #ffffff;
+}
+.freefonts-single .foundry-download input[type='text'],
+.freefonts-single .foundry-download input[type='email'] {
+	background: #ffffff;
+	border-color: #999999;
+	color: #111111;
+}
+.freefonts-single .foundry-download .ath-free-download-form {
+	background: #f7f7f7;
+	border-color: #d9d9d9;
+}
+.freefonts-single .foundry-download .ath-free-download-form-head strong,
+.freefonts-single .foundry-download .ath-free-download-form-head small,
+.freefonts-single .foundry-download .ath-free-download-fields label,
+.freefonts-single .foundry-download .ath-free-download-agree,
+.freefonts-single .foundry-download .ath-free-download-cancel { color: #111111; }
+
 .foundry *,
 .foundry *::before,
 .foundry *::after { box-sizing: border-box; }
@@ -470,13 +582,13 @@ body.foundry-page {
 }
 
 /* --- Halaman tunggal --------------------------------------------------- */
-.foundry-single-head { padding: var(--fd-section-gap) var(--fd-pad) 32px; }
+.foundry-single-head { padding: clamp(40px, 5vw, 72px) var(--fd-pad) 28px; }
 .foundry-single-head h1 {
 	margin: 14px 0 0;
 	font-family: var(--fd-mono);
 	font-weight: 700;
-	font-size: clamp(36px, 8vw, 110px);
-	line-height: 0.98;
+	font-size: clamp(40px, 6.4vw, 92px);
+	line-height: 0.94;
 	letter-spacing: 0.01em;
 	text-transform: uppercase;
 }
@@ -522,15 +634,65 @@ body.foundry-page {
  * lead + token + rate limit tetap dipegang plugin. Yang dilakukan di sini
  * hanya menyelaraskan warnanya dengan kanvas gelap; strukturnya tidak
  * disentuh sama sekali. */
-.foundry-download { padding: 8px var(--fd-pad) var(--fd-section-gap); }
-.foundry-download .ath-free-download-card,
-.foundry-download .ath-free-download-card-inner {
+.foundry-download {
+	padding: 40px var(--fd-pad) var(--fd-section-gap);
+	border-top: 1px solid var(--fd-chalk);
+}
+.foundry .foundry-download .ath-free-download-card,
+.foundry .foundry-download .ath-free-download-card-inner {
 	background: transparent;
-	border-color: var(--fd-chalk);
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
 	color: var(--fd-bone);
 }
-.foundry-download .ath-free-downloads { display: grid; gap: 16px; }
-.foundry-download .ath-free-download-button {
+.foundry .foundry-download .ath-free-download-card::after,
+.foundry .foundry-download .ath-free-download-thumb,
+.foundry .foundry-download .ath-free-download-kicker,
+.foundry .foundry-download .ath-free-download-topline,
+.foundry .foundry-download .ath-free-download-content > h3,
+.foundry .foundry-download .ath-free-download-excerpt,
+.foundry .foundry-download .ath-free-download-note { display: none; }
+.foundry .foundry-download .ath-free-downloads { display: block; max-width: none; }
+.foundry .foundry-download .ath-free-download-card-inner { display: block; min-height: 0; }
+.foundry .foundry-download .ath-free-download-content { display: block; padding: 0; }
+
+.foundry .foundry-download .ath-free-download-license-info {
+	display: grid;
+	grid-template-columns: 44px minmax(0, 1fr);
+	gap: 16px;
+	padding: 20px;
+	background: transparent;
+	border: 1px solid var(--fd-soot);
+	border-radius: var(--fd-radius);
+	color: var(--fd-bone);
+}
+.foundry .foundry-download .ath-free-download-license-icon {
+	color: var(--fd-ember);
+	background: transparent;
+	border: 1px solid var(--fd-ember);
+}
+.foundry .foundry-download .ath-free-download-license-info-head strong,
+.foundry .foundry-download .ath-free-download-license-info-head span,
+.foundry .foundry-download .ath-free-download-license-info p { color: var(--fd-bone); }
+.foundry .foundry-download .ath-free-download-license-link { color: var(--fd-ember) !important; }
+
+.foundry .foundry-download .ath-free-download-actions {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 20px;
+	padding-top: 24px;
+}
+.foundry .foundry-download .ath-free-download-action-note {
+	margin: 0;
+	color: var(--fd-ash-text);
+}
+.foundry .foundry-download .ath-free-download-button {
+	justify-self: end;
+	width: auto;
+	min-height: 42px;
+	padding: 10px 16px;
 	border: 1px solid var(--fd-ember);
 	border-radius: var(--fd-radius);
 	background: transparent;
@@ -540,8 +702,8 @@ body.foundry-page {
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 }
-.foundry-download input[type='text'],
-.foundry-download input[type='email'] {
+.foundry .foundry-download input[type='text'],
+.foundry .foundry-download input[type='email'] {
 	width: 100%;
 	padding: 10px 12px;
 	border: 1px solid var(--fd-chalk);
@@ -551,8 +713,19 @@ body.foundry-page {
 	font-family: var(--fd-mono);
 	font-size: var(--fd-body-sm);
 }
-.foundry-download .ath-free-download-kicker,
-.foundry-download .ath-free-download-license-eyebrow { color: var(--fd-ash-text); }
+.foundry .foundry-download .ath-free-download-license-eyebrow { color: var(--fd-ash-text); }
+.foundry .foundry-download .ath-free-download-form {
+	margin-top: 20px;
+	background: transparent;
+	border: 1px solid var(--fd-soot);
+	border-radius: var(--fd-radius);
+	box-shadow: none;
+}
+.foundry .foundry-download .ath-free-download-form-head strong,
+.foundry .foundry-download .ath-free-download-form-head small,
+.foundry .foundry-download .ath-free-download-fields label,
+.foundry .foundry-download .ath-free-download-agree { color: var(--fd-bone); }
+.foundry .foundry-download .ath-free-download-cancel { color: var(--fd-bone); }
 
 /* --- Grid kartu (bagian "lainnya") ------------------------------------- */
 .foundry-grid {
@@ -628,8 +801,109 @@ body.foundry-page {
 	.foundry { --fd-pad: 16px; --fd-section-gap: 40px; }
 	.foundry-meta { justify-content: flex-start; }
 	.foundry-sidebar-foot { grid-auto-flow: row; }
+	.foundry .foundry-download .ath-free-download-actions { grid-template-columns: 1fr; }
+	.foundry .foundry-download .ath-free-download-button { justify-self: stretch; width: 100%; }
+	.foundry .foundry-download .ath-free-download-license-info { grid-template-columns: 1fr; }
+	.freefonts-archive__inner { width: 100%; border-inline: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
 	.foundry * { transition: none !important; animation: none !important; }
+}
+
+/* =======================================================================
+   TOMBOL UNDUH — merebut kembali warnanya dari plugin
+   =======================================================================
+
+   GEJALA: di halaman tunggal Free Font, tombol unduh tampil sebagai kotak
+   bergaris hitam yang KOSONG. Teksnya ada di DOM, ukurannya 151x42px, tapi
+   tidak terlihat sama sekali.
+
+   PENYEBAB, hasil pengukuran computed style di Chromium — bukan tebakan:
+
+     color       rgb(255, 255, 255)   <- putih
+     background  rgba(0, 0, 0, 0)     <- transparan
+     wadah       rgb(255, 255, 255)   <- putih
+
+   Putih di atas putih. Rasio kontras 1:1.
+
+   Kenapa bisa terbelah begitu — ada TIGA aturan yang berebut, dan masing-
+   masing menang untuk properti yang berbeda:
+
+   1. specimen.css:1020 milik plugin
+        .ath-free-download-button { color: var(--ath-free-primary) !important }
+      !important, jadi ia mengalahkan aturan tema mana pun yang TIDAK memakai
+      !important, berapa pun spesifisitasnya. Ada aturan !important kedua di
+      specimen.css yang muncul belakangan dan menyetel warnanya ke
+      var(--ath-free-surface, #fff) = PUTIH. Itu sumber warna putihnya.
+
+   2. foundry.css:191 milik tema (varian terang)
+        .freefonts-single .foundry-download .ath-free-download-button
+        { background: #000; color: #fff }
+      Spesifisitas (0,3,0). Ia KALAH untuk background oleh nomor 3 di bawah
+      yang spesifisitasnya sama persis tapi muncul BELAKANGAN di berkas ini,
+      dan kalah untuk color oleh !important plugin. Praktisnya aturan ini
+      tidak berpengaruh sama sekali.
+
+   3. foundry.css:691 milik tema (varian gelap)
+        .foundry .foundry-download .ath-free-download-button
+        { background: transparent; color: var(--fd-ember) }
+      Menang untuk background (transparan). Warnanya kalah oleh !important
+      plugin. Itu sumber latar transparannya.
+
+   Jadi latar datang dari aturan gelap, warna datang dari plugin, dan
+   keduanya kebetulan sama-sama putih di halaman terang.
+
+   PERBAIKANNYA di sini, dan sengaja di UJUNG berkas:
+
+   * Ditaruh paling akhir supaya tidak ada aturan tema lain yang bisa
+     mendahuluinya lewat urutan. Masalahnya tadi memang lahir dari urutan.
+   * color memakai !important karena TIDAK ADA cara lain: plugin sudah
+     memakai !important, dan spesifisitas tidak pernah mengalahkannya.
+   * background dan border-color ikut !important supaya pasangan warnanya
+     tidak bisa terbelah lagi oleh aturan lain — persis kegagalan di atas.
+   * Halaman terang dan gelap dipisah secara eksplisit, bukan mengandalkan
+     var(--fd-ember) yang nilainya berubah tergantung kelas mana yang
+     kebetulan menang.
+
+   Berkas plugin tidak disentuh: ia akan tertimpa saat update.
+======================================================================= */
+
+/* Halaman TERANG (arsip & tunggal memakai .freefonts-archive).
+   Tombol unduh adalah aksi utama halaman, jadi ia solid hitam - satu-satunya
+   tombol terisi di halaman ini, seperti tombol View di sistem terang. */
+.freefonts-archive .foundry-download .ath-free-download-button,
+.freefonts-archive .foundry-download .ath-free-download-submit,
+.freefonts-archive .foundry-download .ath-free-download-ready a {
+	border: 1px solid #000000 !important;
+	background: #000000 !important;
+	color: #ffffff !important;
+}
+.freefonts-archive .foundry-download .ath-free-download-button:hover,
+.freefonts-archive .foundry-download .ath-free-download-submit:hover,
+.freefonts-archive .foundry-download .ath-free-download-ready a:hover {
+	background: #333333 !important;
+	border-color: #333333 !important;
+}
+
+/* Cancel BUKAN tombol teks: di plugin ia tombol ikon bulat 30x30 berlabel "x"
+ * dengan border: 0. Jadi HANYA warnanya yang diperbaiki di sini — menambahkan
+ * border atau latar akan mengubahnya jadi lingkaran bergaris, bukan ikon
+ * tutup. (Draf pertama aturan ini melakukan persis kesalahan itu; kelihatan
+ * begitu dirender.) */
+.freefonts-archive .foundry-download .ath-free-download-cancel {
+	color: #111111 !important;
+}
+
+/* Halaman GELAP murni (.foundry tanpa varian terang) - aksen oranye sebagai
+   garis, sesuai DESIGN3 yang melarang oranye dipakai sebagai isian. */
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-button,
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-submit,
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-ready a {
+	border: 1px solid #ff4d00 !important;
+	background: transparent !important;
+	color: #ff4d00 !important;
+}
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-cancel {
+	color: #efefef !important;
 }

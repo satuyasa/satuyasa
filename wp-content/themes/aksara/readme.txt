@@ -662,3 +662,76 @@ reset, dan render terakhir benar-benar memakai warna terang.
 Responsif diuji ulang dengan tester terpasang: 10 lebar viewport, suite
 konten normal dan uji tekan, nol overflow.
 
+
+== v0.9.20 - tombol unduh yang tidak terlihat di halaman tunggal Free Font ==
+
+GEJALA: tombol unduh tampil sebagai kotak bergaris hitam yang KOSONG.
+Teksnya ada di DOM, ukurannya 151x42px, tapi tidak terlihat sama sekali.
+
+PENYEBAB, hasil pengukuran computed style di Chromium — bukan tebakan:
+
+    color       rgb(255, 255, 255)   putih
+    background  rgba(0, 0, 0, 0)     transparan
+    wadah       rgb(255, 255, 255)   putih
+
+Putih di atas putih. Rasio kontras 1:1.
+
+Yang membuatnya terbelah: TIGA aturan berebut, masing-masing menang untuk
+properti yang berbeda.
+
+1. specimen.css:1020 milik plugin
+     .ath-free-download-button { color: var(--ath-free-primary) !important }
+   !important, jadi ia mengalahkan aturan tema mana pun yang tidak memakai
+   !important, berapa pun spesifisitasnya. Ada aturan !important kedua yang
+   muncul belakangan di berkas plugin dan menyetel warnanya ke
+   var(--ath-free-surface, #fff) = PUTIH. Itu sumber warna putihnya.
+
+2. foundry.css:191 milik tema, varian terang
+     .freefonts-single .foundry-download .ath-free-download-button
+     { background: #000; color: #fff }
+   Spesifisitas (0,3,0). Kalah untuk background oleh nomor 3 yang
+   spesifisitasnya SAMA PERSIS tapi muncul belakangan di berkas yang sama,
+   dan kalah untuk color oleh !important plugin. Praktisnya aturan ini tidak
+   berpengaruh sama sekali.
+
+3. foundry.css:691 milik tema, varian gelap
+     .foundry .foundry-download .ath-free-download-button
+     { background: transparent; color: var(--fd-ember) }
+   Menang untuk background. Warnanya kalah oleh !important plugin. Itu sumber
+   latar transparannya.
+
+Jadi latar datang dari aturan gelap tema, warna datang dari plugin, dan
+keduanya kebetulan sama-sama putih di halaman yang sudah terang.
+
+PERBAIKANNYA ditaruh di UJUNG foundry.css, dengan tiga keputusan sadar:
+
+* Di ujung berkas, supaya tidak ada aturan tema lain yang bisa mendahuluinya
+  lewat urutan. Masalahnya tadi memang lahir dari urutan.
+* color memakai !important karena TIDAK ADA cara lain: plugin sudah memakai
+  !important dan spesifisitas tidak pernah mengalahkannya.
+* background dan border ikut !important supaya pasangan warnanya tidak bisa
+  terbelah lagi oleh aturan lain — persis kegagalan di atas.
+* Halaman terang dan gelap dipisah eksplisit lewat
+  .freefonts-archive dan .foundry:not(.freefonts-archive), bukan mengandalkan
+  var(--fd-ember) yang nilainya berubah tergantung kelas mana yang kebetulan
+  menang.
+
+SATU KESALAHAN SAYA SENDIRI, KETAHUAN SAAT DIRENDER
+
+Draf pertama aturan ini memberi border pada .ath-free-download-cancel. Tombol
+itu BUKAN tombol teks: di plugin ia tombol ikon bulat 30x30 berlabel "x"
+dengan border: 0. Border tadi mengubahnya jadi lingkaran bergaris. Sekarang
+hanya warnanya yang diperbaiki, bentuknya tidak disentuh.
+
+VERIFIKASI
+
+Kontras diukur ulang di Chromium pada dua konteks:
+
+  terang  Download Free   putih di atas hitam      21,00:1
+  terang  Send            putih di atas hitam      21,00:1
+  terang  Cancel          #111 di atas putih       18,88:1
+  gelap   Download Free   #ff4d00 di atas #121212   5,63:1
+
+Sebelumnya 1:1. Regresi responsif dijalankan ulang pada template 0.9.19: 9
+lebar viewport, suite konten normal dan uji tekan, nol overflow.
+

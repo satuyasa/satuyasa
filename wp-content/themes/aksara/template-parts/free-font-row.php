@@ -40,51 +40,16 @@ if ( $fd_specimen && function_exists( 'aksara_authentype_styles' ) ) {
 		</span>
 	</div>
 
-	<?php
-	/*
-	 * WADAH .ath-specimen-v7 WAJIB ADA — bukan hiasan kelas.
-	 *
-	 * specimen.js hanya menjalankan initRoot() pada elemen berkelas
-	 * .ath-specimen-v7 (baris 1273), dan initRoot itulah yang memasang
-	 * IntersectionObserver yang me-render canvas. Tanpa wadah ini canvas
-	 * TIDAK PERNAH dirender sama sekali — bukan gagal, tapi diam.
-	 *
-	 * data-font-post-id juga wajib, dan isinya ID ath_font yang DITAUTKAN,
-	 * bukan ID free download ini: nilai itulah yang dikirim sebagai post_id ke
-	 * endpoint render, dan endpoint menolak apa pun yang bukan ath_font
-	 * berstatus publish.
-	 *
-	 * data-text-color / data-bg-color sengaja TIDAK ditulis di sini walau
-	 * terlihat masuk akal. initRoot() menimpanya tanpa syarat ke #111111 dan
-	 * #ffffff di dua baris pertamanya, jadi apa pun yang ditulis di markup
-	 * akan hilang. Palet gelapnya dipasang setelah init oleh
-	 * assets/js/foundry-tester.js.
-	 */
-	?>
-	<a class="foundry-specimen" href="<?php the_permalink(); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'Open %s', 'aksara' ), get_the_title() ) ); ?>">
-		<?php if ( $fd_specimen ) : ?>
-			<span class="ath-specimen ath-specimen-v7 foundry-root" data-font-post-id="<?php echo esc_attr( $fd_specimen['font_id'] ); ?>">
-			<canvas class="ath-server-canvas"
-				data-sync-master="1"
-				data-font-token="<?php echo esc_attr( $fd_specimen['token'] ); ?>"
-				data-mode="style-text"
-				data-text="<?php echo esc_attr( get_the_title() ); ?>"
-				data-font-size="120"
-				data-fit-single-line="1"
-				aria-hidden="true"></canvas>
+	<?php /* Tester dan token raster dirender oleh shortcode Authentype. */ ?>
+	<div class="foundry-specimen">
+		<?php if ( $fd_specimen && shortcode_exists( 'authentype_free_font_preview' ) ) : ?>
 			<?php
-			/*
-			 * Tiga keadaan gagal, satu komponen, keterangan berbeda — pola
-			 * yang sama dengan sistem terang di 0.9.10. Placeholder-nya
-			 * sengaja terbaca SEBAGAI placeholder: ukurannya jauh di bawah
-			 * spesimen sungguhan dan warnanya --fd-ash, supaya tidak ada
-			 * pengunjung yang mengira nama dalam JetBrains Mono itu wujud
-			 * font yang sedang ditawarkan.
-			 */
-			aksara_foundry_placeholder( get_the_title(), __( 'Preview unavailable', 'aksara' ), true );
+			echo do_shortcode( sprintf(
+				'[authentype_free_font_preview id="%d" text="%s" size="120" min_size="36" max_size="180" text_color="#efefef" bg_color="#121212"]',
+				(int) $fd_id,
+				esc_attr( get_the_title() )
+			) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- shortcode milik plugin meng-escape semua nilai.
 			?>
-			<noscript><?php aksara_foundry_placeholder( get_the_title(), __( 'Preview needs JavaScript', 'aksara' ) ); ?></noscript>
-			</span>
 		<?php else : ?>
 			<?php
 			/*
@@ -96,7 +61,7 @@ if ( $fd_specimen && function_exists( 'aksara_authentype_styles' ) ) {
 			aksara_foundry_placeholder( get_the_title(), __( 'No specimen linked', 'aksara' ) );
 			?>
 		<?php endif; ?>
-	</a>
+	</div>
 
 	<?php if ( has_excerpt() ) : ?>
 		<p class="foundry-band__note"><?php echo esc_html( get_the_excerpt() ); ?></p>

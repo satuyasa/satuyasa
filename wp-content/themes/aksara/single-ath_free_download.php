@@ -14,7 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-get_header( 'foundry' );
+get_header();
+
+?>
+<main id="primary" class="foundry freefonts-archive freefonts-single">
+<div class="freefonts-archive__inner">
+<?php
 
 while ( have_posts() ) :
 	the_post();
@@ -42,65 +47,16 @@ while ( have_posts() ) :
 			<h1><?php the_title(); ?></h1>
 		</header>
 
-		<?php
-		/*
-		 * FONT TESTER — menumpang mesin milik plugin, bukan mesin sendiri.
-		 *
-		 * specimen.js sudah punya seluruh logikanya: debounce, sinkronisasi
-		 * antar kontrol, antrian render maksimal 3 request paralel, dan cache
-		 * hasil. Yang dibutuhkan hanyalah markup dengan kontrak yang tepat:
-		 *
-		 *   .ath-specimen-v7                wadah yang di-init (WAJIB, tanpa
-		 *                                   ini canvas tidak pernah dirender)
-		 *   data-font-post-id               ID ath_font yang ditautkan
-		 *   .ath-preview-toolbar            wadah kontrol
-		 *   .ath-master-text                input teks  (debounce 360ms)
-		 *   .ath-size                       input ukuran (debounce 120ms)
-		 *   .ath-server-canvas[data-sync-master="1"]
-		 *                                   canvas yang ikut berubah
-		 *
-		 * .ath-reset milik plugin SENGAJA TIDAK dipakai: handler-nya menyetel
-		 * warna balik ke #111111 pada kanvas gelap ini — tinta nyaris hitam di
-		 * atas hitam, alias spesimen yang hilang. Tombol reset di bawah
-		 * ditangani foundry-tester.js sendiri.
-		 *
-		 * .ath-text-color juga tidak dipakai: DESIGN3 monokrom, pemilih warna
-		 * tidak ada dalam sistemnya.
-		 */
-		?>
+		<?php /* Satu komponen Authentype yang sama dipakai di archive dan single. */ ?>
 		<div class="foundry-specimen">
-			<?php if ( $fd_specimen ) : ?>
-				<div class="ath-specimen ath-specimen-v7 foundry-root" data-font-post-id="<?php echo esc_attr( $fd_specimen['font_id'] ); ?>">
-					<div class="ath-preview-toolbar foundry-tester">
-						<label class="foundry-tester__field">
-							<span class="foundry-tester__label"><?php esc_html_e( 'Type to test', 'aksara' ); ?></span>
-							<input class="ath-master-text foundry-tester__text" type="text"
-								value="<?php echo esc_attr( get_the_title() ); ?>"
-								maxlength="120"
-								placeholder="<?php esc_attr_e( 'Type something…', 'aksara' ); ?>"
-								autocomplete="off" spellcheck="false">
-						</label>
-						<label class="foundry-tester__field foundry-tester__field--size">
-							<span class="foundry-tester__label"><?php esc_html_e( 'Size', 'aksara' ); ?></span>
-							<input class="ath-size foundry-tester__size" type="range" min="24" max="200" step="2" value="150">
-						</label>
-						<button type="button" class="foundry-btn-ghost foundry-tester__reset"
-							data-reset-text="<?php echo esc_attr( get_the_title() ); ?>" data-reset-size="150">
-							<?php esc_html_e( 'Reset', 'aksara' ); ?>
-						</button>
-					</div>
-
-					<canvas class="ath-server-canvas"
-						data-sync-master="1"
-						data-font-token="<?php echo esc_attr( $fd_specimen['token'] ); ?>"
-						data-mode="style-text"
-						data-text="<?php echo esc_attr( get_the_title() ); ?>"
-						data-font-size="150"
-						data-fit-single-line="1"
-						aria-hidden="true"></canvas>
-					<?php aksara_foundry_placeholder( get_the_title(), __( 'Preview unavailable', 'aksara' ), true ); ?>
-					<noscript><?php aksara_foundry_placeholder( get_the_title(), __( 'Preview needs JavaScript', 'aksara' ) ); ?></noscript>
-				</div>
+			<?php if ( $fd_specimen && shortcode_exists( 'authentype_free_font_preview' ) ) : ?>
+				<?php
+				echo do_shortcode( sprintf(
+					'[authentype_free_font_preview id="%d" text="%s" size="136" min_size="24" max_size="220" text_color="#111111" bg_color="#ffffff"]',
+					(int) $fd_id,
+					esc_attr( get_the_title() )
+				) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- shortcode milik plugin meng-escape semua nilai.
+				?>
 			<?php else : ?>
 				<?php aksara_foundry_placeholder( get_the_title(), __( 'No specimen linked', 'aksara' ) ); ?>
 			<?php endif; ?>
@@ -205,5 +161,7 @@ while ( have_posts() ) :
 
 	<?php
 endwhile;
-
-get_footer( 'foundry' );
+?>
+</div>
+</main>
+<?php get_footer();
