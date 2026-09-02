@@ -41,6 +41,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 <div id="page" class="site">
 	<a class="skip-link screen-reader-text" href="#primary"><?php esc_html_e( 'Skip to content', 'aksara' ); ?></a>
 
+	<?php get_template_part( 'template-parts/header/topbar' ); ?>
+
 	<header id="masthead" class="site-header">
 		<div class="wrap site-header-inner">
 			<?php get_template_part( 'template-parts/header/branding' ); ?>

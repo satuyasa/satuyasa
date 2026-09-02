@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.21
+Version: 0.9.22
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -259,6 +259,31 @@ button[type="submit"], input[type="submit"],
 /* -----------------------------------------------------------------------
    2. Header — bar putih full-bleed, hairline bawah, logomark kiri
 ------------------------------------------------------------------------ */
+/* Bilah pengumuman opsional (Customizer > Aksara > Header).
+ *
+ * Tinta di atas kertas, bukan warna baru: sistem visualnya akromatik, dan
+ * satu-satunya cara membuat strip ini menonjol tanpa keluar dari sistem adalah
+ * membalik pasangan yang sudah ada. Pola yang sama dipakai .skip-link.
+ *
+ * Tidak lengket. Yang lengket cuma .site-header di bawahnya — lihat alasannya
+ * di template-parts/header/topbar.php. */
+.site-topbar {
+	background: var(--ink);
+	color: var(--paper);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+}
+/* text-align, bukan flex: pengumuman yang panjang harus boleh membungkus
+ * seperti kalimat biasa, dan panahnya ikut mengalir bersama kata terakhir. */
+.site-topbar__inner {
+	padding-top: 10px;
+	padding-bottom: 10px;
+	text-align: center;
+}
+.site-topbar__link { color: inherit; }
+.site-topbar__link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
 .site-header {
 	position: sticky;
 	top: 0;
@@ -816,6 +841,31 @@ button[type="submit"], input[type="submit"],
 	margin-bottom: 8px;
 }
 .footer-grid a:hover { color: var(--ink); }
+/* Menu footer keluar dari wp_nav_menu() sebagai <ul> polos, dan tidak pernah
+ * ada yang mengatur ulang gayanya — jadi selama ini kolom Shop/Help/Company
+ * tampil BERBULATAN dan menjorok ke dalam, memakai gaya bawaan browser. Itu
+ * bukan yang digambarkan DESIGN.md dan bukan yang terlihat di kolom lain.
+ * .main-navigation ul sudah lama mengatur ulang hal yang sama untuk navigasi
+ * atas; baris ini melakukannya untuk footer. Ini memang mengubah tampilan
+ * dibanding 0.9.21 — disengaja, karena tampilan sebelumnya keliru. */
+.footer-grid ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+/* Baris sosial duduk di kolom identitas, jadi ia mewarisi .footer-grid a yang
+ * display:block — dikembalikan ke baris di sini. Tautannya teks, bukan ikon;
+ * alasannya di template-parts/footer/social.php. */
+.footer-social { margin-top: var(--spacing-16); }
+.footer-social__list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px var(--spacing-16);
+}
+.footer-social__list a {
+	display: inline;
+	margin-bottom: 0;
+}
 .footer-bottom {
 	margin-top: var(--spacing-36);
 	padding-top: var(--spacing-16);
@@ -935,6 +985,7 @@ ul.products > *,
 .trust .wrap > *,
 .trust-index > *,
 .footer-grid > *,
+.footer-social__list > *,
 .footer-bottom > *,
 .pagination > *,
 .aksara-product-meta > *,

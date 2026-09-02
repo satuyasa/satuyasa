@@ -24,8 +24,8 @@ $element_count  = function_exists( 'aksara_count_products_by_type' ) ? aksara_co
 <section class="hero">
 	<div class="wrap">
 		<p class="eyebrow hero-eyebrow"><?php esc_html_e( 'Independent font marketplace', 'aksara' ); ?></p>
-		<h1 class="hero-headline"><?php echo esc_html( get_theme_mod( 'aksara_hero_title', __( 'The right type for your work.', 'aksara' ) ) ); ?></h1>
-		<p class="hero-sub"><?php echo esc_html( get_theme_mod( 'aksara_hero_subtitle', __( 'Thousands of clearly licensed fonts, ready-made Canva templates, and design elements — all in one place, with a live preview before you buy.', 'aksara' ) ) ); ?></p>
+		<h1 class="hero-headline"><?php echo esc_html( aksara_mod( 'aksara_hero_title' ) ); ?></h1>
+		<p class="hero-sub"><?php echo esc_html( aksara_mod( 'aksara_hero_subtitle' ) ); ?></p>
 
 		<form class="hero-search" role="search" method="get" action="<?php echo esc_url( function_exists( 'aksara_authentype_archive_url' ) ? aksara_authentype_archive_url() : home_url( '/' ) ); ?>">
 			<label class="screen-reader-text" for="home-font-search"><?php esc_html_e( 'Search font families', 'aksara' ); ?></label>

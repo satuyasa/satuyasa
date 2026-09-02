@@ -798,3 +798,82 @@ tidak benar-benar teruji karena stub mendeklarasikan kelas WooCommerce tanpa
 syarat, dan class_exists() tidak bisa ditimpa. Kasus itu kini dijalankan
 sebagai proses tersendiri dengan deklarasi kelasnya dilewati.
 
+
+== v0.9.22 - header & footer yang bisa diedit dari wp-admin ==
+
+Pemecahan di 0.9.21 membuat setiap komponen header/footer punya berkasnya
+sendiri. Versi ini memakai itu: teks di dalamnya kini datang dari Customizer
+(Appearance > Customize > Aksara), bukan lagi ditulis di dalam template.
+
+YANG BISA DIUBAH
+
+  Header  bilah pengumuman: nyala/mati, teksnya, dan tautannya (opsional)
+  Footer  cakupan ajakan (editorial saja / semua halaman / mati),
+          teks & label ajakan, tautannya,
+          judul tiga kolom menu,
+          baris penutup di kanan bawah
+  Home    judul dan sub-judul hero
+
+Ditambah satu lokasi menu baru, "Footer - Social", yang merender baris tautan
+sosial di kolom identitas footer.
+
+YANG SENGAJA TIDAK BISA DIUBAH
+
+Tidak ada kontrol warna, ukuran huruf, atau lebar kolom, dan jumlah kolom
+footer tetap tiga. DESIGN.md yang menetapkan sistem visualnya; membuka warna
+ke admin berarti mengundang situs keluar dari sistemnya sendiri - persis yang
+dicegah theme.json waktu tema ini sempat jadi block theme.
+
+Navigasi juga tidak dibuatkan kontrol repeater sendiri. Menu WordPress sudah
+punya UI pengurutan, label, dan target; menirunya di Customizer hanya
+menghasilkan versi yang lebih buruk dari yang sudah ada.
+
+BAWAANNYA HARUS TIDAK MENGUBAH APA PUN, DAN ITU DIBUKTIKAN
+
+Setiap setting default-nya persis string yang selama ini tertulis di
+template, dikumpulkan di satu tempat (aksara_mod_defaults() di
+inc/customizer.php) supaya template dan Customizer tidak bisa berbeda
+pendapat soal apa yang default. Bilah pengumuman mati, dan baris sosial tidak
+mencetak apa pun tanpa menu.
+
+Harness yang sama dari 0.9.21 dipakai lagi, kali ini memuat inc/customizer.php
+SUNGGUHAN alih-alih men-stub aksara_mod(), supaya yang diuji benar-benar nilai
+bawaan yang dipakai situs. Sepuluh konteks dibandingkan dengan 0.9.21 dari
+git: seluruhnya identik.
+
+Perilaku barunya diuji terpisah: bilah muncul hanya kalau sakelar DAN teks
+sama-sama terisi (sakelar sendirian menghasilkan strip hitam kosong yang
+terbaca seperti kerusakan), ajakan footer muncul/hilang sesuai ketiga
+cakupan, ajakan hilang seluruhnya kalau teks atau labelnya dikosongkan,
+baris penutup yang dikosongkan menghapus <span>-nya alih-alih menyisakan span
+kosong yang menahan ruang di kanan, dan baris sosial tidak meninggalkan
+markup apa pun tanpa menu.
+
+SATU PERBAIKAN TAMPILAN YANG MEMANG DISENGAJA
+
+Menu footer keluar dari wp_nav_menu() sebagai <ul> polos dan tidak pernah ada
+yang mengatur ulang gayanya, jadi kolom Shop/Help/Company selama ini tampil
+BERBULATAN dan menjorok memakai gaya bawaan browser - bukan yang digambarkan
+DESIGN.md, dan bukan yang terlihat di kolom identitas di sebelahnya.
+.main-navigation ul sudah lama mengatur ulang hal yang sama untuk navigasi
+atas; sekarang .footer-grid ul juga. Ini satu-satunya hal di rilis ini yang
+mengubah tampilan bawaan, dan diubah karena tampilan sebelumnya keliru.
+
+CATATAN PRATINJAU LANGSUNG
+
+Partial selective refresh dipasang PER KOMPONEN, bukan per teks, dan
+render_callback-nya memanggil template part yang sama dengan halaman
+sungguhan. Satu partial per setting terlihat lebih sederhana tapi salah:
+label ajakan footer berbagi elemen <a> dengan panahnya, jadi mengganti isi
+elemen itu dengan teks polos akan menghapus panah tersebut di pratinjau - dan
+callback yang menyusun ulang markup sendiri berarti markup yang sama ditulis
+di dua tempat.
+
+REGRESI RESPONSIF
+
+Diukur di Chromium pada 320/360/375/414/768/900/1024/1280/1440: overflow
+halaman 0 dan gutter kiri-kanan tepat (16px di bawah 600, 24px di atasnya) di
+seluruh lebar, baik dengan bilah pengumuman + baris sosial maupun tanpa
+keduanya. Satu-satunya sisa temuan adalah glyph panah pada tombol ajakan
+footer yang advance-nya 23px di kotak 16px - ada juga di 0.9.21, terkurung di
+dalam <a>-nya, dan tidak melebarkan halaman.

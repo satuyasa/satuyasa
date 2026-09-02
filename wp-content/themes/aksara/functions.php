@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '0.9.21' );
+define( 'AKSARA_THEME_VERSION', '0.9.22' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -47,6 +47,11 @@ function aksara_setup() {
 		'footer_shop'  => __( 'Footer — Shop', 'aksara' ),
 		'footer_help'  => __( 'Footer — Help', 'aksara' ),
 		'footer_about' => __( 'Footer — Company', 'aksara' ),
+		// Baris tautan sosial di footer. Sengaja memakai lokasi menu biasa,
+		// bukan kontrol Customizer per-jaringan: menu WordPress sudah punya UI
+		// pengurutan dan label, sedangkan daftar jaringan sosial berubah jauh
+		// lebih sering daripada theme-nya.
+		'social' => __( 'Footer — Social', 'aksara' ),
 	) );
 }
 add_action( 'after_setup_theme', 'aksara_setup' );
@@ -142,6 +147,7 @@ require AKSARA_THEME_DIR . '/inc/woocommerce-helpers.php';
 require AKSARA_THEME_DIR . '/inc/authentype-integration.php';
 require AKSARA_THEME_DIR . '/inc/free-fonts.php';
 require AKSARA_THEME_DIR . '/inc/seo.php';
+require AKSARA_THEME_DIR . '/inc/customizer.php';
 
 /**
  * Fallback menu jika belum ada menu Utama yang diatur.
