@@ -1824,3 +1824,78 @@ REGRESI
 
 Jarak vertikal 24 halaman: tidak berubah sama sekali. Luber/gutter di 9 lebar:
 sama seperti sebelumnya. Lint PHP seluruh tema lolos.
+
+== v0.9.36 - teks penjelasan lisensi kini bisa diedit ==
+
+PETA HALAMAN LICENSE: SIAPA MENGATUR APA
+
+Halaman License (/licenses/, page-templates/template-license.php) seluruhnya
+sudah bisa diedit:
+
+    judul halaman            Pages > License
+    paragraf pengantar       Pages > License (editor)
+    nama tiap lisensi        WooCommerce > Font Licenses
+    penjelasan tiap lisensi  WooCommerce > Font Licenses (editor kaya)
+
+Satu-satunya yang tidak: kalimat "No license types have been set up yet." —
+dan itu hanya muncul kalau belum ada satu pun lisensi dibuat.
+
+YANG SEBENARNYA TIDAK BISA DIEDIT ADA DI TEMPAT LAIN
+
+Tab "Licensing" di halaman produk font dirender shortcode Authentype
+(includes/shortcode-specimen.php sekitar baris 843-856). Yang datang dari data
+hanya label dan deskripsi tiap lisensi; EMPAT kalimat di sekelilingnya ditulis
+langsung di berkas plugin:
+
+    "Licensing Options"                     judul bagian
+    "Choose the license that matches..."    paragraf penjelasan
+    "usage license"                         akhiran di belakang nama lisensi
+    "Read full license details"             label tautan
+
+Tidak ada satu pun layar di wp-admin yang bisa mengubahnya.
+
+DIPERBAIKI TANPA MENYUNTING PLUGIN
+
+Authentype plugin pihak ketiga; setiap suntingan di sana hilang pada pembaruan
+berikutnya — dan hilangnya diam-diam, biasanya baru ketahuan berbulan-bulan
+kemudian ketika seseorang bertanya kenapa teksnya kembali ke bahasa Inggris.
+
+Keempat kalimat itu dibungkus esc_html_e( ..., 'authentype-font-specimen' ),
+artinya semuanya melewati gettext. Filter 'gettext' menukar hasilnya sebelum
+dicetak — mekanisme resmi WordPress, dipakai persis untuk keperluan ini, dan
+aman terhadap pembaruan plugin.
+
+Kontrolnya di Customizer > Aksara > Licensing text. Dibiarkan KOSONG secara
+bawaan, dan kosong berarti "pakai teks asli plugin". Kalau defaultnya diisi
+salinan kalimat plugin, salinan itu akan membeku: plugin memperbaiki
+kalimatnya di versi berikutnya, situs tetap menampilkan versi lama tanpa ada
+yang tahu kenapa.
+
+Kalau plugin mengubah kalimatnya, penggantian untuk kalimat itu berhenti
+berlaku dan teks aslinya yang tampil — gagal ke keadaan yang masih benar,
+bukan ke halaman rusak.
+
+BIAYANYA DIJAGA
+
+Filter gettext berjalan untuk SETIAP string yang diterjemahkan di setiap
+permintaan halaman — ribuan kali. Fungsinya karena itu keluar pada baris
+pertama kalau domainnya bukan milik Authentype, yang menyingkirkan hampir
+seluruh panggilan sebelum ada pekerjaan apa pun, dan peta penggantinya
+dibangun sekali lalu disimpan statis.
+
+DIUJI
+
+Tujuh kasus: tanpa pengaturan apa pun tidak ada satu string pun berubah;
+dengan dua kalimat diisi hanya kedua itu yang berubah; string berdomain
+'woocommerce' tidak tersentuh bahkan ketika teksnya sama persis; dan string
+Authentype yang tidak dipetakan tetap apa adanya.
+
+SATU KESALAHAN SAYA DI TENGAH PENELUSURAN INI
+
+Saya sempat menyimpulkan kolom "Description" di WooCommerce > Font Licenses
+tidak ada, dan bahwa menyunting lisensi akan menghapus deskripsinya. Itu
+KELIRU. Kolomnya ada dan berfungsi (class-license-admin.php memakai wp_editor
+dengan textarea_name => 'description'). Grep saya mencari atribut name="
+literal, sedangkan wp_editor menyetelnya lewat argumen array — jadi tidak
+terlihat. Tidak ada kehilangan data, dan tidak ada yang perlu diperbaiki di
+sana.
