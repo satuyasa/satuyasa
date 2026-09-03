@@ -1584,3 +1584,59 @@ jujur ada di data — samakan harga jualnya — dan kolom terakhir alat ini
 memberi angkanya. Menyimpan persen yang diketik admin akan menjadi perbaikan
 yang lebih baik lagi, tapi itu harus dikerjakan di plugin Authentype, dan
 tema tidak boleh menyunting plugin pihak ketiga.
+
+== v0.9.33 - badge diskon dibulatkan ke bawah, tidak lagi melebihkan ==
+
+JAWABAN SINGKAT: BUKAN SALAH HITUNG, TAPI MEMANG SALAH ARAH PEMBULATANNYA.
+
+Ketiga tempat yang ditanyakan — Home, blok related, dan ringkasan produk —
+memakai fungsi yang sama persis, aksara_product_discount_badge(), dengan rumus
+yang benar. Tidak ada satu pun yang menghitung berbeda. Diperiksa satu per satu:
+
+    template-parts/asset-card.php:29         get_price_html() + badge
+    template-parts/font-product-card.php:17  get_price_html() + badge
+    template-parts/font-specimen-row.php:36  get_price_html() + badge
+
+Yang keliru arah pembulatannya. Persen ini tidak pernah disimpan (lihat 0.9.32),
+jadi selalu dihitung ulang dari harga normal dan harga jual. Dengan round(),
+diskon sebenarnya 30,77% — yang terjadi begitu harga jual dirapikan, misalnya
+27 dari 27,30 pada harga 39 — diiklankan sebagai "31% off".
+
+Itu mengklaim potongan LEBIH BESAR daripada yang benar-benar diberikan. Untuk
+angka yang dipajang sebagai janji harga, melebihkan adalah kesalahan yang
+berbeda kelas dengan mengurangi: yang satu bisa menjadi soal perlindungan
+konsumen, yang lain sekadar konservatif.
+
+Kini floor():
+
+     normal    jual   sebenarnya   lama   baru
+         39      27       30,77%    31%    30%   berubah
+         49      34       30,61%    31%    30%   berubah
+         19      13       31,58%    32%    31%   berubah
+    149.000 104.300       30,00%    30%    30%
+    250.000 175.000       30,00%    30%    30%
+
+Diskon yang tepat 30,00% tetap tampil 30%. Yang berubah hanya kasus di mana
+badge tadinya melebihkan.
+
+TEMUAN TAMBAHAN: BADGE DAN HARGA BISA MENGGAMBARKAN VARIASI BERBEDA
+
+Diverifikasi langsung di sumber WooCommerce (class-wc-product-variable.php).
+Untuk produk variabel dengan harga berbeda antar variasi — dan font selalu
+begitu, karena gaya x lisensi — get_price_html() menjalankan:
+
+    if ( $min_price !== $max_price ) {
+        $price = wc_format_price_range( $min_price, $max_price );
+
+Yaitu RENTANG harga aktif saja, TANPA harga coret sama sekali. Sementara badge
+memakai max() dari seluruh variasi. Jadi persen di badge bisa milik variasi
+yang harganya tidak sedang ditampilkan, dan pengunjung tidak punya harga normal
+untuk memeriksanya.
+
+Logika labelnya sendiri sudah benar dan tidak diubah: "-30%" hanya dipakai
+kalau SELURUH variasi sepakat; begitu ada yang berbeda, labelnya jadi
+"Up to 30% off". Kalau Anda melihat bentuk pertama, artinya semua variasi
+memang membulat ke angka itu.
+
+Products > Discount audit (0.9.32) kini memakai floor() yang sama, jadi angka
+di layar diagnosis dan di badge tidak bisa berbeda.

@@ -79,7 +79,9 @@ function aksara_discount_audit_rows( $product ) {
 			'regular' => $regular,
 			'sale'    => $sale,
 			'exact'   => $exact,
-			'shown'   => (int) round( $exact ),
+			// floor(), sama dengan badge — lihat alasannya di
+			// aksara_product_discount_data().
+			'shown'   => (int) floor( $exact ),
 		);
 	}
 	return $rows;

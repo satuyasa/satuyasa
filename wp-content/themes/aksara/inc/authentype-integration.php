@@ -121,6 +121,41 @@ function aksara_related_authentype_fonts( $font_id, $limit = 3 ) {
  * compare the minimum regular price with an unrelated minimum sale price;
  * every percentage is calculated within the same variation first.
  */
+/**
+ * Persentase diskon untuk badge produk.
+ *
+ * DIBULATKAN KE BAWAH, BUKAN KE TERDEKAT — dan itu keputusan, bukan selera.
+ *
+ * Persen ini TIDAK PERNAH DISIMPAN di mana pun. Kolom "Discount %" di matriks
+ * harga Authentype tidak punya atribut name (admin-metaboxes.php:487), jadi
+ * angka yang diketik admin hanya alat bantu peramban untuk mengisikan harga
+ * jual; yang masuk basis data cuma harga normal dan harga jual. Setiap
+ * tampilan sesudah itu menghitung ulang dari dua harga tersebut.
+ *
+ * Dengan round(), diskon 30,77% — yang terjadi begitu harga jual dirapikan,
+ * misalnya 27 dari 27,30 pada harga 39 — akan diiklankan sebagai "31% off".
+ * Itu mengklaim potongan LEBIH BESAR daripada yang benar-benar diberikan.
+ * Untuk angka yang dipajang sebagai janji harga, melebihkan adalah kesalahan
+ * yang berbeda kelas dengan mengurangi: yang satu bisa jadi soal perlindungan
+ * konsumen, yang lain hanya konservatif.
+ *
+ * floor() karena itu: 30,77% diiklankan sebagai 30%, dan tidak pernah ada
+ * pengunjung yang menghitung ulang lalu menemukan angka di badge lebih besar
+ * daripada potongan yang ia terima. Diskon 30,0% yang tepat tetap tampil 30%.
+ *
+ * Angka sebenarnya sampai dua desimal bisa dilihat di Products > Discount
+ * audit, beserta harga jual yang menghasilkan angka bulat persis.
+ *
+ * CATATAN SOAL PRODUK VARIABEL. Badge memakai max() dari seluruh variasi,
+ * sementara get_price_html() WooCommerce untuk produk variabel mencetak
+ * RENTANG harga aktif tanpa harga coret sama sekali (wc_format_price_range,
+ * class-wc-product-variable.php). Jadi badge dan harga di sebelahnya bisa
+ * menggambarkan variasi yang berbeda. Label "Up to %d%% off" dipakai justru
+ * untuk keadaan itu; "-%d%%" hanya kalau seluruh variasi sepakat.
+ *
+ * @param WC_Product $product Produk.
+ * @return array<string,mixed>|null
+ */
 function aksara_product_discount_data( $product ) {
 	if ( ! $product instanceof WC_Product ) {
 		return null;
@@ -137,7 +172,7 @@ function aksara_product_discount_data( $product ) {
 				$priced_count++;
 			}
 			if ( $regular > 0 && $active > 0 && $active < $regular ) {
-				$percentages[] = (int) round( ( ( $regular - $active ) / $regular ) * 100 );
+				$percentages[] = (int) floor( ( ( $regular - $active ) / $regular ) * 100 );
 			}
 		}
 	} elseif ( $product->is_on_sale() ) {
@@ -145,7 +180,7 @@ function aksara_product_discount_data( $product ) {
 		$active  = (float) $product->get_price();
 		if ( $regular > 0 && $active > 0 && $active < $regular ) {
 			$priced_count = 1;
-			$percentages[] = (int) round( ( ( $regular - $active ) / $regular ) * 100 );
+			$percentages[] = (int) floor( ( ( $regular - $active ) / $regular ) * 100 );
 		}
 	}
 
