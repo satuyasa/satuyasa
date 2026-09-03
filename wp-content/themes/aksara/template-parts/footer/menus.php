@@ -33,7 +33,21 @@ $aksara_footer_menus = array(
 	</div>
 	<?php foreach ( $aksara_footer_menus as $aksara_location => $aksara_heading ) : ?>
 		<div>
-			<h5><?php echo esc_html( $aksara_heading ); ?></h5>
+			<?php
+			/*
+			 * <h2>, bukan <h5>. Footer ada di SETIAP halaman, dan judul
+			 * kolomnya dulu <h5> — sehingga pada halaman yang judul
+			 * terdalamnya h2, struktur judul melompat 2->5 (di halaman 404
+			 * bahkan 1->5). Pembaca layar memakai daftar judul untuk
+			 * melompat antar bagian, dan tingkat yang dilewati membuat
+			 * daftar itu berbohong soal susunan halaman.
+			 *
+			 * Ukuran visualnya tidak berubah sedikit pun: .footer-grid h5
+			 * sudah menetapkan 12px sendiri, dan selektornya tinggal
+			 * mengikuti elemen barunya.
+			 */
+			?>
+			<h2><?php echo esc_html( $aksara_heading ); ?></h2>
 			<?php
 			if ( has_nav_menu( $aksara_location ) ) {
 				wp_nav_menu( array( 'theme_location' => $aksara_location, 'container' => false, 'depth' => 1 ) );

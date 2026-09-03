@@ -109,14 +109,39 @@ function aksara_open_graph_tags() {
 	printf( '<meta property="og:url" content="%s">' . "\n", esc_url( $url ) );
 	printf( '<meta property="og:site_name" content="%s">' . "\n", esc_attr( get_bloginfo( 'name' ) ) );
 
-	$image = '';
+	/*
+	 * og:image beserta UKURANNYA. Tanpa width/height, sebagian platform
+	 * (terutama WhatsApp dan Slack) menunda pengambilan gambar sampai kartu
+	 * sudah terlanjur dirender tanpa gambar — tautan pertama yang dibagikan
+	 * tampil polos, dan itu justru tautan yang paling sering diklik.
+	 *
+	 * Cadangannya BUKAN lagi logo situs. Logo biasanya kecil, sering
+	 * transparan, dan di kartu berlatar putih akan tampak seperti gambar yang
+	 * gagal dimuat. Ukuran aksara-preview-xl (1820x1214) sudah di atas
+	 * anjuran 1200x630, jadi dipakai lebih dulu kalau ada.
+	 */
+	$image  = '';
+	$img_id = 0;
 	if ( is_singular() && has_post_thumbnail() ) {
-		$image = get_the_post_thumbnail_url( get_the_ID(), 'large' );
+		$img_id = get_post_thumbnail_id( get_the_ID() );
 	} elseif ( has_custom_logo() ) {
-		$image = wp_get_attachment_image_url( get_theme_mod( 'custom_logo' ), 'medium' );
+		$img_id = (int) get_theme_mod( 'custom_logo' );
 	}
-	if ( $image ) {
-		printf( '<meta property="og:image" content="%s">' . "\n", esc_url( $image ) );
+	if ( $img_id ) {
+		$src = wp_get_attachment_image_src( $img_id, 'aksara-preview-xl' );
+		if ( ! $src ) {
+			$src = wp_get_attachment_image_src( $img_id, 'full' );
+		}
+		if ( $src ) {
+			$image = $src[0];
+			printf( '<meta property="og:image" content="%s">' . "\n", esc_url( $src[0] ) );
+			printf( '<meta property="og:image:width" content="%d">' . "\n", (int) $src[1] );
+			printf( '<meta property="og:image:height" content="%d">' . "\n", (int) $src[2] );
+			$alt = trim( (string) get_post_meta( $img_id, '_wp_attachment_image_alt', true ) );
+			if ( $alt ) {
+				printf( '<meta property="og:image:alt" content="%s">' . "\n", esc_attr( $alt ) );
+			}
+		}
 	}
 
 	/*
@@ -351,3 +376,111 @@ function aksara_archive_canonical() {
 	printf( '<link rel="canonical" href="%s">' . "\n", esc_url( $canonical ) );
 }
 add_action( 'wp_head', 'aksara_archive_canonical', 3 );
+
+/**
+ * Organization + WebSite JSON-LD di setiap halaman.
+ *
+ * Keduanya menjawab pertanyaan yang tidak bisa dijawab schema per-halaman:
+ * siapa penerbit situs ini, dan apa nama resminya. Tanpa Organization, Google
+ * tidak punya rujukan untuk panel pengetahuan dan untuk atribut "publisher"
+ * yang dirujuk schema lain.
+ *
+ * Dicetak SEKALI DI HALAMAN DEPAN SAJA, bukan di setiap halaman. Mengulanginya
+ * di seluruh situs tidak menambah apa pun bagi mesin pencari dan hanya
+ * menambah berat setiap dokumen.
+ */
+function aksara_site_structured_data() {
+	if ( ! is_front_page() ) {
+		return;
+	}
+
+	$org = array(
+		'@context' => 'https://schema.org',
+		'@type'    => 'Organization',
+		'name'     => get_bloginfo( 'name' ),
+		'url'      => home_url( '/' ),
+	);
+
+	if ( has_custom_logo() ) {
+		$src = wp_get_attachment_image_src( (int) get_theme_mod( 'custom_logo' ), 'full' );
+		if ( $src ) {
+			$org['logo'] = $src[0];
+		}
+	}
+
+	/*
+	 * sameAs diambil dari menu 'Footer — Social' kalau admin sudah mengisinya.
+	 * Ini satu-satunya tempat di situs yang tahu akun sosial resminya, dan
+	 * membacanya dari sana berarti tidak ada daftar kedua yang bisa basi.
+	 */
+	$social = array();
+	$locations = get_nav_menu_locations();
+	if ( ! empty( $locations['social'] ) ) {
+		foreach ( (array) wp_get_nav_menu_items( $locations['social'] ) as $item ) {
+			if ( ! empty( $item->url ) ) {
+				$social[] = $item->url;
+			}
+		}
+	}
+	if ( $social ) {
+		$org['sameAs'] = array_values( array_unique( $social ) );
+	}
+
+	aksara_print_jsonld( $org );
+
+	aksara_print_jsonld( array(
+		'@context' => 'https://schema.org',
+		'@type'    => 'WebSite',
+		'name'     => get_bloginfo( 'name' ),
+		'url'      => home_url( '/' ),
+	) );
+}
+add_action( 'wp_footer', 'aksara_site_structured_data' );
+
+/**
+ * Article JSON-LD untuk artikel blog.
+ *
+ * Hanya post type 'post'. Halaman statis (About, Privacy, dsb.) sengaja tidak
+ * diberi Article: keduanya bukan tulisan bertanggal dengan penulis, dan
+ * memberinya schema Article berarti mengklaim sesuatu yang tidak benar.
+ *
+ * datePublished DAN dateModified keduanya dicetak. Tanpa dateModified, artikel
+ * yang direvisi tetap terbaca sebagai berumur tanggal terbitnya.
+ */
+function aksara_article_structured_data() {
+	if ( ! is_singular( 'post' ) ) {
+		return;
+	}
+
+	$post_id = get_the_ID();
+	$data    = array(
+		'@context'         => 'https://schema.org',
+		'@type'            => 'Article',
+		'headline'         => get_the_title( $post_id ),
+		'url'              => get_permalink( $post_id ),
+		'datePublished'    => get_the_date( DATE_W3C, $post_id ),
+		'dateModified'     => get_the_modified_date( DATE_W3C, $post_id ),
+		'author'           => array(
+			'@type' => 'Person',
+			'name'  => get_the_author_meta( 'display_name', (int) get_post_field( 'post_author', $post_id ) ),
+		),
+		'publisher'        => array(
+			'@type' => 'Organization',
+			'name'  => get_bloginfo( 'name' ),
+		),
+		'mainEntityOfPage' => get_permalink( $post_id ),
+	);
+
+	$excerpt = get_the_excerpt( $post_id );
+	if ( $excerpt ) {
+		$data['description'] = wp_strip_all_tags( strip_shortcodes( $excerpt ) );
+	}
+
+	$image = get_the_post_thumbnail_url( $post_id, 'aksara-preview-xl' );
+	if ( $image ) {
+		$data['image'] = $image;
+	}
+
+	aksara_print_jsonld( $data );
+}
+add_action( 'wp_footer', 'aksara_article_structured_data' );

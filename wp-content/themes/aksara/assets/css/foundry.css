@@ -1,48 +1,4 @@
-/* =======================================================================
-   FOUNDRY — sistem visual halaman Free Font
-   Mengikuti docs/DESIGN3.md ("Foundry — Style Reference").
 
-   KENAPA BERKAS TERPISAH, BUKAN DI style.css
-
-   Ini sistem visual KEDUA yang bertentangan dengan yang pertama, dan
-   pertentangannya disengaja:
-
-     DESIGN.md  (Studio Few) — terang, 0% warna kromatik, Sterling/Work Sans
-     DESIGN3.md (Foundry)    — gelap #121212, satu aksen oranye #ff4d00,
-                               JetBrains Mono sebagai font sistem
-
-   Menggabungkannya ke style.css berarti dua palet dan dua keluarga huruf
-   berebut di satu berkas, dan audit "0% kromatik" yang sudah berjalan untuk
-   seluruh situs akan langsung gagal tanpa alasan yang jelas. Jadi Foundry
-   dipisah, hanya di-enqueue di arsip dan halaman tunggal ath_free_download
-   (lihat inc/free-fonts.php), dan seluruh aturannya diberi awalan .foundry
-   supaya tidak pernah bocor ke halaman lain meski berkasnya ikut termuat.
-
-   Konsekuensinya jujur: halaman Free Font TIDAK mengikuti DESIGN.md, dan
-   itu memang yang diminta.
-======================================================================= */
-
-/* Kanvas dipasang di <body>, bukan hanya di .foundry.
- *
- * Dua alasan, keduanya nyata:
- *
- * 1. style.css tema tetap ikut termuat di halaman ini (aksara_scripts()
- *    berjalan di seluruh front-end) dan ia menyetel body ke kertas PUTIH
- *    dengan font Sterling. .foundry menimpanya untuk dirinya sendiri, tapi
- *    area di BAWAH konten pendek dan area overscroll tetap milik body —
- *    jadi hitamnya bocor jadi putih di situ.
- * 2. Tanpa ini foundry.css tidak berdiri sendiri: ia bergantung pada margin
- *    reset milik stylesheet lain. Fixture yang memuatnya sendirian langsung
- *    membuktikannya — margin bawaan browser 8px menggeser seluruh halaman
- *    dan menghasilkan overflow.
- *
- * Digerbangi .foundry-page (body class dari inc/free-fonts.php) supaya tidak
- * pernah menyentuh halaman lain. */
-body.foundry-page {
-	margin: 0;
-	background: #121212;
-	color: #efefef;
-}
 
 .foundry {
 	/* --- Warna (DESIGN3 > Tokens — Colors) --- */
@@ -51,8 +7,6 @@ body.foundry-page {
 	--fd-chalk: #e2e8f0;
 	--fd-bone: #efefef;
 	--fd-soot: #3a3a3a;
-	--fd-ash: #747474;
-
 	/* PENYIMPANGAN SADAR DARI DESIGN3 — dan alasannya, diukur:
 	 *
 	 * Ash #747474 di atas kanvas #121212 hanya 4,01:1. DESIGN3 menugaskannya
@@ -79,12 +33,8 @@ body.foundry-page {
 	--fd-subheading: 18px;
 
 	--fd-radius: 2.8px;
-	--fd-radius-card: 8px;
-
 	--fd-gap: 8px;
 	--fd-section-gap: 64px;
-	--fd-sidebar: 200px;
-	--fd-max: 1440px;
 	/* Gutter halaman. Diikat ke --gutter milik tema (24px, 16px di bawah
 	 * 600px) supaya isi halaman Free Font sejajar dengan header dan footer
 	 * di atas-bawahnya, dan tidak bisa hanyut kalau salah satunya berubah.
@@ -112,7 +62,6 @@ body.foundry-page {
 	--fd-chalk: #d9d9d9;
 	--fd-bone: #111111;
 	--fd-soot: #eeeeee;
-	--fd-ash: #858585;
 	--fd-ash-text: #666666;
 	width: 100%;
 	background: #ffffff;
@@ -178,23 +127,6 @@ body.foundry-page {
 }
 .freefonts-archive .foundry-specimen { padding-block: 28px 36px; }
 .freefonts-archive .foundry-specimen canvas { background: #ffffff; }
-.freefonts-archive .ath-free-live-preview {
-	--ath-free-bg: #ffffff;
-	--ath-free-text: #111111;
-	--ath-free-line: #d9d9d9;
-	--ath-free-accent: #000000;
-	background: #ffffff;
-	color: #111111;
-}
-.freefonts-archive .ath-free-live-preview__toolbar .ath-master-text {
-	color: #111111;
-	background: #ffffff;
-}
-.freefonts-archive .ath-free-live-preview__toolbar .ath-reset {
-	color: #000000;
-	border-color: #000000;
-}
-.freefonts-archive .ath-free-live-preview__toolbar .ath-size { accent-color: #000000; }
 .freefonts-single .foundry-single-head {
 	padding-block: clamp(48px, 6vw, 88px) 32px;
 }
@@ -251,21 +183,6 @@ body.foundry-page {
 .foundry h1, .foundry h2, .foundry h3, .foundry p, .foundry ul, .foundry figure { margin: 0; }
 .foundry ul { padding: 0; list-style: none; }
 
-/* Setiap anak grid/flex boleh menyusut. Tanpa ini, satu nama font panjang
- * mengunci lebar treknya dan mendorong seluruh halaman melewati batas —
- * defect yang sama persis dengan yang diperbaiki di 0.9.12. */
-.foundry-shell > *,
-.foundry-sidebar > *,
-.foundry-nav > *,
-.foundry-meta > *,
-.foundry-meta-group > *,
-.foundry-actions > *,
-.foundry-specs > *,
-.foundry-spec > *,
-.foundry-grid > *,
-.foundry-empty > *,
-.foundry-single-head > * { min-width: 0; }
-
 /* Tombol juga wadah flex, jadi label panjang di dalamnya kena lantai
  * min-content yang sama. Terukur di uji tekan: satu URL 88 karakter di dalam
  * tombol empty-state mendorong halaman 6px di viewport 320px. */
@@ -276,56 +193,6 @@ body.foundry-page {
 	outline: 2px solid var(--fd-ember);
 	outline-offset: 2px;
 }
-
-/* --- Ticker ------------------------------------------------------------ */
-.foundry-ticker {
-	border-bottom: 1px solid var(--fd-chalk);
-	padding: 10px var(--fd-pad);
-	font-size: var(--fd-caption);
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--fd-bone);
-	/* Teksnya boleh dipotong; kalau tidak muat ia membungkus, bukan meluber.
-	 * Animasi scroll sengaja tidak dipakai: ia menambah gerakan tanpa
-	 * menambah informasi, dan harus dimatikan lagi untuk
-	 * prefers-reduced-motion. */
-}
-.foundry-ticker span + span::before {
-	content: '\25B8';
-	margin: 0 10px;
-	color: var(--fd-ember);
-}
-
-/* --- Kerangka: sidebar kiri tetap + kanvas kanan ----------------------- */
-.foundry-shell {
-	display: grid;
-	grid-template-columns: var(--fd-sidebar) minmax(0, 1fr);
-	max-width: var(--fd-max);
-	margin: 0;
-}
-
-.foundry-sidebar {
-	position: sticky;
-	top: 0;
-	align-self: start;
-	max-height: 100vh;
-	overflow-y: auto;
-	padding: var(--fd-pad);
-	display: flex;
-	flex-direction: column;
-	gap: 28px;
-}
-
-.foundry-logo {
-	font-family: var(--fd-mono);
-	font-weight: 700;
-	font-size: var(--fd-subheading);
-	line-height: 1.05;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
-	color: var(--fd-ember);
-}
-.foundry-logo span { display: block; }
 
 .foundry-nav-title {
 	display: flex;
@@ -348,8 +215,6 @@ body.foundry-page {
 	border-bottom: 1px solid var(--fd-bone);
 }
 
-.foundry-nav { display: flex; flex-wrap: wrap; gap: 6px; }
-
 /* Tag nav: permukaan terbalik bone-white di atas kanvas hitam. */
 .foundry-tag {
 	display: inline-flex;
@@ -369,31 +234,6 @@ body.foundry-page {
 	box-shadow: inset 0 0 0 1px var(--fd-bone);
 }
 .foundry-tag em { font-style: normal; opacity: .6; }
-
-.foundry-sidebar-foot {
-	margin-top: auto;
-	padding-top: 20px;
-	border-top: 1px solid var(--fd-soot);
-	font-size: var(--fd-caption);
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--fd-ash-text);
-	display: grid;
-	gap: 6px;
-}
-.foundry-sidebar-foot a:hover { color: var(--fd-bone); }
-
-/* Garis pemisah vertikal dipasang di KANVAS, bukan di sidebar.
- *
- * Sidebar-nya position: sticky dengan align-self: start, jadi tingginya hanya
- * setinggi isinya sendiri — border-right di sana berhenti di tengah halaman
- * dan terlihat seperti garis yang putus. Kanvas selalu setinggi konten
- * terpanjang, jadi border-left di sini membentang penuh seperti yang
- * dimaksud DESIGN3 ("fixed-left sidebar ... canvas extends right"). */
-.foundry-canvas {
-	min-width: 0;
-	border-left: 1px solid var(--fd-chalk);
-}
 
 /* --- Hero -------------------------------------------------------------- */
 .foundry-hero { padding: var(--fd-section-gap) var(--fd-pad); }
@@ -608,11 +448,6 @@ body.foundry-page {
 	background: var(--fd-bone);
 }
 .foundry-tester__size:focus-visible { outline: 2px solid var(--fd-ember); outline-offset: 4px; }
-
-
-
-/* Wadah spesimen milik plugin tidak boleh membawa gaya apa pun sendiri. */
-.foundry-root { display: block; }
 
 .foundry-band__note {
 	max-width: min(50ch, 100%);
@@ -900,38 +735,12 @@ body.foundry-page {
  * menyisakan 120px untuk spesimen. Ia dilipat jadi pita horizontal di atas
  * konten — navigasinya tetap sama, hanya arahnya berubah. */
 @media (max-width: 900px) {
-	.foundry-shell { grid-template-columns: minmax(0, 1fr); }
-	.foundry-sidebar {
-		position: static;
-		max-height: none;
-		/* WAJIB direset bersama max-height. overflow-y: auto di mode desktop
-		 * membuat sidebar jadi wadah scroll; menyetel satu sumbu ke nilai
-		 * non-visible memaksa sumbu lain jadi auto juga, sehingga isi yang
-		 * meluber ke kanan tersembunyi di dalamnya — tidak terlihat mata DAN
-		 * tidak terhitung oleh scrollWidth halaman. Ia menyamarkan masalah,
-		 * bukan menyelesaikannya. */
-		overflow: visible;
-		flex-direction: row;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 12px 20px;
-		border-bottom: 1px solid var(--fd-chalk);
-	}
-	.foundry-canvas { border-left: 0; }
-	.foundry-sidebar-foot {
-		margin-top: 0;
-		padding-top: 0;
-		border-top: 0;
-		grid-auto-flow: column;
-		gap: 14px;
-	}
 	.foundry-nav-title { margin-bottom: 0; }
 }
 
 @media (max-width: 600px) {
 	.foundry { --fd-section-gap: 40px; }
 	.foundry-meta { justify-content: flex-start; }
-	.foundry-sidebar-foot { grid-auto-flow: row; }
 	.foundry .foundry-download .ath-free-download-actions { grid-template-columns: 1fr; }
 	.foundry .foundry-download .ath-free-download-button { justify-self: stretch; width: 100%; }
 	.foundry .foundry-download .ath-free-download-license-info { grid-template-columns: 1fr; }

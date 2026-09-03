@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.34
+Version: 0.9.35
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -35,9 +35,13 @@ Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
 	--color-paper-white: #ffffff;
 	--color-foam-gray: #ebedee;
 	--color-concrete-gray: #b7b7b7;
-	--color-graphite: #333333;
 	--color-mid-ink: #18181d;
-	--color-ash: #858585;
+	/* --color-ash (#858585) DIHAPUS. DESIGN.md menugaskannya sebagai "quiet
+	 * link text", tapi di atas putih ia cuma 3,69:1 — gagal AA untuk teks
+	 * kecil, yang justru satu-satunya perannya. Tidak ada satu pun aturan yang
+	 * memakainya; membiarkannya berarti menyimpan nilai yang siap dipakai
+	 * orang berikutnya dan langsung gagal. Teks redup memakai
+	 * --color-ash-text (#767676 = 4,54:1). */
 
 	/* PENYIMPANGAN SADAR DARI DESIGN.md — dan alasannya:
 	 * Ash #858585 di atas kertas putih cuma 3,69:1. DESIGN.md menugaskannya
@@ -54,7 +58,17 @@ Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
 	--paper: var(--color-paper-white);
 	--ink: var(--color-ink-black);
 	--hairline: var(--color-foam-gray);
+	/* --hairline-strong dipakai untuk DUA hal yang syaratnya berbeda: garis
+	 * pemisah dekoratif (tidak ada syarat kontras) dan batas kontrol form
+	 * (WCAG 1.4.11 menuntut 3:1 karena batas itulah yang memberi tahu di mana
+	 * kolomnya). Terukur #b7b7b7 di atas putih cuma 2,01:1 — gagal untuk peran
+	 * kedua. Nilainya dipertahankan untuk garis, dan kontrol memakai
+	 * --control-border di bawah. */
 	--hairline-strong: var(--color-concrete-gray);
+	/* #949494 = 3,03:1 di atas putih: nilai TERTERANG yang masih lolos 1.4.11,
+	 * jadi kolom isian tetap terlihat ringan dan tidak berubah jadi kotak
+	 * bergaris tebal. */
+	--control-border: #949494;
 	--muted: var(--color-ash-text);
 
 	/* --- Tipografi ---
@@ -85,8 +99,6 @@ Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
 	--tracking-body-sm: 0.196px;
 	--text-body: 16px;
 	--leading-body: 1.5;
-
-	--font-weight-light: 300;
 	--font-weight-regular: 400;
 	--font-weight-medium: 500;
 
@@ -991,7 +1003,9 @@ button[type="submit"], input[type="submit"],
 	max-width: 32ch;
 	margin-top: var(--spacing-12);
 }
-.footer-grid h5 {
+/* h2, bukan h5 — lihat alasannya di template-parts/footer/menus.php.
+ * Ukurannya tetap 12px, jadi tampilannya tidak berubah. */
+.footer-grid h2 {
 	font-size: var(--text-caption);
 	font-weight: var(--font-weight-regular);
 	letter-spacing: var(--tracking-caption);
@@ -1395,7 +1409,9 @@ input[type="text"], input[type="email"], input[type="url"], input[type="search"]
 input[type="tel"], input[type="password"], input[type="number"], textarea, select {
 	width: 100%;
 	padding: var(--spacing-12) var(--spacing-16);
-	border: 1px solid var(--hairline-strong);
+	/* --control-border, bukan --hairline-strong: batas kolom isian harus
+	 * memenuhi 3:1 (WCAG 1.4.11). Lihat catatannya di blok token. */
+	border: 1px solid var(--control-border);
 	border-radius: var(--radius-sm);
 	font-family: var(--font-ui);
 	font-size: var(--text-body-sm);
@@ -2091,7 +2107,7 @@ form.hero-search input[type="search"]:focus-visible {
 	letter-spacing: -.045em;
 }
 .editorial-masthead h1 { font-size: clamp(76px, 13vw, 160px); }
-.editorial-masthead > p:last-child { max-width: 34ch; margin: 0 0 12px; color: #7c7c7c; line-height: 1.5; }
+.editorial-masthead > p:last-child { max-width: 34ch; margin: 0 0 12px; color: #6a6a6a; line-height: 1.5; }
 .editorial-masthead--archive { border-bottom: 1px solid #bdbdbd; margin-bottom: 56px; }
 .editorial-masthead--archive .archive-description { margin: 0 0 12px; }
 
@@ -2110,7 +2126,7 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-card__image img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; transition: transform 420ms ease; }
 .editorial-card__image:hover img { transform: scale(1.018); }
 .editorial-card__copy { padding-top: 24px; }
-.editorial-card__meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #7c7c7c; }
+.editorial-card__meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #6a6a6a; }
 .editorial-card__meta a { color: #111118; border-bottom: 1px solid #333; }
 .editorial-card h2 { margin: 16px 0 16px; font-family: var(--font-editorial); font-size: clamp(36px, 4.2vw, 64px); line-height: 1.03; font-weight: 400; letter-spacing: -.035em; }
 .editorial-card h2 a { color: #111118; }
@@ -2134,7 +2150,7 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-single__byline img { border-radius: 50%; }
 .editorial-single__hero { margin-top: 64px; }
 .editorial-single__hero img { display: block; width: 100%; max-height: 820px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 999px; }
-.editorial-single__hero figcaption { max-width: 760px; margin: 12px auto 0; color: #7c7c7c; font-size: 12px; letter-spacing: .05em; }
+.editorial-single__hero figcaption { max-width: 760px; margin: 12px auto 0; color: #6a6a6a; font-size: 12px; letter-spacing: .05em; }
 .editorial-single__body { width: min(100% - 32px, 760px); margin: 88px auto; font-size: 18px; line-height: 1.72; }
 .editorial-single__body > p:first-child::first-letter { float: left; margin: .08em .12em 0 0; font-family: var(--font-editorial); font-size: 5.4em; line-height: .72; }
 .editorial-single__body h2,
@@ -2180,7 +2196,7 @@ form.hero-search input[type="search"]:focus-visible {
 .editorial-single .post-navigation { margin-top: 64px; }
 .editorial-single .post-navigation .nav-links { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .editorial-single .post-navigation a { display: flex; flex-direction: column; gap: 8px; padding: 24px; border: 1px solid #111118; border-radius: 24px; color: #111118; }
-.editorial-single .post-navigation span { font-size: 11px; letter-spacing: .107em; text-transform: uppercase; color: #7c7c7c; }
+.editorial-single .post-navigation span { font-size: 11px; letter-spacing: .107em; text-transform: uppercase; color: #6a6a6a; }
 .editorial-single .post-navigation strong { font-family: var(--font-editorial); font-size: 24px; font-weight: 400; }
 .editorial-comments { width: min(100% - 32px, 760px); margin: 0 auto 88px; }
 .editorial-related { padding: 96px 0 112px; background: #f4f4f2; }

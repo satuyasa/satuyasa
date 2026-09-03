@@ -1726,3 +1726,101 @@ og:image tanpa width/height/alt dan mundur ke logo situs yang biasanya kecil;
 tidak ada schema Organization/WebSite; tidak ada Article schema untuk artikel
 blog; dan judul kolom footer memakai <h5> sehingga struktur judul melompat
 2->5 di setiap halaman (temuan dari audit total sebelumnya).
+
+== v0.9.35 - menutup daftar "belum dikerjakan" ==
+
+Pertanyaannya wajar: kenapa ada temuan yang saya tandai lalu tinggalkan.
+Untuk sebagian besar, tidak ada alasan yang bagus. Semuanya kecil dan bisa
+dikerjakan; berikut hasilnya.
+
+SEO YANG TERTINGGAL
+
+og:image kini lengkap dengan width, height, dan alt. Tanpa ukuran, sebagian
+platform (terutama WhatsApp dan Slack) menunda pengambilan gambar sampai kartu
+sudah terlanjur dirender tanpa gambar — dan tautan pertama yang dibagikan
+justru yang paling sering diklik. Cadangannya juga BUKAN lagi logo situs: logo
+biasanya kecil, sering transparan, dan di kartu berlatar putih tampak seperti
+gambar yang gagal dimuat. Kini memakai aksara-preview-xl (1820x1214), di atas
+anjuran 1200x630.
+
+Organization + WebSite JSON-LD, dicetak SEKALI di halaman depan saja.
+Mengulanginya di seluruh situs tidak menambah apa pun bagi mesin pencari dan
+hanya memberati setiap dokumen. sameAs diambil dari menu "Footer - Social"
+kalau sudah diisi — itu satu-satunya tempat di situs yang tahu akun resminya,
+jadi tidak ada daftar kedua yang bisa basi.
+
+Article JSON-LD untuk artikel blog, hanya post type 'post'. Halaman statis
+sengaja tidak diberi Article: About dan Privacy bukan tulisan bertanggal
+dengan penulis, dan memberinya schema Article berarti mengklaim sesuatu yang
+tidak benar. datePublished dan dateModified keduanya dicetak; tanpa yang kedua,
+artikel yang direvisi tetap terbaca seumur tanggal terbitnya.
+
+AKSESIBILITAS
+
+Judul kolom footer <h5> menjadi <h2>. Footer ada di setiap halaman, jadi
+lompatan tingkat 2->5 (dan 1->5 di halaman 404) terjadi di mana-mana. Pembaca
+layar memakai daftar judul untuk melompat antar bagian, dan tingkat yang
+dilewati membuat daftar itu berbohong soal susunan halaman. Ukuran visualnya
+tidak berubah sedikit pun — .footer-grid h5 sudah menetapkan 12px sendiri dan
+selektornya tinggal mengikuti elemen barunya. Diukur ulang: lompatan hilang di
+seluruh halaman.
+
+Kontras, dua yang gagal di audit total:
+
+    teks editorial  #7c7c7c -> #6a6a6a   4,17 -> 5,41 (dan 4,91 di atas #f4f4f2)
+    border kontrol  #b7b7b7 -> #949494   2,01 -> 3,03
+
+Yang kedua perlu penjelasan. --hairline-strong dipakai untuk DUA hal dengan
+syarat berbeda: garis pemisah dekoratif (tidak ada syarat kontras) dan batas
+kolom isian (WCAG 1.4.11 menuntut 3:1, karena batas itulah yang memberi tahu di
+mana kolomnya). Menaikkan tokennya akan menebalkan seluruh garis rambut di
+situs. Jadi nilainya dipertahankan untuk garis, dan kontrol memakai token baru
+--control-border. #949494 adalah nilai TERTERANG yang masih lolos, supaya
+kolom isian tetap ringan dan tidak berubah jadi kotak bergaris tebal.
+
+KODE MATI
+
+238 baris chrome Foundry lama dihapus dari foundry.css — sidebar, ticker, logo,
+nav, shell, root, canvas, dan .ath-free-live-preview yang ternyata tidak pernah
+dicetak plugin (plugin mencetak .ath-free-download-*). Berkasnya 1039 -> 855
+baris. Ikut hilang: --fd-max dan --fd-sidebar, yang hanya melayani tata letak
+sidebar itu.
+
+--color-ash (#858585) dihapus. DESIGN.md menugaskannya sebagai "quiet link
+text", tapi di atas putih ia 3,69:1 — gagal AA untuk teks kecil, yang justru
+satu-satunya perannya. Tidak ada aturan yang memakainya; membiarkannya berarti
+menyimpan nilai yang siap dipakai orang berikutnya dan langsung gagal.
+
+--color-graphite, --font-weight-light, --fd-radius-card, --fd-ash: dihapus,
+tidak dipakai apa pun.
+
+--spacing-112/136/160 SENGAJA dipertahankan walau belum dipakai: ketiganya
+bagian resmi skala spacing di DESIGN.md, bukan sisa.
+
+searchform.php DIBUAT. Tanpa berkas ini WordPress mencetak formulir bawaannya
+di tempat yang tidak terduga — hasil pencarian kosong, halaman 404, dan widget
+mana pun yang memanggil get_search_form(). Bentuknya meminjam .hero-search yang
+sudah ada, bukan gaya baru.
+
+SATU YANG SENGAJA TIDAK DIKERJAKAN, DAN ALASANNYA
+
+Warna kromatik di bagian editorial (#fef199 kuning 98% saturasi pada tombol
+ajakan footer, dan lima hitam kebiruan #111118 / #33333b / #292d35 / #18181d /
+#111318). Ini satu-satunya sisa yang punya alasan sungguhan: DESIGN3
+membenarkan #ff4d00 dan #e2e8f0 secara eksplisit, DESIGN.md membenarkan #ebedee
+dan #18181d — tapi palet editorial berasal dari mockup DESIGN-2 yang TIDAK ADA
+di repo. Mengubahnya ke akromatik atau membiarkannya sama-sama keputusan
+desain, dan tanpa dokumen rujukan saya akan menebak. Itu keputusan Anda, bukan
+tebakan saya.
+
+SATU TEMUAN LAMA YANG TERNYATA SALAH
+
+Audit total menyebut "2 tautan tanpa nama yang bisa dibaca" di arsip font.
+Ditelusuri sampai tuntas: itu .sp-specimen, dan templatenya MEMANG menyetel
+aria-label="View {judul}" (font-specimen-row.php:42). Fixture saya yang
+judulnya kosong. Bukan temuan.
+
+REGRESI
+
+Jarak vertikal 24 halaman: tidak berubah sama sekali. Luber/gutter di 9 lebar:
+sama seperti sebelumnya. Lint PHP seluruh tema lolos.
