@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.29
+Version: 0.9.30
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -1218,7 +1218,26 @@ ul.page-numbers > *,
    halaman satu-dua paragraf itu tidak terasa; untuk Privacy Policy dua belas
    bagian, itu membuat dokumennya tidak bisa dipindai.
 ======================================================================= */
-.entry-content { font-size: var(--text-body); line-height: var(--leading-body); max-width: var(--measure); }
+/* margin-inline: auto — kolomnya DIPUSATKAN, bukan menempel ke kiri.
+ *
+ * Draf 0.9.29 memasang max-width tanpa ini, dan hasilnya kolom prosa menempel
+ * kiri dengan ruang kosong yang tumbuh terus ke kanan: 564px di 1280,
+ * 724px di 1440, 1204px di 1920, 1844px di 2560. Di layar lebar halaman
+ * Privacy Policy tampak seperti gagal memuat separuh isinya.
+ *
+ * Dan tema ini SUDAH memutuskan hal itu di dua tempat sebelum saya:
+ *
+ *   .wrap--measure        { max-width: var(--measure); margin: 0 auto; }
+ *   .editorial-single__body { width: min(100% - 32px, 760px); margin: 88px auto; }
+ *
+ * Kolom prosa di tema ini dipusatkan. Yang saya tambahkan kemarin adalah pola
+ * KETIGA yang berbeda dari keduanya, di berkas yang sama. */
+.entry-content {
+	font-size: var(--text-body);
+	line-height: var(--leading-body);
+	max-width: var(--measure);
+	margin-inline: auto;
+}
 
 /* Ritme judul di dalam prosa. em, bukan px: jaraknya ikut ukuran judulnya
  * sendiri, jadi h2 dapat ruang lebih lapang daripada h3 tanpa dua angka
@@ -1260,6 +1279,10 @@ ul.page-numbers > *,
 .page .entry-header,
 .page-template .entry-header {
 	max-width: var(--measure);
+	/* Judul ikut dipusatkan bersama isinya. Kalau hanya isinya yang bergeser,
+	 * judul dan paragraf pertama tidak lagi berbagi tepi kiri — dan tepi kiri
+	 * yang sama itulah yang membuat keduanya terbaca sebagai satu dokumen. */
+	margin-inline: auto;
 	margin-bottom: var(--component-rhythm);
 	padding-bottom: var(--spacing-24);
 	border-bottom: 1px solid var(--hairline);
@@ -1967,6 +1990,9 @@ form.hero-search input[type="search"]:focus-visible {
 .no-results,
 .error-404 {
 	max-width: var(--measure);
+	/* Alasan yang sama dengan .entry-content di atas: halaman 404 juga kolom
+	 * prosa, dan sebelumnya ia pun menempel kiri. */
+	margin-inline: auto;
 	padding-block: 24px;
 }
 .no-results .page-content,

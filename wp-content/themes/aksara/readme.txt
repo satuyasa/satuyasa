@@ -1405,3 +1405,53 @@ single-bottom hanya menyisakan glyph panah yang memang sudah dikenal.
 
 Regresi luber/gutter ketiga halaman baru di 9 lebar: bersih. Jarak vertikal 24
 halaman: tidak berubah sama sekali.
+
+== v0.9.30 - kolom prosa dipusatkan (perbaikan regresi 0.9.29) ==
+
+Pertanyaannya sederhana: apakah semua halaman punya ruang kosong di kanan?
+Jawabannya tidak semua — tapi halaman yang punya, punya karena kesalahan yang
+saya buat sendiri satu rilis sebelumnya.
+
+DIUKUR
+
+Halaman prosa (About, Contact, FAQ, Privacy, Terms, Refund, dan 404), isinya
+berhenti di 692px lalu menempel ke KIRI:
+
+    viewport   ruang kosong kanan
+    1280            564px
+    1440            724px
+    1920           1204px
+    2560           1844px
+
+Halaman katalog, Home, dan indeks blog: 0 — isinya sampai ke gutter seperti
+seharusnya. Jadi bukan seluruh situs, hanya halaman prosa.
+
+SEBABNYA
+
+0.9.29 memasang max-width: var(--measure) pada .entry-content untuk memperbaiki
+panjang baris 314 karakter, tapi TIDAK memasang margin-inline: auto. Kolomnya
+jadi menempel kiri, dan sisa lebarnya menumpuk seluruhnya di kanan. Di layar
+lebar halaman Privacy Policy tampak seperti gagal memuat separuh isinya.
+
+Yang membuat ini bukan sekadar selera: tema ini SUDAH memutuskan hal itu di dua
+tempat sebelum saya menyentuhnya —
+
+    .wrap--measure          { max-width: var(--measure); margin: 0 auto; }
+    .editorial-single__body { width: min(100% - 32px, 760px); margin: 88px auto; }
+
+Kolom prosa di tema ini dipusatkan. Yang saya tambahkan kemarin adalah pola
+KETIGA yang berbeda dari keduanya, di berkas yang sama.
+
+SEKARANG
+
+margin-inline: auto dipasang pada .entry-content, pada .entry-header halaman
+(supaya judul dan paragraf pertama tetap berbagi tepi kiri — tepi kiri yang
+sama itulah yang membuat keduanya terbaca sebagai satu dokumen), dan pada
+.no-results/.error-404 yang juga menempel kiri sejak sebelum rilis ini.
+
+Terukur sesudahnya: 294px kiri dan 294px kanan di 1280, 614/614 di 1920,
+934/934 di 2560. Simetris di setiap lebar.
+
+Regresi luber/gutter 28 halaman: sama seperti sebelumnya (empat yang bertanda
+adalah scroll di DALAM elemen yang sudah dikenal, bukan halaman meluber).
+Jarak vertikal: tidak berubah sama sekali.
