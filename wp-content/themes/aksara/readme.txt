@@ -1524,3 +1524,63 @@ CATATAN UNTUK PEMILIK SITUS
 Kalau situs Anda masih memakai tema 0.9.19 atau lebih lama, spesimen free font
 Anda memang berfungsi — dan MEMASANG 0.9.20 sampai 0.9.30 akan membuatnya
 hilang. Lompat langsung ke 0.9.31.
+
+== v0.9.32 - alat diagnosis: kenapa badge diskon menampilkan 31% padahal diketik 30% ==
+
+BADGE-NYA TIDAK SALAH HITUNG. HARGANYA YANG MELESET.
+
+Dua sebab yang saling menumpuk, keduanya diverifikasi di sumber.
+
+1. PERSEN YANG ANDA KETIK TIDAK PERNAH DISIMPAN
+
+Kolom "Discount %" di matriks harga Authentype tidak punya atribut name
+(includes/admin-metaboxes.php:487):
+
+    <input type="number" class="ath-matrix-discount-input" step="0.01"
+           min="0" max="95" value="..." placeholder="Optional helper">
+
+Tanpa name, ia tidak ikut terkirim saat disimpan. Ia hanya alat bantu di
+peramban: Anda ketik 30, JavaScript menghitung harga jual, dan yang masuk
+basis data cuma harga normal + harga jual. Nilai 30 itu sendiri hilang.
+
+Sesudah itu SETIAP tampilan persen menghitung ulang dari dua harga tadi —
+di shortcode PHP, di specimen.js, dan di badge tema — dengan rumus yang sama:
+
+    round( ( ( normal - jual ) / normal ) * 100 )
+
+Rumus itu benar. Tapi karena pembulatan ke bilangan bulat, badge berbunyi 31%
+begitu harga jual turun ke 0,695 x normal — hanya 0,5% di bawah 70%:
+
+    harga 39, diskon 30% tepat = 27,30
+    diketik rapi jadi 27       -> (39-27)/39 = 30,77% -> tampil 31%
+
+Makin kecil harganya makin sempit tolerannya. Pada 19, harga jual 13 (dari
+13,30) sudah tampil 32%. Pada harga rupiah enam digit selisih seribu perak
+tidak berpengaruh sama sekali.
+
+2. TEMA MENAMPILKAN NILAI TERTINGGI DARI SELURUH VARIASI
+
+aksara_product_discount_data() mengumpulkan persen setiap variasi lalu memakai
+max(). Satu sel gaya x lisensi yang meleset, dari puluhan sel, sudah cukup
+mengubah badge seluruh produk. Kalau semuanya seragam labelnya "-30%"; kalau
+tidak, "Up to 31% off".
+
+ALAT BARU: Products > Discount audit
+
+Layar baca-saja yang menampilkan, per variasi: harga normal, harga jual,
+diskon SEBENARNYA sampai dua desimal, angka yang ditampilkan sesudah
+dibulatkan, dan harga jual yang menghasilkan angka bulat persis. Baris yang
+menyimpang disorot. Tidak menulis apa pun dan tidak mengubah harga.
+
+Sengaja tidak memakai get_variation_prices( true ) seperti badge-nya: argumen
+itu menyalakan penyesuaian pajak dan pembulatan tampilan, sedangkan di layar
+diagnosis kita justru ingin melihat angka yang tersimpan apa adanya.
+
+KENAPA TIDAK "DIPERBAIKI" DI TEMA
+
+Membulatkan badge dengan toleransi, atau menampilkan persen terendah, akan
+membuat badge berbohong: diskonnya memang benar-benar 30,77%. Perbaikan yang
+jujur ada di data — samakan harga jualnya — dan kolom terakhir alat ini
+memberi angkanya. Menyimpan persen yang diketik admin akan menjadi perbaikan
+yang lebih baik lagi, tapi itu harus dikerjakan di plugin Authentype, dan
+tema tidak boleh menyunting plugin pihak ketiga.

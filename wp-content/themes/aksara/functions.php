@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AKSARA_THEME_VERSION', '0.9.31' );
+define( 'AKSARA_THEME_VERSION', '0.9.32' );
 define( 'AKSARA_THEME_DIR', get_template_directory() );
 define( 'AKSARA_THEME_URI', get_template_directory_uri() );
 
@@ -154,6 +154,7 @@ if ( is_admin() ) {
 	// Hanya di admin: layar ini tidak punya urusan apa pun di sisi pengunjung,
 	// dan memuatnya di setiap permintaan halaman depan cuma menambah beban.
 	require AKSARA_THEME_DIR . '/inc/starter-pages-admin.php';
+	require AKSARA_THEME_DIR . '/inc/discount-audit.php';
 }
 
 /**
