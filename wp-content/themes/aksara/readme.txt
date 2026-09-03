@@ -1231,3 +1231,70 @@ berwarna - sistemnya akromatik.
 Regresi: 24 halaman diukur ulang, jarak vertikalnya tidak berubah sama sekali
 (position: relative pada <li> tidak menggeser apa pun), dan regresi
 luber/gutter di 9 lebar memberi hasil sama persis seperti sebelumnya.
+
+== v0.9.28 - bagian Free Downloads di Home ==
+
+LETAKNYA: SESUDAH KATALOG BERBAYAR, SEBELUM .trust
+
+Urutannya disengaja dan itu keputusan dagang, bukan tata letak. Bagian ini
+ajakan penutup: pengunjung melihat dulu apa yang dijual, baru ditawari titik
+masuk gratis. Ditaruh di atas, ia akan menyerap perhatian sebelum satu pun
+produk berbayar sempat dilihat.
+
+BENTUKNYA: EMPAT KARTU, BUKAN PITA SPESIMEN
+
+Dua hal yang sengaja TIDAK dilakukan, dan alasannya:
+
+1. Tidak memakai template-parts/free-font-row.php. Pita spesimen di arsip Free
+   Font hidup di dalam lingkup .foundry - warna, jarak, dan tipografinya
+   seluruhnya dari variabel yang hanya ada di assets/css/foundry.css. Berkas
+   itu sengaja hanya dimuat di halaman free download karena menarik DUA webfont
+   Google. Memakainya di Home berarti membebani halaman paling ramai situs
+   dengan dua permintaan font demi satu bagian.
+
+2. Tidak menampilkan spesimen. Tepat di atasnya sudah ada enam spesimen font
+   berbayar setinggi layar. Blok spesimen kedua untuk font gratis akan membuat
+   yang gratis terlihat setara dengan yang dijual, di halaman yang tugasnya
+   justru menjual. Spesimen sungguhannya tetap ada, satu klik jauhnya.
+
+Kartunya memakai kelas yang SAMA dengan .asset-card, jadi ia berbaris persis
+dengan grid template & element di atasnya tanpa satu pun aturan grid baru.
+Empat item = satu baris penuh di desktop, dua kolom di bawah 980px, satu kolom
+di bawah 560px - persis seperti grid di atasnya.
+
+Barisnya berbunyi "Free · Font · SIL OFL 1.1": harga diganti status, dan
+bagian yang bisa kosong ditaruh di belakang supaya tidak pernah ada pemisah
+menggantung di depan. Kartu tanpa gambar unggulan menampilkan nama rilis kecil
+dan redup, bukan kotak abu-abu kosong dan bukan nama yang dicetak besar - ini
+toko huruf, nama font berukuran besar bisa dikira wujud fontnya.
+
+Seluruh bagian tidak dicetak kalau belum ada free download terbit. Judul
+dengan grid kosong di bawahnya lebih buruk daripada tidak ada bagiannya.
+
+.section--last DIHAPUS, DAN ITU BAGIAN YANG PALING PENTING DI RILIS INI
+
+Kelas itu menandai satu bagian TERTENTU sebagai yang terakhir supaya garis
+rambutnya tidak bertumpuk dengan border-top milik .trust. Menyisipkan bagian
+baru di antara keduanya langsung mematahkannya: batas templates->free
+kehilangan garis, batas free->trust punya dua.
+
+Dan mana yang terakhir memang TIDAK bisa diketahui di muka - bagian aset dan
+bagian free sama-sama hanya tampil kalau ada isinya. Jadi masalahnya bukan
+kelas yang salah pasang, melainkan pendekatan yang menuntut jawaban yang tidak
+ada.
+
+Aturannya sekarang satu arah: setiap bagian menggambar garis di BAWAHnya, dan
+tidak ada yang menggambar di atasnya. .trust karena itu kehilangan
+border-top-nya. Terukur di Chromium, dengan DAN tanpa bagian free: setiap
+batas mendapat tepat 1px.
+
+CATATAN AUDIT
+
+Kepala bagian di Home memang rata tengah dan bertumpuk, bukan kiri-kanan
+seperti di halaman lain. Sempat saya kira itu bug ketika melihat hasil render;
+ternyata ".home .section-head { flex-direction: column; align-items: center }"
+di style.css:564 memang menetapkannya begitu, seirama dengan .home .hero dan
+.home .cat-card yang juga rata tengah. Tidak diubah.
+
+Regresi luber/gutter Home di 9 lebar, dengan dan tanpa bagian free: bersih
+seluruhnya. Jarak vertikal 24 halaman diukur ulang: tidak berubah sama sekali.

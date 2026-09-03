@@ -110,7 +110,7 @@ if ( function_exists( 'aksara_query_products_by_type' ) ) {
 }
 if ( $assets_query && $assets_query->have_posts() ) :
 ?>
-<section class="section section--last">
+<section class="section">
 	<div class="wrap">
 		<div class="section-head">
 			<h2><?php esc_html_e( 'Latest templates & elements', 'aksara' ); ?></h2>
@@ -125,6 +125,49 @@ if ( $assets_query && $assets_query->have_posts() ) :
 				wp_reset_postdata();
 				?>
 			</div>
+	</div>
+</section>
+<?php endif; ?>
+
+<?php
+/*
+ * FREE DOWNLOADS — ditempatkan SESUDAH katalog berbayar dan SEBELUM .trust.
+ *
+ * Urutannya disengaja. Bagian ini adalah ajakan penutup, bukan etalase utama:
+ * pengunjung melihat dulu apa yang dijual, baru ditawari titik masuk gratis.
+ * Ditaruh di atas, ia akan menyerap perhatian sebelum satu pun produk berbayar
+ * sempat dilihat.
+ *
+ * Empat item, satu baris penuh di desktop (.asset-grid = 4 kolom), memakai
+ * kartu yang sama bentuknya dengan grid template & element di atasnya supaya
+ * keduanya berbaris rapi. Alasan kartunya bukan pita spesimen ada di
+ * template-parts/free-download-card.php.
+ *
+ * $type dikosongkan supaya SEMUA jenis free download ikut, bukan hanya font —
+ * aksara_query_free_fonts() menyaring per tipe hanya kalau argumennya diisi.
+ *
+ * Kalau belum ada satu pun free download terbit, seluruh bagian ini tidak
+ * dicetak. Judul bagian dengan grid kosong di bawahnya lebih buruk daripada
+ * tidak ada bagiannya sama sekali.
+ */
+$free_query = function_exists( 'aksara_query_free_fonts' ) ? aksara_query_free_fonts( 4, 1, '' ) : null;
+if ( $free_query && $free_query->have_posts() ) :
+	?>
+<section class="section section--free">
+	<div class="wrap">
+		<div class="section-head">
+			<h2><?php esc_html_e( 'Free to download', 'aksara' ); ?></h2>
+			<a href="<?php echo esc_url( aksara_free_fonts_archive_url() ); ?>"><?php esc_html_e( 'View all free releases', 'aksara' ); ?></a>
+		</div>
+		<div class="asset-grid">
+			<?php
+			while ( $free_query->have_posts() ) :
+				$free_query->the_post();
+				get_template_part( 'template-parts/free-download-card' );
+			endwhile;
+			wp_reset_postdata();
+			?>
+		</div>
 	</div>
 </section>
 <?php endif; ?>
