@@ -1640,3 +1640,89 @@ memang membulat ke angka itu.
 
 Products > Discount audit (0.9.32) kini memakai floor() yang sama, jadi angka
 di layar diagnosis dan di badge tidak bisa berbeda.
+
+== v0.9.34 - audit SEO: schema halaman font & canonical arsip ==
+
+TEMUAN TERBESAR: HALAMAN KOMERSIAL UTAMA TIDAK PUNYA PRODUCT SCHEMA
+
+Catatan lama di inc/seo.php menyatakan Product structured data "sudah otomatis
+dari WooCommerce core untuk SEMUA WC_Product". Itu benar untuk halaman post
+type 'product' — dan tidak berlaku untuk halaman yang sebenarnya dikunjungi
+pembeli.
+
+WC_Structured_Data mengumpulkan datanya lewat hook
+woocommerce_single_product_summary, dan hook itu hanya berjalan di dalam
+template WooCommerce. Halaman font di situs ini CPT 'ath_font'
+(single-ath_font.php), dan SELURUH daftar menaut ke sana —
+template-parts/font-specimen-row.php bahkan langsung return kalau post
+type-nya bukan ath_font. Diperiksa: tema tidak pernah memicu hook itu, dan
+plugin Authentype tidak mencetak JSON-LD apa pun (dicari 'ld+json' dan
+'schema.org' di seluruh plugin: nihil).
+
+Jadi tidak ada harga, ketersediaan, atau rating di hasil kaya Google untuk
+produk yang paling ingin diperingkat.
+
+Kini tema mencetaknya sendiri, khusus untuk ath_font, dan sengaja tidak
+menyentuh halaman product supaya tidak ada dua blok Product yang bertabrakan.
+Harganya diambil dari produk tertaut, bukan dari post ath_font yang memang
+tidak punya harga; kalau tautannya belum diisi, blok ini TIDAK dicetak sama
+sekali — Product tanpa penawaran lebih buruk daripada tidak ada schema.
+
+Font selalu variabel (gaya x lisensi), jadi dipakai AggregateOffer dengan
+lowPrice/highPrice. Memaksakan satu angka Offer di sana berarti mengiklankan
+harga yang belum tentu bisa dibeli. aggregateRating hanya dicetak kalau
+reviewCount > 0; mencetaknya dengan nilai 0 adalah pelanggaran pedoman Google,
+bukan sekadar kosong.
+
+Ditambah BreadcrumbList: remah roti visualnya sudah lama ada di
+single-ath_font.php tapi tidak pernah punya padanan terstruktur.
+
+TEMUAN KEDUA: ARSIP TIDAK PERNAH PUNYA CANONICAL
+
+rel_canonical() milik WordPress core dibuka dengan
+"if ( ! is_singular() ) return;". Sementara tema ini punya empat parameter URL
+yang semuanya bisa di-crawl:
+
+    ?q=          pencarian di arsip font
+    ?type=       penyaring tipe di arsip free download
+    ?kategori=   penyaring kategori di halaman Template & Element
+    /page/N/     paginasi
+
+Tanpa canonical, setiap kombinasi adalah halaman terpisah dengan isi yang
+sebagian besar sama. Yang dirugikan bukan cuma duplikasi — crawl budget habis
+di kombinasi filter alih-alih di halaman font yang ingin diperingkat.
+
+Kini arsip mendapat canonical. Paginasi TETAP canonical ke dirinya sendiri,
+bukan ke halaman 1: menyatukan semuanya ke halaman 1 akan menyembunyikan font
+di halaman 2 dan seterusnya dari indeks, persis kebalikan dari yang diinginkan
+toko dengan katalog panjang. Hasil pencarian diberi noindex,follow — ia dibuat
+pengunjung, jumlahnya tak terbatas, dan tidak satu pun layak diindeks.
+
+Halaman ?kategori= tidak perlu penanganan tambahan: itu Page, jadi
+rel_canonical() core sudah menunjuk permalink bersihnya.
+
+DUA PERBAIKAN KECIL
+
+Meta description bisa berisi shortcode mentah. get_the_content() mengembalikan
+isi MENTAH dan wp_strip_all_tags() tidak menghapus shortcode karena shortcode
+bukan tag HTML — halaman berisi "[authentype_font_specimen id=12]" akan
+menghasilkan deskripsi berbunyi persis begitu di hasil pencarian. Kini lewat
+strip_shortcodes() lebih dulu.
+
+twitter:card ditambahkan. Twitter/X tidak membaca og:* sendirian; tanpa tag
+ini tautan tampil polos tanpa gambar. summary_large_image kalau ada gambar.
+
+DIUJI
+
+Tujuh kasus dijalankan dengan stub: produk variabel (AggregateOffer low/high),
+tanpa produk tertaut (tidak mencetak apa pun), tanpa harga (tidak mencetak),
+dengan ulasan (aggregateRating ikut), arsip halaman 1, arsip halaman 3
+(canonical ke dirinya sendiri), dan arsip dengan ?q= (noindex tanpa canonical).
+Seluruhnya sesuai.
+
+YANG BELUM DIKERJAKAN
+
+og:image tanpa width/height/alt dan mundur ke logo situs yang biasanya kecil;
+tidak ada schema Organization/WebSite; tidak ada Article schema untuk artikel
+blog; dan judul kolom footer memakai <h5> sehingga struktur judul melompat
+2->5 di setiap halaman (temuan dari audit total sebelumnya).
