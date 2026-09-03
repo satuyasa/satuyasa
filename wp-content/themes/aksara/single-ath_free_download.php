@@ -47,16 +47,49 @@ while ( have_posts() ) :
 			<h1><?php the_title(); ?></h1>
 		</header>
 
-		<?php /* Satu komponen Authentype yang sama dipakai di archive dan single. */ ?>
+		<?php
+		/*
+		 * Canvas langsung + tester, dipulihkan dari 0.9.19. Lihat catatan
+		 * lengkapnya di template-parts/free-font-row.php: shortcode
+		 * authentype_free_font_preview yang dipakai 0.9.20-0.9.30 tidak
+		 * pernah ada di plugin, jadi halaman ini selalu menampilkan
+		 * placeholder.
+		 *
+		 * Kontrol testernya MILIK PLUGIN (.ath-master-text dan .ath-size);
+		 * tema hanya menatanya. Seluruh mesinnya — debounce, antrian render,
+		 * cache — sudah ada di specimen.js, jadi tidak ada satu baris JS pun
+		 * yang perlu ditulis di sini.
+		 */
+		?>
 		<div class="foundry-specimen">
-			<?php if ( $fd_specimen && shortcode_exists( 'authentype_free_font_preview' ) ) : ?>
-				<?php
-				echo do_shortcode( sprintf(
-					'[authentype_free_font_preview id="%d" text="%s" size="136" min_size="24" max_size="220" text_color="#111111" bg_color="#ffffff"]',
-					(int) $fd_id,
-					esc_attr( get_the_title() )
-				) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- shortcode milik plugin meng-escape semua nilai.
-				?>
+			<?php if ( $fd_specimen ) : ?>
+				<div class="ath-specimen ath-specimen-v7" data-font-post-id="<?php echo esc_attr( $fd_specimen['font_id'] ); ?>">
+					<div class="ath-preview-toolbar foundry-tester">
+						<label class="foundry-tester__field">
+							<span class="foundry-tester__label"><?php esc_html_e( 'Type to test', 'aksara' ); ?></span>
+							<input class="ath-master-text foundry-tester__text" type="text"
+								value="<?php echo esc_attr( get_the_title() ); ?>"
+								maxlength="120"
+								placeholder="<?php esc_attr_e( 'Type something…', 'aksara' ); ?>"
+								autocomplete="off" spellcheck="false">
+						</label>
+						<label class="foundry-tester__field foundry-tester__field--size">
+							<span class="foundry-tester__label"><?php esc_html_e( 'Size', 'aksara' ); ?></span>
+							<input class="ath-size foundry-tester__size" type="range" min="24" max="200" step="2" value="150">
+						</label>
+					</div>
+
+					<canvas class="ath-server-canvas"
+						data-sync-master="1"
+						data-font-token="<?php echo esc_attr( $fd_specimen['token'] ); ?>"
+						data-mode="style-text"
+						data-text="<?php echo esc_attr( get_the_title() ); ?>"
+						data-font-size="150"
+						data-fit-single-line="1"
+						aria-label="<?php echo esc_attr( sprintf( __( '%s specimen', 'aksara' ), get_the_title() ) ); ?>"></canvas>
+					<?php aksara_foundry_placeholder( get_the_title(), __( 'Preview unavailable', 'aksara' ), true ); ?>
+					<noscript><?php aksara_foundry_placeholder( get_the_title(), __( 'Preview needs JavaScript', 'aksara' ) ); ?></noscript>
+				</div>
 			<?php else : ?>
 				<?php aksara_foundry_placeholder( get_the_title(), __( 'No specimen linked', 'aksara' ) ); ?>
 			<?php endif; ?>

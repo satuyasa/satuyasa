@@ -138,8 +138,25 @@ function aksara_free_fonts_assets() {
 		aksara_authentype_enqueue_preview();
 	}
 
-	/* Authentype 1.0.7 menghormati data-text-color/data-bg-color langsung.
-	 * Tidak diperlukan lagi skrip penimpa warna atau handler reset kedua. */
+	/*
+	 * Tidak ada skrip tema di sini, dan itu benar — tapi alasan yang dulu
+	 * tertulis di baris ini KELIRU. Bunyinya "Authentype 1.0.7 menghormati
+	 * data-text-color/data-bg-color langsung". Ia tidak. specimen.js baris
+	 * 1259-1260 menimpa keduanya tanpa syarat:
+	 *
+	 *     root.dataset.textColor = "#111111";
+	 *     root.dataset.bgColor   = "#ffffff";
+	 *
+	 * Kebetulan itu PERSIS warna yang diinginkan halaman free font sekarang
+	 * (tinta hitam di atas kertas putih), jadi hasilnya benar walau
+	 * penjelasannya salah. Yang dulu butuh skrip penimpa adalah versi GELAP
+	 * halaman ini; sesudah arsipnya jadi terang, penimpanya memang tidak
+	 * diperlukan lagi.
+	 *
+	 * Dicatat karena komentar yang salah lebih berbahaya daripada tidak ada
+	 * komentar: ia membuat orang berikutnya percaya atribut markup cukup,
+	 * lalu bingung kenapa warnanya tidak berubah.
+	 */
 }
 add_action( 'wp_enqueue_scripts', 'aksara_free_fonts_assets', 20 );
 

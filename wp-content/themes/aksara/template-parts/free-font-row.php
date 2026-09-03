@@ -40,32 +40,60 @@ if ( $fd_specimen && function_exists( 'aksara_authentype_styles' ) ) {
 		</span>
 	</div>
 
-	<?php /* Tester dan token raster dirender oleh shortcode Authentype. */ ?>
+	<?php
+	/*
+	 * CANVAS LANGSUNG, BUKAN SHORTCODE — dan ini pemulihan, bukan gaya baru.
+	 *
+	 * Sampai 0.9.19 blok ini memang mencetak canvas seperti di bawah dan
+	 * spesimennya tampil. Di 0.9.20 saya menggantinya dengan
+	 * do_shortcode('[authentype_free_font_preview ...]'). Shortcode itu TIDAK
+	 * PERNAH ADA di plugin Authentype 1.0.7 — yang terdaftar hanya
+	 * authentype_free_downloads dan authentype_font_specimen. Akibatnya
+	 * shortcode_exists() selalu false dan setiap baris jatuh ke placeholder.
+	 * Perbaikan warna di 0.9.25 pun mengatur PNG yang tidak pernah diminta.
+	 *
+	 * WADAH .ath-specimen-v7 WAJIB ADA. specimen.js hanya menjalankan
+	 * initRoot() pada elemen berkelas itu (baris 1273), dan initRoot itulah
+	 * yang memasang IntersectionObserver yang me-render canvas. Tanpa wadah
+	 * ini canvas tidak pernah dirender — bukan gagal, tapi diam.
+	 *
+	 * data-font-post-id berisi ID ath_font YANG DITAUTKAN, bukan ID free
+	 * download ini: nilai itu dikirim sebagai post_id ke endpoint render, dan
+	 * endpoint menolak apa pun yang bukan ath_font berstatus publish.
+	 *
+	 * Warnanya tidak perlu diatur di sini. initRoot() menimpa textColor dan
+	 * bgColor tanpa syarat ke #111111 di atas #ffffff (specimen.js:1259-1260)
+	 * — tinta hitam di atas kertas putih, persis yang diminta untuk arsip ini.
+	 */
+	?>
 	<div class="foundry-specimen">
-		<?php if ( $fd_specimen && shortcode_exists( 'authentype_free_font_preview' ) ) : ?>
-			<?php
-			/*
-			 * Tinta hitam di atas kertas putih. Dulu di sini tertulis
-			 * #efefef di atas #121212 — sisa dari masa arsip ini masih
-			 * kanvas gelap. Halamannya sudah lama putih (lihat
-			 * .freefonts-archive di foundry.css), tapi warna INI dikirim ke
-			 * server dan ikut terbakar ke dalam PNG-nya, jadi yang muncul
-			 * adalah persegi hitam di atas halaman putih. Latar canvas di
-			 * CSS tidak bisa menolong: PNG-nya menutupi latar itu.
-			 */
-			echo do_shortcode( sprintf(
-				'[authentype_free_font_preview id="%d" text="%s" size="120" min_size="36" max_size="180" text_color="#111111" bg_color="#ffffff"]',
-				(int) $fd_id,
-				esc_attr( get_the_title() )
-			) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- shortcode milik plugin meng-escape semua nilai.
-			?>
+		<?php if ( $fd_specimen ) : ?>
+			<span class="ath-specimen ath-specimen-v7" data-font-post-id="<?php echo esc_attr( $fd_specimen['font_id'] ); ?>">
+				<canvas class="ath-server-canvas"
+					data-font-token="<?php echo esc_attr( $fd_specimen['token'] ); ?>"
+					data-mode="style-text"
+					data-text="<?php echo esc_attr( get_the_title() ); ?>"
+					data-font-size="120"
+					data-fit-single-line="1"
+					aria-label="<?php echo esc_attr( sprintf( __( '%s specimen', 'aksara' ), get_the_title() ) ); ?>"></canvas>
+				<?php
+				/*
+				 * Tiga keadaan gagal, satu komponen, keterangan berbeda.
+				 * Placeholder-nya sengaja terbaca SEBAGAI placeholder supaya
+				 * tidak ada pengunjung yang mengira nama dalam font UI itu
+				 * wujud font yang sedang ditawarkan.
+				 */
+				aksara_foundry_placeholder( get_the_title(), __( 'Preview unavailable', 'aksara' ), true );
+				?>
+				<noscript><?php aksara_foundry_placeholder( get_the_title(), __( 'Preview needs JavaScript', 'aksara' ) ); ?></noscript>
+			</span>
 		<?php else : ?>
 			<?php
 			/*
 			 * Tidak ada ath_font yang ditautkan lewat
-			 * _ath_free_download_related_font, jadi tidak ada token preview
-			 * dan spesimen sungguhan memang tidak bisa dirender. Ini keadaan
-			 * data, bukan kegagalan teknis — keterangannya dibedakan.
+			 * _ath_free_download_related_font, jadi tidak ada token preview.
+			 * Ini keadaan data, bukan kegagalan teknis — keterangannya
+			 * dibedakan.
 			 */
 			aksara_foundry_placeholder( get_the_title(), __( 'No specimen linked', 'aksara' ) );
 			?>

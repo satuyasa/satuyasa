@@ -1455,3 +1455,72 @@ Terukur sesudahnya: 294px kiri dan 294px kanan di 1280, 614/614 di 1920,
 Regresi luber/gutter 28 halaman: sama seperti sebelumnya (empat yang bertanda
 adalah scroll di DALAM elemen yang sudah dikenal, bukan halaman meluber).
 Jarak vertikal: tidak berubah sama sekali.
+
+== v0.9.31 - pulihkan spesimen Free Font (regresi 0.9.20) ==
+
+SAYA YANG MERUSAKNYA, DAN INI CATATANNYA
+
+Sampai 0.9.19 kedua template Free Font mencetak canvas langsung:
+
+    <span class="ath-specimen ath-specimen-v7" data-font-post-id="...">
+      <canvas class="ath-server-canvas" data-font-token="..." ...>
+
+Mekanisme yang sama persis dengan baris spesimen berbayar, dan ia bekerja.
+
+Di 0.9.20 saya menggantinya dengan
+do_shortcode('[authentype_free_font_preview ...]'). Shortcode itu TIDAK PERNAH
+ADA. Plugin Authentype 1.0.7 hanya mendaftarkan dua shortcode:
+
+    authentype_free_downloads    (includes/free-downloads.php:914)
+    authentype_font_specimen     (includes/shortcode-specimen.php:981)
+
+Dicari di seluruh direktori plugin, string "free_font_preview" nihil. Begitu
+juga ath_free_download_preview_data() yang dipanggil aksara_free_font_specimen().
+Jadi shortcode_exists() selalu false dan sejak 0.9.20 setiap baris arsip dan
+setiap halaman tunggal jatuh ke placeholder.
+
+Perbaikan warna spesimen di 0.9.25 karena itu mengatur PNG yang tidak pernah
+diminta. Dan penghapusan blok CSS .foundry-tester di 0.9.26 sebagai "kode mati"
+adalah korban lanjutan: markupnya memang tidak dicetak, tapi penyebabnya bukan
+markup usang melainkan kerusakan di 0.9.20.
+
+Pelajaran yang saya tulis di berkasnya: sebelum menghapus CSS karena kelasnya
+tidak dicetak siapa pun, periksa dulu APAKAH yang menggantikannya benar-benar
+bekerja. Kalau tidak, yang dihapus bukan kode mati melainkan bukti.
+
+YANG DIPULIHKAN
+
+Canvas langsung di kedua template, plus toolbar tester (Type to test + Size) di
+halaman tunggal beserta ~70 baris CSS-nya. Tombol Reset dari 0.9.15 SENGAJA
+tidak dipulihkan: ia bergantung pada assets/js/foundry-tester.js yang memang
+sudah tidak diperlukan, dan kontrol milik plugin sudah cukup.
+
+WARNANYA TIDAK PERLU DIATUR SAMA SEKALI
+
+specimen.js baris 1259-1260 menimpa keduanya tanpa syarat:
+
+    root.dataset.textColor = "#111111";
+    root.dataset.bgColor   = "#ffffff";
+
+Tinta hitam di atas kertas putih — persis yang diminta untuk arsip ini. Jadi
+tidak ada JS tema dan tidak ada atribut warna di markup.
+
+Komentar di inc/free-fonts.php yang berbunyi "Authentype 1.0.7 menghormati
+data-text-color/data-bg-color langsung" juga diperbaiki: ia TIDAK menghormati,
+ia menimpa. Hasilnya kebetulan benar, penjelasannya salah, dan komentar yang
+salah lebih berbahaya daripada tidak ada komentar.
+
+DIPERIKSA
+
+Kontrak markup yang dituntut specimen.js (root .ath-specimen-v7 + canvas
+.ath-server-canvas + data-font-token + data-font-post-id) kini lengkap di
+ketiga template yang memakainya. Tidak ada lagi kode yang memanggil shortcode
+hantu itu — dua rujukan tersisa hanya di dalam komentar penjelasan.
+
+Regresi luber/gutter kedua halaman Free Font di 9 lebar: bersih.
+
+CATATAN UNTUK PEMILIK SITUS
+
+Kalau situs Anda masih memakai tema 0.9.19 atau lebih lama, spesimen free font
+Anda memang berfungsi — dan MEMASANG 0.9.20 sampai 0.9.30 akan membuatnya
+hilang. Lompat langsung ke 0.9.31.
