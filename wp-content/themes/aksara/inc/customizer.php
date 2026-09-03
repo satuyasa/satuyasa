@@ -42,6 +42,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function aksara_mod_defaults() {
 	return array(
+		// Umum
+		'aksara_contact_email'    => '',
+
 		// Header
 		'aksara_logo_height'      => '32',
 		'aksara_topbar_enabled'   => '',
@@ -240,6 +243,25 @@ function aksara_customize_register( $wp_customize ) {
 			'type'    => 'text',
 		) );
 	}
+
+	/* --- Kontak -------------------------------------------------------- */
+	$wp_customize->add_section( 'aksara_contact', array(
+		'title'       => __( 'Contact form', 'aksara' ),
+		'panel'       => 'aksara_panel',
+		'description' => __( 'Where messages from the contact form are sent. The form itself is placed by adding the shortcode [aksara_contact_form] to any page.', 'aksara' ),
+	) );
+
+	$wp_customize->add_setting( 'aksara_contact_email', array(
+		'default'           => $defaults['aksara_contact_email'],
+		'sanitize_callback' => 'sanitize_email',
+		'transport'         => 'refresh',
+	) );
+	$wp_customize->add_control( 'aksara_contact_email', array(
+		'section'     => 'aksara_contact',
+		'label'       => __( 'Send messages to', 'aksara' ),
+		'description' => __( 'Leave empty to use the site administration email.', 'aksara' ),
+		'type'        => 'email',
+	) );
 
 	/* --- Home --------------------------------------------------------- */
 	$wp_customize->add_section( 'aksara_home', array(

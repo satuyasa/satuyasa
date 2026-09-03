@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.28
+Version: 0.9.29
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -1194,7 +1194,168 @@ ul.page-numbers > *,
 	overflow-x: auto;
 }
 
-.entry-content { font-size: var(--text-body); line-height: var(--leading-body); }
+/* =======================================================================
+   HALAMAN DOKUMEN — About, Contact, FAQ, Licenses, Privacy, Terms
+   
+   Halaman-halaman ini isinya prosa panjang, dan sampai 0.9.28 tema tidak
+   punya lapisan tipografi untuk itu sama sekali. Diukur di Chromium pada
+   .entry-content tanpa batas lebar:
+
+       viewport   panjang baris
+       1024        ~120 karakter
+       1440        ~172
+       1920        ~234
+       2560        ~314
+
+   Batas nyaman membaca 45-75 karakter. Di 2560px barisnya empat kali lipat
+   itu — mata kehilangan awal baris berikutnya setiap kali turun. Full-bleed
+   memang bawaan sistem ini (DESIGN.md), tapi DESIGN.md sendiri mengecualikan
+   "prose content", dan --measure sudah ada sejak awal untuk itu; ia hanya
+   tidak pernah dipasang ke .entry-content.
+
+   Judul <h2> juga margin-atasnya 0 (dari reset "h1..h6 { margin: 0 0 .5em }"),
+   jadi bagian baru menempel ke paragraf terakhir bagian sebelumnya. Untuk
+   halaman satu-dua paragraf itu tidak terasa; untuk Privacy Policy dua belas
+   bagian, itu membuat dokumennya tidak bisa dipindai.
+======================================================================= */
+.entry-content { font-size: var(--text-body); line-height: var(--leading-body); max-width: var(--measure); }
+
+/* Ritme judul di dalam prosa. em, bukan px: jaraknya ikut ukuran judulnya
+ * sendiri, jadi h2 dapat ruang lebih lapang daripada h3 tanpa dua angka
+ * terpisah yang bisa hanyut. */
+.entry-content h2 { font-size: 28px; margin-top: 1.8em; }
+.entry-content h3 { font-size: 20px; margin-top: 1.6em; }
+.entry-content h4 { font-size: var(--text-body); margin-top: 1.5em; }
+.entry-content > :first-child { margin-top: 0; }
+
+.entry-content ul,
+.entry-content ol { margin: 0 0 1.2em; padding-left: 1.4em; }
+.entry-content li { margin-bottom: .4em; }
+.entry-content li > ul,
+.entry-content li > ol { margin-top: .4em; margin-bottom: 0; }
+
+.entry-content blockquote {
+	margin: var(--spacing-24) 0;
+	padding-left: var(--spacing-20);
+	border-left: 1px solid var(--hairline-strong);
+	color: var(--muted);
+}
+.entry-content hr { margin: var(--spacing-36) 0; }
+.entry-content table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm); }
+.entry-content th,
+.entry-content td { padding: var(--spacing-12) 0; border-bottom: 1px solid var(--hairline); text-align: left; vertical-align: top; }
+.entry-content th { font-weight: var(--font-weight-medium); }
+
+/* Judul halaman disamakan dengan judul arsip (clamp 40-72px). Sebelumnya
+ * .entry-title 36px mati, jadi judul "Privacy Policy" tampil jauh lebih kecil
+ * daripada judul kategori blog di situs yang sama. */
+.page .entry-title,
+.page-template .entry-title {
+	font-size: clamp(40px, 6vw, 72px);
+	line-height: 1;
+	font-weight: var(--font-weight-regular);
+	letter-spacing: -0.02em;
+	margin: 0;
+}
+.page .entry-header,
+.page-template .entry-header {
+	max-width: var(--measure);
+	margin-bottom: var(--component-rhythm);
+	padding-bottom: var(--spacing-24);
+	border-bottom: 1px solid var(--hairline);
+}
+/* Baris "Last updated" di halaman dokumen. Tanggalnya dari post_modified,
+ * jadi ia tidak bisa basi diam-diam seperti tanggal yang diketik manual. */
+.doc-meta {
+	margin-top: var(--spacing-12);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+/* --- FAQ -----------------------------------------------------------------
+ * <details>/<summary> asli, bukan akordeon buatan sendiri. Peramban sudah
+ * memberi peran, keadaan terbuka/tertutup, dan dukungan keyboard secara
+ * bawaan — tanpa satu baris JS, dan tanpa risiko aria-expanded yang tidak
+ * sinkron seperti yang dihindari di dropdown menu utama.
+ *
+ * Isi FAQ ditulis admin di editor sebagai blok HTML; kelasnya sengaja pendek
+ * dan mudah diingat. */
+.entry-content .faq {
+	border-bottom: 1px solid var(--hairline);
+	padding: var(--spacing-16) 0;
+}
+.entry-content .faq:first-of-type { border-top: 1px solid var(--hairline); }
+.entry-content .faq > summary {
+	cursor: pointer;
+	list-style: none;
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--spacing-16);
+	font-weight: var(--font-weight-medium);
+}
+.entry-content .faq > summary::-webkit-details-marker { display: none; }
+/* Penanda +/- dari teks, bukan gambar: ia ikut warna dan ukuran barisnya
+ * sendiri dan tidak perlu berkas apa pun. */
+.entry-content .faq > summary::after {
+	content: "+";
+	font-variant-numeric: tabular-nums;
+	color: var(--muted);
+}
+.entry-content .faq[open] > summary::after { content: "\2212"; }
+.entry-content .faq > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.entry-content .faq > :not(summary) { margin-top: var(--spacing-12); }
+.entry-content .faq > :last-child { margin-bottom: 0; }
+
+/* --- Formulir kontak ------------------------------------------------------
+ * Kolomnya memakai gaya input global yang sudah ada; yang ditambahkan di sini
+ * hanya susunan dan label. Lebarnya mengikuti --measure yang sama dengan
+ * prosa di sekitarnya, jadi baris isian tidak melebar melampaui teks yang
+ * menjelaskannya. */
+.contact-form { max-width: var(--measure); margin: var(--spacing-36) 0; }
+.contact-form__field { margin-bottom: var(--spacing-20); }
+.contact-form__field label {
+	display: block;
+	margin-bottom: 8px;
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.contact-form textarea { resize: vertical; }
+
+/* Honeypot. Menumpang .screen-reader-text yang sudah ada di tema, bukan
+ * aturan sembunyi baru.
+ *
+ * Menyembunyikan sesuatu secara visual tapi tetap ada di DOM adalah masalah
+ * yang sudah dipecahkan satu kali di berkas ini, dan salinan kedua akan
+ * melenceng. Draf pertama di sini memang begitu — sempat memakai
+ * left:-9999px, yang meninggalkan elemen selebar sepuluh ribu piksel di luar
+ * sisi kiri setiap halaman kontak; lalu clip-path 1px, yang masih tercatat
+ * sebagai pelanggar di harness responsif. Keduanya menutupi pelanggar
+ * sungguhan kalau suatu saat ada.
+ *
+ * Yang tersisa di sini cuma jarak, karena penyembunyiannya bukan urusan
+ * komponen ini. Kolomnya sendiri tetap kolom biasa di HTML — itu justru
+ * syarat honeypot: bot membaca type="hidden" lalu melewatinya, sedangkan
+ * kolom "normal" yang tidak tergambar akan tetap diisi. */
+.contact-form__trap { margin: 0; }
+
+.contact-notice {
+	max-width: var(--measure);
+	margin: var(--spacing-24) 0;
+	padding: var(--spacing-16) var(--spacing-20);
+	border: 1px solid var(--hairline-strong);
+	border-left-width: 3px;
+	border-radius: var(--radius-sm);
+	font-size: var(--text-body-sm);
+}
+/* Berhasil dan gagal dibedakan oleh KETEBALAN garis kiri dan kata-katanya,
+ * bukan oleh warna hijau/merah — sistem ini akromatik, dan pembeda yang
+ * hanya berupa warna juga gagal untuk pembaca yang buta warna. */
+.contact-notice--error { border-left-width: 6px; font-weight: var(--font-weight-medium); }
 .entry-content a { border-bottom: 1px solid var(--hairline-strong); }
 .entry-thumbnail img { border-radius: var(--radius-sm); margin-bottom: var(--spacing-24); }
 

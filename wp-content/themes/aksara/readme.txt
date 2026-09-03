@@ -1298,3 +1298,110 @@ di style.css:564 memang menetapkannya begitu, seirama dengan .home .hero dan
 
 Regresi luber/gutter Home di 9 lebar, dengan dan tanpa bagian free: bersih
 seluruhnya. Jarak vertikal 24 halaman diukur ulang: tidak berubah sama sekali.
+
+== v0.9.29 - halaman About, Contact, FAQ, Licenses, Privacy, Terms, Refund ==
+
+TEMANYA BELUM PUNYA LAPISAN TIPOGRAFI UNTUK PROSA PANJANG
+
+Sebelum satu halaman pun dibuat, ada yang harus dibereskan dulu. .entry-content
+tidak punya batas lebar sama sekali. Diukur di Chromium dengan paragraf
+sungguhan:
+
+    viewport   panjang baris
+    1024        ~120 karakter
+    1440        ~172
+    1920        ~234
+    2560        ~314
+
+Batas nyaman membaca 45-75. Di 2560px barisnya empat kali lipat itu. Full-bleed
+memang bawaan sistem ini, tapi DESIGN.md sendiri mengecualikan prosa, dan
+--measure sudah ada sejak awal untuk itu - ia hanya tidak pernah dipasang.
+
+Sesudah dipasang, dihitung PERSIS (bukan diperkirakan, dengan Range API
+menghitung karakter di baris pertama): 81 karakter. Turun dari 314, dan sedikit
+di atas 75 klasik - --measure 68ch memang menghasilkan sekitar 81 karakter
+karena lebar "0" lebih besar dari rata-rata huruf. Nilainya TIDAK saya ubah:
+--measure dipakai enam tempat lain juga, dan mengubah token bersama demi
+selisih enam karakter bukan perkaranya di sini. Kalau nanti mau lebih rapat,
+60ch memberi sekitar 72.
+
+Judul <h2> di dalam prosa juga margin-atasnya 0 (dari reset global), jadi bagian
+baru menempel ke paragraf terakhir bagian sebelumnya. Untuk halaman dua paragraf
+tidak terasa; untuk Privacy Policy dua belas bagian, dokumennya jadi tidak bisa
+dipindai. Kini ada ritme 1.8em/1.6em, plus gaya daftar, kutipan, dan tabel.
+
+Judul halaman disamakan dengan judul arsip (clamp 40-72px). Sebelumnya
+.entry-title 36px yang berlaku, jadi "Privacy Policy" tampil jauh lebih kecil
+daripada judul kategori blog di situs yang sama.
+
+DELAPAN HALAMAN, DIBUAT LEWAT TOMBOL DI Appearance > Aksara Pages
+
+About, Contact, Frequently Asked Questions, Licenses, Installing your fonts,
+Privacy Policy, Terms of Use, Refund Policy.
+
+Isinya milik pemilik situs, bukan milik tema - alamat berubah, kebijakan
+direvisi. Kalau ditulis di berkas PHP, setiap perubahan kecil jadi pekerjaan
+pengembang dan akan HILANG saat tema diperbarui. Jadi tema menyiapkan
+halamannya sekali, sesudah itu semuanya diedit lewat editor biasa.
+
+Lewat tombol, bukan otomatis saat aktivasi: membuat delapan halaman diam-diam
+di situs orang adalah perubahan besar yang tidak diminta. Halaman yang slug-nya
+sudah ada DILEWATI, tidak ditimpa, dan hasilnya dilaporkan satu per satu.
+Pencocokannya lewat slug, bukan judul - judul boleh diganti pemilik situs
+("About" jadi "About the studio") dan pencocokan judul akan membuat halaman
+yang sudah diedit terlihat seperti belum ada, lalu dibuat dua kali.
+
+TIGA DOKUMEN HUKUM DIBUAT SEBAGAI DRAF, DAN ITU BUKAN KEHATI-HATIAN BASA-BASI
+
+Privacy Policy, Terms of Use, dan Refund Policy adalah KERANGKA dengan nilai
+dalam kurung siku, bukan naskah siap pakai. Saya tidak tahu badan hukum,
+yurisdiksi, atau prosesor pembayaran situs ini, dan teks hukum yang salah lebih
+berbahaya daripada tidak ada - terutama klausul pembatasan tanggung jawab, yang
+paling sering tidak berlaku justru ketika disalin dari situs lain. Ketiganya
+berstatus draf sehingga menerbitkannya butuh tindakan sadar, dan masing-masing
+diawali peringatan yang harus dihapus dulu. Perlu ditinjau pengacara.
+
+FORMULIR KONTAK, DIBUAT SENDIRI
+
+Yang dibutuhkan cuma empat kolom dan satu email. Plugin formulir umum membawa
+pembuat formulir, penyimpanan entri, dan asetnya sendiri - jauh lebih besar,
+dan setiap entri yang tersimpan adalah data pribadi yang harus ikut dijaga dan
+dijelaskan di Privacy Policy. Di sini TIDAK ADA yang disimpan: dikirim lewat
+wp_mail() lalu selesai.
+
+Pertahanannya bertingkat: honeypot (dibuang tanpa biaya), nonce, lalu batas
+laju tiga pesan per jam per IP. Kunci transient-nya di-hash, karena alamat IP
+mentah di basis data adalah data pribadi yang disimpan tanpa alasan.
+
+Satu hal yang sengaja TIDAK dilakukan: alamat pengirim tidak pernah dipakai
+sebagai header From. Itu jalan masuk pemalsuan header, dan membuat email
+ditolak SPF/DKIM domain penerima. From tetap alamat situs; alamat pengirim
+ditaruh di Reply-To sesudah lolos is_email().
+
+Berhasil dan gagal dibedakan oleh ketebalan garis dan kata-katanya, bukan warna
+hijau/merah - sistemnya akromatik, dan pembeda yang hanya warna juga gagal
+untuk pembaca yang buta warna.
+
+FAQ MEMAKAI <details>/<summary> ASLI
+
+Bukan akordeon buatan sendiri. Peramban sudah memberi peran, keadaan
+terbuka/tertutup, dan dukungan keyboard secara bawaan - tanpa JS, dan tanpa
+risiko aria-expanded yang tidak sinkron seperti yang dihindari di dropdown menu.
+
+DUA KESALAHAN SAYA SENDIRI DI RILIS INI
+
+Honeypot-nya sempat memakai left:-9999px, yang meninggalkan elemen selebar
+sepuluh ribu piksel di luar sisi kiri setiap halaman kontak. Diganti clip-path
+1px - masih tercatat sebagai pelanggar. Akhirnya menumpang .screen-reader-text
+yang SUDAH ADA di tema: menyembunyikan sesuatu secara visual adalah masalah
+yang sudah dipecahkan sekali di berkas ini, dan salinan kedua akan melenceng.
+
+Dan harness responsifnya sendiri ternyata bocor: saringan .screen-reader-text
+cuma dipasang di pass pertama, tidak di pass scroll-dalam. Akibatnya SETIAP
+halaman yang punya .screen-reader-text tercatat sebagai pelanggar - itu yang
+selama ini membuat single-bottom selalu bertanda, dan ia menutupi pelanggar
+sungguhan kalau suatu saat ada. Saringannya diperbaiki; sesudah itu
+single-bottom hanya menyisakan glyph panah yang memang sudah dikenal.
+
+Regresi luber/gutter ketiga halaman baru di 9 lebar: bersih. Jarak vertikal 24
+halaman: tidak berubah sama sekali.
