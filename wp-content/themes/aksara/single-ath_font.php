@@ -41,13 +41,13 @@ while ( have_posts() ) :
 
 		<section class="font-overview">
 			<div class="font-overview__content"><p class="eyebrow"><?php esc_html_e( 'About this family', 'aksara' ); ?></p><?php echo $content ? wp_kses_post( apply_filters( 'the_content', $content ) ) : '<p>' . esc_html__( 'Product description will be available soon.', 'aksara' ) . '</p>'; ?></div>
-			<aside class="font-overview__meta"><h2><?php esc_html_e( 'Product details', 'aksara' ); ?></h2><dl>
+			<aside class="font-overview__meta"><h2><?php esc_html_e( 'Product details', 'aksara' ); ?></h2><dl class="font-spec">
 				<div><dt><?php esc_html_e( 'Styles', 'aksara' ); ?></dt><dd><?php echo esc_html( count( $styles ) ); ?></dd></div>
 				<?php if ( $product ) : ?><div><dt><?php esc_html_e( 'Availability', 'aksara' ); ?></dt><dd><?php echo esc_html( $product->is_in_stock() ? __( 'Available', 'aksara' ) : __( 'Unavailable', 'aksara' ) ); ?></dd></div><?php endif; ?>
 				<?php if ( $product && $product->get_sku() ) : ?><div><dt><?php esc_html_e( 'SKU', 'aksara' ); ?></dt><dd><?php echo esc_html( $product->get_sku() ); ?></dd></div><?php endif; ?>
 				<?php if ( $categories ) : ?><div><dt><?php esc_html_e( 'Categories', 'aksara' ); ?></dt><dd><?php echo wp_kses_post( aksara_term_links( $categories ) ); ?></dd></div><?php endif; ?>
 				<?php if ( $tags ) : ?><div><dt><?php esc_html_e( 'Tags', 'aksara' ); ?></dt><dd><?php echo wp_kses_post( aksara_term_links( $tags ) ); ?></dd></div><?php endif; ?>
-			</dl></aside>
+			</dl><?php get_template_part( 'template-parts/font-details' ); ?></aside>
 		</section>
 
 		<section id="font-specimen" class="authentype-specimen-shell"><div class="product-section-heading"><p class="eyebrow"><?php esc_html_e( 'Try and buy', 'aksara' ); ?></p><h2><?php esc_html_e( 'Preview every style', 'aksara' ); ?></h2></div><?php if ( shortcode_exists( 'authentype_font_specimen' ) ) { echo do_shortcode( '[authentype_font_specimen id="' . absint( $font_id ) . '"]' ); } else { echo '<p>' . esc_html__( 'Authentype is required to display this font.', 'aksara' ) . '</p>'; } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></section>

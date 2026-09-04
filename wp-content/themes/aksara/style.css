@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.36
+Version: 0.9.37
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -1180,7 +1180,9 @@ ul.page-numbers > *,
 .font-archive-gallery__track > *,
 .font-single-gallery > *,
 .font-overview > *,
-.font-overview__meta dl > div > *,
+.font-overview__meta .font-spec > div > *,
+.font-meta-dates > div > *,
+.font-extras__item > *,
 .related-font-grid > *,
 .font-product-card__image > *,
 .font-product-card__body > *,
@@ -1822,10 +1824,27 @@ button.ath-feature-menu-btn,
 	aspect-ratio: 3 / 2;
 	object-fit: cover;
 }
+/* Dua kolom yang BENAR-BENAR bersebelahan.
+ *
+ * Versi lama memakai 1.7fr / .7fr. Proporsi itu terdengar masuk akal sampai
+ * diukur: kolom kiri dibatasi --measure (68ch = 692px), tapi jalur gridnya
+ * ikut membesar mengikuti lebar layar. Di 1440px jalurnya jadi ~940px,
+ * sehingga ada 313px KOSONG antara akhir kalimat dan garis "Product details"
+ * — dua kolom yang seharusnya berpasangan malah tampak tidak berhubungan.
+ * Di 1280px jaraknya masih 199px.
+ *
+ * Sekarang jalur kiri dibatasi tepat pada --measure, jadi sisa lebar jatuh ke
+ * kolom kanan, bukan ke ruang mati. Kolom kanan itu memang yang membutuhkan:
+ * baris "Additionally" menaruh pil dan penjelasannya berdampingan.
+ *
+ * Ambang runtuhnya 900px, bukan 782px seperti bagian lain. Di 783px kolom
+ * kiri hanya menyisakan 391px (≈38ch) — terlalu sempit untuk prosa. Di atas
+ * 900px sisanya minimal 513px (≈50ch), masih nyaman dibaca. */
 .font-overview {
 	display: grid;
-	grid-template-columns: minmax(0, 1.7fr) minmax(280px, .7fr);
-	gap: 64px;
+	grid-template-columns: minmax(0, var(--measure)) minmax(300px, 1fr);
+	column-gap: clamp(40px, 4vw, 72px);
+	row-gap: 40px;
 	padding-block: 56px;
 	border-top: 1px solid var(--hairline);
 }
@@ -1844,18 +1863,114 @@ button.ath-feature-menu-btn,
 	letter-spacing: .06em;
 	text-transform: uppercase;
 }
-.font-overview__meta dl { margin: 24px 0 0; }
-.font-overview__meta dl > div {
+/* Diberi kelas, bukan disasar sebagai `dl` polos. Kolom Product details kini
+ * berisi LEBIH DARI SATU dl: daftar spesifikasi ini dan .font-meta-dates di
+ * bawahnya. Selektor `.font-overview__meta dl > div` akan menang atas
+ * `.font-meta-dates > div` (0,2,1 lawan 0,1,1) dan diam-diam memasang kolom
+ * 92px serta garis atas pada daftar tanggal — kebetulan yang terlihat rapi,
+ * tapi tetap kebetulan, dan dl ketiga yang ditambahkan nanti akan mewarisi
+ * kejutan yang sama. */
+.font-overview__meta .font-spec { margin: 24px 0 0; }
+.font-overview__meta .font-spec > div {
 	display: grid;
 	grid-template-columns: 92px minmax(0, 1fr);
 	gap: 16px;
 	padding-block: 12px;
 	border-top: 1px solid var(--hairline);
 }
-.font-overview__meta dt,
-.font-overview__meta dd { margin: 0; font-size: 13px; }
-.font-overview__meta dt { color: var(--muted); }
+.font-overview__meta .font-spec dt,
+.font-overview__meta .font-spec dd { margin: 0; font-size: 13px; }
+.font-overview__meta .font-spec dt { color: var(--muted); }
 .font-overview__meta dd a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* --- Blok tambahan di kolom Product details ---------------------------
+ * Team, tanggal rilis/pembaruan, dan "Additionally". Semuanya opsional:
+ * template-parts/font-details.php tidak mencetak apa pun kalau datanya
+ * kosong, jadi tidak ada aturan di sini yang boleh mengandalkan salah satu
+ * blok selalu ada. */
+.font-meta-block {
+	margin-top: 32px;
+	padding-top: 24px;
+	border-top: 1px solid var(--hairline);
+	font-size: 13px;
+	line-height: 1.6;
+}
+.font-meta-block h3 {
+	margin: 0 0 12px;
+	font-size: 13px;
+	font-weight: var(--font-weight-medium);
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+.font-meta-block p { margin: 0 0 8px; }
+.font-meta-block > :last-child { margin-bottom: 0; }
+
+.font-meta-team { margin: 0; padding: 0; list-style: none; }
+.font-meta-team li { padding-block: 4px; }
+.font-meta-team__name { display: inline; }
+.font-meta-team__role { color: var(--muted); }
+.font-meta-team__role::before { content: " — "; }
+
+/* dt dan dd pada satu baris: "Release: 18 March 2024". flex, bukan grid
+ * kolom tetap seperti daftar spesifikasi di atasnya — labelnya pendek dan
+ * panjangnya berbeda-beda, jadi kolom 92px hanya akan menyisakan lubang. */
+.font-meta-dates { margin: 0 0 12px; }
+.font-meta-dates > div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	padding-block: 2px;
+}
+.font-meta-dates dt { margin: 0; color: var(--muted); }
+.font-meta-dates dd { margin: 0; }
+.font-meta-label { color: var(--muted); }
+.font-meta-changelog { margin: 0; padding-left: 18px; }
+.font-meta-changelog li { padding-block: 3px; }
+
+.font-extras { margin: 0; padding: 0; list-style: none; }
+.font-extras__item {
+	/* Pil di kiri, penjelasan di kanan — tapi hanya selama muat. flex-basis
+	 * 16ch pada teksnya berarti begitu sisa lebar di sebelah pil turun di
+	 * bawah itu, penjelasannya pindah ke barisnya sendiri dengan lebar penuh.
+	 * Ini menggantikan media query yang tidak bisa ditulis: lebar kolom kanan
+	 * ditentukan grid induknya, bukan lebar viewport. */
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px 16px;
+	padding-block: 10px;
+}
+.font-extras__item + .font-extras__item { border-top: 1px solid var(--hairline); }
+.font-extras__link {
+	flex: 0 0 auto;
+	display: inline-block;
+	padding: 6px 16px;
+	border: 1px solid var(--control-border);
+	border-radius: 999px;
+	font-size: 12px;
+	letter-spacing: .04em;
+	text-decoration: none;
+	color: inherit;
+	transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+a.font-extras__link:hover,
+a.font-extras__link:focus-visible {
+	background: var(--ink);
+	border-color: var(--ink);
+	color: var(--paper);
+}
+/* Tanpa tautan, pil itu label — bukan sesuatu yang bisa diklik. Ia harus
+ * terlihat berbeda, kalau tidak pengunjung akan menekannya dan tidak terjadi
+ * apa-apa. */
+.font-extras__link--plain { color: var(--muted); border-style: dashed; }
+/* min-width menahan flex-shrink supaya basis itu benar-benar jadi ambang
+ * pindah baris. Tanpa itu penjelasannya tetap menempel di samping pil dan
+ * menyusut sampai 154px — 18 karakter per baris, kolom sesempit korek api.
+ * 26ch pada 13px ≈ 216px; begitu sisa di samping pil turun di bawah itu,
+ * penjelasannya turun ke barisnya sendiri dan memakai lebar penuh. Aman
+ * terhadap luber: kolom tersempit yang mungkin ada (273px di layar 320px)
+ * masih lebih lebar dari 26ch. */
+.font-extras__text { flex: 1 1 26ch; min-width: 26ch; margin: 0 !important; }
 .product-section-heading { margin-bottom: 32px; }
 .product-section-heading h2 {
 	font-size: clamp(32px, 5vw, 64px);
@@ -1938,11 +2053,19 @@ button.ath-feature-menu-btn,
 	font-weight: var(--font-weight-regular);
 }
 
+/* Ambangnya 900px, bukan 782px — lihat alasannya di atas .font-overview. */
+@media (max-width: 900px) {
+	.font-overview {
+		grid-template-columns: 1fr;
+		row-gap: 36px;
+		padding-block: 40px;
+	}
+	.font-overview__meta { padding: 0; border-left: 0; }
+}
+
 @media (max-width: 782px) {
 	.font-single-gallery,
 	.related-font-grid { grid-template-columns: 1fr; }
-	.font-overview { grid-template-columns: 1fr; gap: 36px; padding-block: 40px; }
-	.font-overview__meta { padding: 0; border-left: 0; }
 	.font-product-card__image { min-height: 180px; }
 	.single-product .woocommerce-tabs { padding-top: 48px; }
 	.single-product .related.products,
