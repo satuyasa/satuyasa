@@ -413,13 +413,108 @@ function aksara_authentype_linked_product_ids() {
 	return $linked;
 }
 
+/**
+ * Daftar jenis lisensi yang BENAR-BENAR dijual, dikumpulkan dari seluruh
+ * keluarga font.
+ *
+ * KENAPA INI ADA
+ *
+ * Halaman Licenses menjanjikan, dengan kalimatnya sendiri: "generated from
+ * the same data the shop uses — so what you read here is what you are
+ * actually buying." Dulu janji itu benar, ketika lisensi dikelola di
+ * WooCommerce > Font Licenses milik plugin Aksara Marketplace.
+ *
+ * Sekarang tidak lagi. Begitu Authentype aktif, aksara-marketplace.php
+ * melewati Aksara_License_Admin::init() (lihat pemeriksaan
+ * aksara_marketplace_uses_authentype() di berkas utama plugin itu), sehingga
+ * layar admin satu-satunya yang mengisi tabel aksara_font_licenses tidak
+ * pernah terdaftar. Yang dipakai toko adalah _ath_license_options — meta per
+ * keluarga font milik Authentype. Jadi halaman Licenses membaca tabel yang
+ * sudah yatim: entah kosong sama sekali, atau berisi baris lama yang tidak
+ * bisa disunting siapa pun dan diam-diam melenceng dari yang dijual.
+ *
+ * Fungsi ini mengembalikan janji itu: sumbernya persis data yang dipakai
+ * halaman produk.
+ *
+ * PENGGABUNGAN. Lisensi disimpan per keluarga font, jadi nama yang sama
+ * muncul berkali-kali. Baris digabung berdasarkan namanya (tanpa peduli
+ * besar-kecil huruf) dan deskripsi pertama yang tidak kosong yang dipakai.
+ * Urutannya: yang ditawarkan pada paling banyak keluarga lebih dulu — itu
+ * lisensi utama toko — lalu alfabetis supaya hasilnya stabil.
+ *
+ * @return array<int, array{name:string, description:string, families:int}>
+ */
+function aksara_authentype_license_catalogue() {
+	$cached = get_transient( 'aksara_authentype_license_catalogue' );
+	if ( false !== $cached && is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$font_ids = get_posts( array(
+		'post_type'      => 'ath_font',
+		'post_status'    => 'publish',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+		'no_found_rows'  => true,
+	) );
+
+	// Satu query untuk seluruh meta, bukan satu query per font. Tanpa ini
+	// katalog berisi ratusan keluarga berarti ratusan query per pemuatan
+	// halaman pertama setelah cache kedaluwarsa.
+	if ( $font_ids ) {
+		update_meta_cache( 'post', $font_ids );
+	}
+
+	$catalogue = array();
+	foreach ( $font_ids as $font_id ) {
+		$rows = get_post_meta( $font_id, '_ath_license_options', true );
+		if ( ! is_array( $rows ) ) {
+			continue;
+		}
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$name = trim( (string) ( isset( $row['license_label'] ) ? $row['license_label'] : '' ) );
+			if ( '' === $name ) {
+				continue;
+			}
+			$key = strtolower( $name );
+			if ( ! isset( $catalogue[ $key ] ) ) {
+				$catalogue[ $key ] = array(
+					'name'        => $name,
+					'description' => '',
+					'families'    => 0,
+				);
+			}
+			++$catalogue[ $key ]['families'];
+			$description = trim( (string) ( isset( $row['license_description'] ) ? $row['license_description'] : '' ) );
+			if ( '' === $catalogue[ $key ]['description'] && '' !== $description ) {
+				$catalogue[ $key ]['description'] = $description;
+			}
+		}
+	}
+
+	uasort( $catalogue, function ( $a, $b ) {
+		if ( $a['families'] !== $b['families'] ) {
+			return $b['families'] - $a['families'];
+		}
+		return strcasecmp( $a['name'], $b['name'] );
+	} );
+	$catalogue = array_values( $catalogue );
+
+	set_transient( 'aksara_authentype_license_catalogue', $catalogue, HOUR_IN_SECONDS );
+	return $catalogue;
+}
+
 function aksara_flush_authentype_product_cache() {
 	delete_transient( 'aksara_authentype_linked_product_ids' );
+	delete_transient( 'aksara_authentype_license_catalogue' );
 }
 add_action( 'save_post_ath_font', 'aksara_flush_authentype_product_cache' );
 add_action( 'deleted_post', 'aksara_flush_authentype_product_cache' );
 add_action( 'updated_post_meta', function ( $meta_id, $object_id, $meta_key ) {
-	if ( '_ath_linked_product' === $meta_key && 'ath_font' === get_post_type( $object_id ) ) {
+	if ( in_array( $meta_key, array( '_ath_linked_product', '_ath_license_options' ), true ) && 'ath_font' === get_post_type( $object_id ) ) {
 		aksara_flush_authentype_product_cache();
 	}
 }, 10, 3 );
