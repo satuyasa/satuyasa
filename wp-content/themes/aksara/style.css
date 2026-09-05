@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.37
+Version: 0.9.38
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -2058,7 +2058,6 @@ a.font-extras__link:focus-visible {
 	.font-overview {
 		grid-template-columns: 1fr;
 		row-gap: 36px;
-		padding-block: 40px;
 	}
 	.font-overview__meta { padding: 0; border-left: 0; }
 }
@@ -2143,7 +2142,34 @@ form.hero-search input[type="search"]:focus-visible {
 .font-detail-header { padding-block: 36px 32px; }
 .font-cover { margin-block: 32px; }
 .font-description { margin-block: 32px 48px; }
-.authentype-specimen-shell { padding-top: 32px; }
+
+/* Halaman font punya TIGA garis pemisah bagian: sebelum About this family,
+ * sebelum Preview every style, dan sebelum Related font families. Diukur
+ * di 1280px, ruang di atas dan di bawah tiap garis sebelumnya begini:
+ *
+ *     garis                      di atas   di bawah
+ *     sebelum About this family    0-32       56
+ *     sebelum Preview every style   56        32
+ *     sebelum Related families      80        80
+ *
+ * Dua yang pertama tidak simetris, dan cerminan satu sama lain — 32/56
+ * lalu 56/32 — jadi tiap garis tampak "miring" ke arah yang berbeda. Yang
+ * pertama bahkan bisa 0 di atas: galeri produk tidak punya margin bawah,
+ * sehingga garisnya menempel persis di bawah baris gambar.
+ *
+ * .related-fonts sudah punya polanya sejak awal: margin-top ritme, padding-top
+ * ritme, border-top. Dua bagian lain sekarang memakai pola yang sama, jadi
+ * ketiga garis bernapas sama dan angkanya satu — --section-rhythm — bukan
+ * tiga angka ajaib (36/32/28) untuk properti yang sama. */
+.font-overview { margin-top: var(--section-rhythm); padding-block: var(--section-rhythm); }
+/* margin-top di atas menggantikan aturan khusus lama
+ * `.single-ath_font .font-archive-gallery.font-single-gallery { margin-bottom: 48px }`,
+ * yang ada persis untuk satu masalah ini — garis menempel di tepi gambar —
+ * tapi hanya untuk satu dari dua kemungkinan gambar produk (galeri, bukan
+ * .font-cover) dan dengan angka yang tidak cocok dengan sisi bawah garis.
+ * 48px itu sekarang selalu kalah oleh margin ritme yang meruntuhkannya, jadi
+ * aturannya dihapus daripada dibiarkan menyesatkan pembaca berikutnya. */
+.authentype-specimen-shell { padding-top: var(--section-rhythm); }
 
 .woocommerce-cart .aksara-product-summary,
 .woocommerce-checkout .aksara-product-summary,
@@ -2175,7 +2201,6 @@ form.hero-search input[type="search"]:focus-visible {
 	.font-breadcrumb { padding-block: var(--spacing-16); }
 	.font-detail-header { padding-block: 28px; }
 	.font-description { margin-block: 28px 40px; }
-	.authentype-specimen-shell { padding-top: 28px; }
 }
 
 @media (max-width: 560px) {
@@ -2193,12 +2218,6 @@ form.hero-search input[type="search"]:focus-visible {
 	grid-template-columns: none;
 	gap: 0;
 	padding-block: 0;
-}
-
-/* On the single-font page the overview hairline belongs between the gallery
- * and copy, not directly against the image edges. */
-.single-ath_font .font-archive-gallery.font-single-gallery {
-	margin-bottom: 48px;
 }
 
 /* =======================================================================
