@@ -1,0 +1,848 @@
+
+
+.foundry {
+	/* --- Warna (DESIGN3 > Tokens — Colors) --- */
+	--fd-ember: #ff4d00;
+	--fd-black: #121212;
+	--fd-chalk: #e2e8f0;
+	--fd-bone: #efefef;
+	--fd-soot: #3a3a3a;
+	/* PENYIMPANGAN SADAR DARI DESIGN3 — dan alasannya, diukur:
+	 *
+	 * Ash #747474 di atas kanvas #121212 hanya 4,01:1. DESIGN3 menugaskannya
+	 * ke "muted helper text, inactive labels, secondary metadata" — dan di
+	 * sistem ini semuanya berukuran 12-14px, persis kategori yang WCAG AA
+	 * minta 4,5:1. Jadi ia GAGAL untuk peran yang diberikan kepadanya.
+	 *
+	 * Ash tetap dipakai untuk hal NON-teks (garis pemisah, kontrol nonaktif)
+	 * di mana syarat kontras teks tidak berlaku, dan teks redup memakai
+	 * --fd-ash-text (#7d7d7d = 4,55:1) — nilai TERGELAP yang masih lolos,
+	 * jadi ia tetap terbaca sebagai abu-abu yang sama, bukan putih.
+	 *
+	 * Ini pola yang sama persis dengan --color-ash-text di sistem terang.
+	 * Ditemukan karena angkanya dihitung, bukan diasumsikan: draf pertama
+	 * komentar ini sempat mengklaim 4,84:1 dan itu keliru. */
+	--fd-ash-text: #7d7d7d;
+
+	--fd-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	--fd-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+	--fd-caption: 12px;
+	--fd-body-sm: 14px;
+	--fd-body: 16px;
+	--fd-subheading: 18px;
+
+	--fd-radius: 2.8px;
+	--fd-gap: 8px;
+	--fd-section-gap: 64px;
+	/* Gutter halaman. Diikat ke --gutter milik tema (24px, 16px di bawah
+	 * 600px) supaya isi halaman Free Font sejajar dengan header dan footer
+	 * di atas-bawahnya, dan tidak bisa hanyut kalau salah satunya berubah.
+	 * Nilainya persis sama dengan angka yang dulu ditulis di sini, termasuk
+	 * di ponsel — jadi override --fd-pad di @media 600px kini tidak perlu
+	 * dan ikut dihapus. Fallback 24px kalau foundry.css dimuat sendirian. */
+	--fd-pad: var(--gutter, 24px);
+
+	background: var(--fd-black);
+	color: var(--fd-bone);
+	font-family: var(--fd-mono);
+	font-size: var(--fd-body-sm);
+	line-height: 1.5;
+	/* Kata yang tidak muat dipotong, bukan mendorong halaman. Pelajaran dari
+	 * audit responsif 0.9.12 — nama font panjang muncul di mana-mana di sini. */
+	overflow-wrap: break-word;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* Archive Free Font menyatu dengan sistem visual utama Aksara. Single page
+ * tetap memakai Foundry gelap; override ini hanya hidup di template archive. */
+.freefonts-archive {
+	--fd-ember: #000000;
+	--fd-black: #ffffff;
+	--fd-chalk: #d9d9d9;
+	--fd-bone: #111111;
+	--fd-soot: #eeeeee;
+	--fd-ash-text: #666666;
+	width: 100%;
+	background: #ffffff;
+	color: #111111;
+}
+/* LEBAR HALAMAN FREE FONT — kenapa lebar penuh, bukan kolom 1440px.
+ *
+ * Dulu: width: min(100% - 48px, 1440px) + margin auto + garis rambut kiri
+ * kanan. Diukur di Chromium, hasilnya isi halaman ini TIDAK PERNAH sejajar
+ * dengan header dan footernya sendiri di atas 600px:
+ *
+ *      viewport   header/footer   isi Free Font
+ *      768-1440       24px            49px
+ *      1600           24px            98px
+ *      1920           24px           258px
+ *      2560           24px           578px
+ *
+ * Dua sebab, dan keduanya diperbaiki di sini. Pertama GUTTER GANDA: wadah
+ * ini memberi 24px lewat "100% - 48px", lalu section di dalamnya memberi
+ * --fd-pad 24px lagi, ditambah 1px garis — 49px, dua kali lipat gutter tema.
+ * Kedua BATAS 1440px: di atas ~1488px kolomnya berhenti melebar sementara
+ * header dan footer terus sampai tepi, dan selisihnya tumbuh tanpa batas.
+ *
+ * Batas 1440px itu sendiri datang dari DESIGN3, tapi di sana ia berpasangan
+ * dengan sidebar tetap 200px di kiri — tata letak yang TIDAK diadopsi tema
+ * ini; halaman Free Font memakai header Aksara biasa. Dan DESIGN.md, yang
+ * mengatur kerangka situs, menyatakan sistemnya tanpa max-width dan tanpa
+ * kolom yang dipusatkan. Jadi yang tersisa adalah batas warisan dari layout
+ * yang sudah tidak ada.
+ *
+ * Garis rambut kiri-kanan ikut dilepas: ia hanya masuk akal sebagai bingkai
+ * kolom yang dipusatkan. Di lebar penuh ia jadi garis yang menempel persis
+ * di tepi viewport. Gutter kini datang dari satu tempat saja, --fd-pad. */
+.freefonts-archive__inner {
+	width: 100%;
+}
+.freefonts-archive .foundry-hero {
+	padding-block: clamp(56px, 7vw, 104px) clamp(44px, 5vw, 72px);
+}
+.freefonts-archive .foundry-hero h1 {
+	max-width: 12ch;
+	font-size: clamp(48px, 7vw, 104px);
+	color: #000000;
+}
+.freefonts-archive .foundry-hero h1 b { color: inherit; }
+.freefonts-archive .foundry-lede { max-width: 58ch; color: #555555; }
+.freefonts-archive .foundry-tag {
+	background: #000000;
+	color: #ffffff;
+}
+.freefonts-archive .foundry-tag[aria-current='page'] {
+	background: #ffffff;
+	color: #000000;
+	box-shadow: inset 0 0 0 1px #000000;
+}
+.freefonts-archive .foundry-btn {
+	border-color: #000000;
+	color: #000000;
+}
+.freefonts-archive .foundry-btn-ghost {
+	border-color: #999999;
+	color: #333333;
+}
+.freefonts-archive .foundry-specimen { padding-block: 28px 36px; }
+.freefonts-archive .foundry-specimen canvas { background: #ffffff; }
+.freefonts-single .foundry-single-head {
+	padding-block: clamp(48px, 6vw, 88px) 32px;
+}
+.freefonts-single .foundry-single-head h1 {
+	max-width: 14ch;
+	font-size: clamp(42px, 6vw, 88px);
+	color: #000000;
+}
+.freefonts-single .foundry-specimen { padding-block: 28px 40px; }
+.freefonts-single .foundry-specs { background: #eeeeee; }
+.freefonts-single .foundry-spec { background: #ffffff; }
+.freefonts-single .foundry-spec dd { color: #111111; }
+.freefonts-single .foundry-body { color: #333333; }
+.freefonts-single .foundry-download {
+	padding-top: 36px;
+	background: #ffffff;
+}
+.freefonts-single .foundry-download .ath-free-download-license-info {
+	background: #f7f7f7;
+	border-color: #d9d9d9;
+}
+.freefonts-single .foundry-download .ath-free-download-license-icon {
+	color: #000000;
+	border-color: #000000;
+}
+.freefonts-single .foundry-download .ath-free-download-button,
+.freefonts-single .foundry-download .ath-free-download-submit {
+	border-color: #000000;
+	background: #000000;
+	color: #ffffff;
+}
+.freefonts-single .foundry-download input[type='text'],
+.freefonts-single .foundry-download input[type='email'] {
+	background: #ffffff;
+	border-color: #999999;
+	color: #111111;
+}
+.freefonts-single .foundry-download .ath-free-download-form {
+	background: #f7f7f7;
+	border-color: #d9d9d9;
+}
+.freefonts-single .foundry-download .ath-free-download-form-head strong,
+.freefonts-single .foundry-download .ath-free-download-form-head small,
+.freefonts-single .foundry-download .ath-free-download-fields label,
+.freefonts-single .foundry-download .ath-free-download-agree,
+.freefonts-single .foundry-download .ath-free-download-cancel { color: #111111; }
+
+.foundry *,
+.foundry *::before,
+.foundry *::after { box-sizing: border-box; }
+
+.foundry a { color: inherit; text-decoration: none; }
+.foundry img { max-width: 100%; height: auto; display: block; }
+.foundry h1, .foundry h2, .foundry h3, .foundry p, .foundry ul, .foundry figure { margin: 0; }
+.foundry ul { padding: 0; list-style: none; }
+
+/* Tombol juga wadah flex, jadi label panjang di dalamnya kena lantai
+ * min-content yang sama. Terukur di uji tekan: satu URL 88 karakter di dalam
+ * tombol empty-state mendorong halaman 6px di viewport 320px. */
+.foundry-btn,
+.foundry-btn-ghost { min-width: 0; }
+
+.foundry :focus-visible {
+	outline: 2px solid var(--fd-ember);
+	outline-offset: 2px;
+}
+
+.foundry-nav-title {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 10px;
+	font-size: var(--fd-caption);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fd-bone);
+}
+/* Penanda L-bracket dari DESIGN3, digambar dengan border supaya tidak perlu
+ * ikon atau berkas gambar tambahan. */
+.foundry-nav-title::before {
+	content: '';
+	width: 7px;
+	height: 7px;
+	border-left: 1px solid var(--fd-bone);
+	border-bottom: 1px solid var(--fd-bone);
+}
+
+/* Tag nav: permukaan terbalik bone-white di atas kanvas hitam. */
+.foundry-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 10px;
+	border-radius: var(--fd-radius);
+	background: var(--fd-bone);
+	color: var(--fd-black);
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.foundry-tag[aria-current='page'] {
+	background: transparent;
+	color: var(--fd-bone);
+	box-shadow: inset 0 0 0 1px var(--fd-bone);
+}
+.foundry-tag em { font-style: normal; opacity: .6; }
+
+/* --- Hero -------------------------------------------------------------- */
+.foundry-hero { padding: var(--fd-section-gap) var(--fd-pad); }
+.foundry-kicker {
+	font-size: var(--fd-caption);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fd-ash-text);
+}
+.foundry-hero h1 {
+	margin: 14px 0 0;
+	font-family: var(--fd-mono);
+	font-weight: 700;
+	/* Skala display DESIGN3 (90–234px) diturunkan lewat clamp supaya tidak
+	 * pernah lebih besar dari ruang yang tersedia di layar sempit. */
+	font-size: clamp(40px, 9vw, 120px);
+	line-height: 0.95;
+	letter-spacing: 0.01em;
+	text-transform: uppercase;
+	color: var(--fd-bone);
+}
+.foundry-hero h1 b { color: var(--fd-ember); font-weight: inherit; }
+.foundry-lede {
+	max-width: min(50ch, 100%);
+	margin-top: 20px;
+	font-family: var(--fd-sans);
+	font-size: var(--fd-body);
+	line-height: 1.5;
+	color: var(--fd-bone);
+}
+
+/* --- Strip metadata ---------------------------------------------------- */
+.foundry-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px var(--fd-gap);
+	padding: 12px var(--fd-pad);
+	border-top: 1px solid var(--fd-chalk);
+	border-bottom: 1px solid var(--fd-chalk);
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.foundry-meta-group { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.foundry-meta .muted { color: var(--fd-ash-text); }
+
+/* --- Tombol ------------------------------------------------------------ */
+.foundry-actions { display: flex; flex-wrap: wrap; gap: var(--fd-gap); }
+
+/* Oranye HANYA sebagai garis dan teks. DESIGN3 melarang keras memakainya
+ * sebagai isian: "it is exclusively a stroke and text accent". */
+.foundry-btn,
+.foundry-btn-ghost {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 15px;
+	border-radius: var(--fd-radius);
+	background: transparent;
+	font-family: var(--fd-mono);
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+.foundry-btn {
+	border: 1px solid var(--fd-ember);
+	color: var(--fd-ember);
+}
+.foundry-btn-ghost {
+	border: 1px solid var(--fd-bone);
+	color: var(--fd-bone);
+}
+.foundry-btn:hover { background: rgba(255, 77, 0, .08); }
+.foundry-btn-ghost:hover { background: rgba(239, 239, 239, .08); }
+
+/* --- Pita spesimen (kartu arsip) --------------------------------------- */
+.foundry-band { border-top: 1px solid var(--fd-chalk); }
+.foundry-band:first-of-type { border-top: 0; }
+
+.foundry-specimen {
+	display: block;
+	padding: 40px var(--fd-pad) 48px;
+	color: var(--fd-bone);
+}
+.foundry-specimen canvas {
+	display: block;
+	width: 100%;
+	min-height: 96px;
+	/* Canvas spesimen dirender server oleh Authentype sebagai PNG. Latarnya
+	 * disamakan dengan kanvas supaya tidak ada kotak terang saat memuat. */
+	background: var(--fd-black);
+}
+.foundry-specimen canvas.is-loading { opacity: .5; }
+
+/* Placeholder jujur — pola yang sama dengan 0.9.10 di sistem terang: ia
+ * TIDAK boleh menyamar sebagai spesimen, karena ini toko huruf dan nama
+ * keluarga font yang dicetak besar dalam font UI bisa dikira wujud fontnya. */
+.foundry-placeholder {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 8px 0;
+}
+.foundry-placeholder__name {
+	font-family: var(--fd-mono);
+	font-size: clamp(24px, 4vw, 48px);
+	line-height: 1.1;
+	letter-spacing: 0.01em;
+	text-transform: uppercase;
+	color: var(--fd-ash-text);
+}
+.foundry-placeholder__note {
+	font-size: var(--fd-caption);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fd-ash-text);
+}
+.foundry-placeholder--on-error { display: none; }
+.foundry-specimen canvas.has-error { display: none; }
+.foundry-specimen canvas.has-error + .foundry-placeholder--on-error { display: flex; }
+
+/* --- Font tester ---------------------------------------------------------
+ * DIPULIHKAN di 0.9.31. Blok ini sempat dihapus di 0.9.26 karena tidak ada
+ * template yang mencetak markupnya — dan itu memang benar SAAT ITU, tapi
+ * penyebabnya bukan markup yang usang: 0.9.20 mengganti markup tester dengan
+ * shortcode yang tidak pernah ada di plugin. Jadi yang saya buang sebagai
+ * "kode mati" sebenarnya korban dari kerusakan di tempat lain.
+ *
+ * Pelajarannya dicatat di sini: sebelum menghapus CSS karena kelasnya tidak
+ * dicetak siapa pun, periksa dulu APAKAH yang menggantikannya benar-benar
+ * bekerja. Kalau tidak, yang dihapus bukan kode mati melainkan bukti.
+ *
+ * Kontrolnya milik plugin (.ath-master-text, .ath-size) dan hanya ditata di
+ * sini. Bentuknya mengikuti "Metadata Strip" DESIGN3: satu baris horizontal,
+ * monospace huruf besar, garis rambut di bawahnya. */
+.foundry-tester {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: 12px var(--fd-gap);
+	margin-bottom: 32px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--fd-chalk);
+}
+.foundry-tester > * { min-width: 0; }
+.foundry-tester__field {
+	display: flex;
+	flex: 1 1 240px;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+}
+.foundry-tester__field--size { flex: 0 1 200px; }
+.foundry-tester__label {
+	font-size: var(--fd-caption);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fd-ash-text);
+}
+.foundry-tester__text {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--fd-chalk);
+	border-radius: var(--fd-radius);
+	background: transparent;
+	color: var(--fd-bone);
+	font-family: var(--fd-mono);
+	font-size: var(--fd-body-sm);
+	letter-spacing: -0.02em;
+}
+.foundry-tester__text::placeholder { color: var(--fd-ash-text); }
+.foundry-tester__text:focus { border-color: var(--fd-ember); outline: none; }
+
+/* Slider digambar sendiri: kontrol range bawaan membawa warna sistem operasi
+ * yang tidak bisa diselaraskan dengan andal di semua platform, dan di kanvas
+ * gelap ia sering muncul sebagai batang biru terang. */
+.foundry-tester__size {
+	width: 100%;
+	height: 20px;
+	margin: 0;
+	background: transparent;
+	-webkit-appearance: none;
+	appearance: none;
+	cursor: pointer;
+}
+.foundry-tester__size::-webkit-slider-runnable-track {
+	height: 1px;
+	background: var(--fd-bone);
+}
+.foundry-tester__size::-moz-range-track {
+	height: 1px;
+	background: var(--fd-bone);
+}
+.foundry-tester__size::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	margin-top: -6px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--fd-bone);
+}
+.foundry-tester__size::-moz-range-thumb {
+	width: 12px;
+	height: 12px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--fd-bone);
+}
+.foundry-tester__size:focus-visible { outline: 2px solid var(--fd-ember); outline-offset: 4px; }
+
+.foundry-band__note {
+	max-width: min(50ch, 100%);
+	padding: 0 var(--fd-pad) 40px;
+	font-family: var(--fd-sans);
+	font-size: var(--fd-body-sm);
+	line-height: 1.5;
+	color: var(--fd-ash-text);
+}
+
+/* --- Halaman tunggal --------------------------------------------------- */
+.foundry-single-head { padding: clamp(40px, 5vw, 72px) var(--fd-pad) 28px; }
+.foundry-single-head h1 {
+	margin: 14px 0 0;
+	font-family: var(--fd-mono);
+	font-weight: 700;
+	font-size: clamp(40px, 6.4vw, 92px);
+	line-height: 0.94;
+	letter-spacing: 0.01em;
+	text-transform: uppercase;
+}
+
+.foundry-specs {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+	gap: 1px;
+	background: var(--fd-soot);
+	border-block: 1px solid var(--fd-chalk);
+}
+.foundry-spec {
+	padding: 16px var(--fd-pad);
+	background: var(--fd-black);
+}
+.foundry-spec dt {
+	font-size: var(--fd-caption);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fd-ash-text);
+}
+.foundry-spec dd {
+	margin: 6px 0 0;
+	font-size: var(--fd-body-sm);
+	color: var(--fd-bone);
+}
+
+/* Deskripsi + gambar unggulan berdampingan.
+ *
+ * Gutter-nya pindah ke pembungkus ini, bukan tinggal di .foundry-body:
+ * kalau padding tetap di kolom teks, kolom gambar akan mulai dari tempat
+ * lain dan keduanya tidak lagi rata dengan sisa halaman.
+ *
+ * 34% untuk kolom gambar, bukan lebar tetap: teks tetap mendapat lebar baca
+ * yang layak di 1024px maupun 2560px, sementara gambar ikut tumbuh alih-alih
+ * jadi prangko di layar lebar. minmax(0, ...) di kedua kolom karena anak grid
+ * bawaannya tidak boleh menyusut di bawah lebar min-content-nya — masalah
+ * yang sama yang dulu melebarkan halaman di audit responsif. */
+.foundry-about { padding: 40px var(--fd-pad); }
+.foundry-about--split {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
+	gap: 40px;
+	align-items: start;
+}
+.foundry-about > * { min-width: 0; }
+.foundry-about .foundry-body { padding: 0; }
+
+.foundry-figure { margin: 0; }
+.foundry-figure__img {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: var(--fd-radius);
+}
+.foundry-figure figcaption {
+	margin-top: 12px;
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	color: var(--fd-ash-text);
+}
+
+/* Di bawah 900px kolomnya ditumpuk: gambar turun ke bawah teks, mengikuti
+ * urutan DOM-nya, jadi tidak perlu order apa pun. */
+@media (max-width: 900px) {
+	.foundry-about--split { grid-template-columns: 1fr; gap: 32px; }
+}
+
+.foundry-body {
+	max-width: min(60ch, 100%);
+	padding: 40px var(--fd-pad);
+	font-family: var(--fd-sans);
+	font-size: var(--fd-body);
+	line-height: 1.6;
+}
+.foundry-body a { color: var(--fd-ember); border-bottom: 1px solid var(--fd-ember); }
+/* .foundry .foundry-body, bukan .foundry-body saja — dan itu bukan gaya
+ * penulisan, itu perbaikan bug. Reset ".foundry p { margin: 0 }" di atas
+ * berspesifisitas (0,1,1), sedangkan ".foundry-body > * + *" hanya (0,1,0),
+ * jadi selama ini reset itulah yang menang dan SELURUH paragraf deskripsi
+ * free font menempel tanpa jarak sama sekali. Terukur: margin-top setiap
+ * <p> dihitung 0px. Dengan satu kelas tambahan spesifisitasnya jadi (0,2,0)
+ * dan aturan ini menang tanpa perlu !important. */
+.foundry .foundry-body > * + * { margin-top: 1em; }
+/* Isi dari editor tidak bisa diandalkan berperilaku baik — pagar yang sama
+ * seperti .entry-content di sistem terang. */
+.foundry-body pre,
+.foundry-body table { display: block; max-width: 100%; overflow-x: auto; }
+
+/* Blok unduhan milik plugin Authentype disisipkan apa adanya supaya alur
+ * lead + token + rate limit tetap dipegang plugin. Yang dilakukan di sini
+ * hanya menyelaraskan warnanya dengan kanvas gelap; strukturnya tidak
+ * disentuh sama sekali. */
+.foundry-download {
+	padding: 40px var(--fd-pad) var(--fd-section-gap);
+	border-top: 1px solid var(--fd-chalk);
+}
+.foundry .foundry-download .ath-free-download-card,
+.foundry .foundry-download .ath-free-download-card-inner {
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	color: var(--fd-bone);
+}
+.foundry .foundry-download .ath-free-download-card::after,
+.foundry .foundry-download .ath-free-download-thumb,
+.foundry .foundry-download .ath-free-download-kicker,
+.foundry .foundry-download .ath-free-download-topline,
+.foundry .foundry-download .ath-free-download-content > h3,
+.foundry .foundry-download .ath-free-download-excerpt,
+.foundry .foundry-download .ath-free-download-note { display: none; }
+.foundry .foundry-download .ath-free-downloads { display: block; max-width: none; }
+.foundry .foundry-download .ath-free-download-card-inner { display: block; min-height: 0; }
+.foundry .foundry-download .ath-free-download-content { display: block; padding: 0; }
+
+.foundry .foundry-download .ath-free-download-license-info {
+	display: grid;
+	grid-template-columns: 44px minmax(0, 1fr);
+	gap: 16px;
+	padding: 20px;
+	background: transparent;
+	border: 1px solid var(--fd-soot);
+	border-radius: var(--fd-radius);
+	color: var(--fd-bone);
+}
+.foundry .foundry-download .ath-free-download-license-icon {
+	color: var(--fd-ember);
+	background: transparent;
+	border: 1px solid var(--fd-ember);
+}
+.foundry .foundry-download .ath-free-download-license-info-head strong,
+.foundry .foundry-download .ath-free-download-license-info-head span,
+.foundry .foundry-download .ath-free-download-license-info p { color: var(--fd-bone); }
+.foundry .foundry-download .ath-free-download-license-link { color: var(--fd-ember) !important; }
+
+.foundry .foundry-download .ath-free-download-actions {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 20px;
+	padding-top: 24px;
+}
+.foundry .foundry-download .ath-free-download-action-note {
+	margin: 0;
+	color: var(--fd-ash-text);
+}
+.foundry .foundry-download .ath-free-download-button {
+	justify-self: end;
+	width: auto;
+	min-height: 42px;
+	padding: 10px 16px;
+	border: 1px solid var(--fd-ember);
+	border-radius: var(--fd-radius);
+	background: transparent;
+	color: var(--fd-ember);
+	font-family: var(--fd-mono);
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+.foundry .foundry-download input[type='text'],
+.foundry .foundry-download input[type='email'] {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid var(--fd-chalk);
+	border-radius: var(--fd-radius);
+	background: transparent;
+	color: var(--fd-bone);
+	font-family: var(--fd-mono);
+	font-size: var(--fd-body-sm);
+}
+.foundry .foundry-download .ath-free-download-license-eyebrow { color: var(--fd-ash-text); }
+.foundry .foundry-download .ath-free-download-form {
+	margin-top: 20px;
+	background: transparent;
+	border: 1px solid var(--fd-soot);
+	border-radius: var(--fd-radius);
+	box-shadow: none;
+}
+.foundry .foundry-download .ath-free-download-form-head strong,
+.foundry .foundry-download .ath-free-download-form-head small,
+.foundry .foundry-download .ath-free-download-fields label,
+.foundry .foundry-download .ath-free-download-agree { color: var(--fd-bone); }
+.foundry .foundry-download .ath-free-download-cancel { color: var(--fd-bone); }
+
+/* --- Grid kartu (bagian "lainnya") ------------------------------------- */
+.foundry-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+	gap: 1px;
+	background: var(--fd-soot);
+	border-top: 1px solid var(--fd-chalk);
+}
+.foundry-card {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 20px var(--fd-pad) 24px;
+	background: var(--fd-black);
+}
+.foundry-card h3 {
+	font-size: var(--fd-subheading);
+	letter-spacing: 0.01em;
+	text-transform: uppercase;
+}
+.foundry-card:hover h3 { color: var(--fd-ember); }
+
+/* Gambar kartu. Rasio dikunci 3:2 di sini dan bukan lewat ukuran berkas,
+ * karena gambar unggulan diunggah admin dengan rasio apa pun dan kartu yang
+ * tingginya berbeda-beda akan merusak grid. object-fit: cover memotong,
+ * bukan menggepengkan. */
+.foundry-card__image {
+	display: block;
+	aspect-ratio: 3 / 2;
+	margin-bottom: 4px;
+	background: var(--fd-soot);
+	border-radius: var(--fd-radius);
+	overflow: hidden;
+}
+.foundry-card__image img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+/* Cadangan saat belum ada gambar unggulan: nama rilis, DIREDUPKAN dan dalam
+ * font UI. Ia tidak boleh terbaca sebagai spesimen — ini toko huruf, dan
+ * nama font yang dicetak besar bisa dikira wujud fontnya. Prinsip yang sama
+ * dipakai .foundry-placeholder di atas. */
+.foundry-card__image-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	padding: 12px;
+	font-family: var(--fd-sans);
+	font-size: var(--fd-caption);
+	letter-spacing: 0.04em;
+	text-align: center;
+	color: var(--fd-ash-text);
+}
+
+.foundry-empty { padding: var(--fd-section-gap) var(--fd-pad); color: var(--fd-ash-text); }
+.foundry-empty .foundry-actions { margin-top: 20px; }
+
+.foundry-pagination { padding: 32px var(--fd-pad) var(--fd-section-gap); }
+/* padding: 0 menetralkan "ul.page-numbers { padding: 40px 0 0 }" di
+ * style.css, yang ikut kena karena paginate_links(type=>list) mencetak
+ * kelas itu. Tanpa ini jarak di atas paginasi jadi 32px milik
+ * .foundry-pagination DITAMBAH 40px warisan — 72px yang tidak diminta
+ * siapa pun. */
+.foundry-pagination ul { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; }
+.foundry-pagination a,
+.foundry-pagination span {
+	display: inline-block;
+	padding: 8px 12px;
+	border: 1px solid var(--fd-soot);
+	border-radius: var(--fd-radius);
+	font-size: var(--fd-caption);
+}
+.foundry-pagination .current { border-color: var(--fd-ember); color: var(--fd-ember); }
+
+/* --- Responsif ---------------------------------------------------------
+ * Di bawah 900px sidebar tetap tidak bisa dipertahankan: 200px dari 320px
+ * menyisakan 120px untuk spesimen. Ia dilipat jadi pita horizontal di atas
+ * konten — navigasinya tetap sama, hanya arahnya berubah. */
+@media (max-width: 900px) {
+	.foundry-nav-title { margin-bottom: 0; }
+}
+
+@media (max-width: 600px) {
+	.foundry { --fd-section-gap: 40px; }
+	.foundry-meta { justify-content: flex-start; }
+	.foundry .foundry-download .ath-free-download-actions { grid-template-columns: 1fr; }
+	.foundry .foundry-download .ath-free-download-button { justify-self: stretch; width: 100%; }
+	.foundry .foundry-download .ath-free-download-license-info { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.foundry * { transition: none !important; animation: none !important; }
+}
+
+/* =======================================================================
+   TOMBOL UNDUH — merebut kembali warnanya dari plugin
+   =======================================================================
+
+   GEJALA: di halaman tunggal Free Font, tombol unduh tampil sebagai kotak
+   bergaris hitam yang KOSONG. Teksnya ada di DOM, ukurannya 151x42px, tapi
+   tidak terlihat sama sekali.
+
+   PENYEBAB, hasil pengukuran computed style di Chromium — bukan tebakan:
+
+     color       rgb(255, 255, 255)   <- putih
+     background  rgba(0, 0, 0, 0)     <- transparan
+     wadah       rgb(255, 255, 255)   <- putih
+
+   Putih di atas putih. Rasio kontras 1:1.
+
+   Kenapa bisa terbelah begitu — ada TIGA aturan yang berebut, dan masing-
+   masing menang untuk properti yang berbeda:
+
+   1. specimen.css:1020 milik plugin
+        .ath-free-download-button { color: var(--ath-free-primary) !important }
+      !important, jadi ia mengalahkan aturan tema mana pun yang TIDAK memakai
+      !important, berapa pun spesifisitasnya. Ada aturan !important kedua di
+      specimen.css yang muncul belakangan dan menyetel warnanya ke
+      var(--ath-free-surface, #fff) = PUTIH. Itu sumber warna putihnya.
+
+   2. foundry.css:191 milik tema (varian terang)
+        .freefonts-single .foundry-download .ath-free-download-button
+        { background: #000; color: #fff }
+      Spesifisitas (0,3,0). Ia KALAH untuk background oleh nomor 3 di bawah
+      yang spesifisitasnya sama persis tapi muncul BELAKANGAN di berkas ini,
+      dan kalah untuk color oleh !important plugin. Praktisnya aturan ini
+      tidak berpengaruh sama sekali.
+
+   3. foundry.css:691 milik tema (varian gelap)
+        .foundry .foundry-download .ath-free-download-button
+        { background: transparent; color: var(--fd-ember) }
+      Menang untuk background (transparan). Warnanya kalah oleh !important
+      plugin. Itu sumber latar transparannya.
+
+   Jadi latar datang dari aturan gelap, warna datang dari plugin, dan
+   keduanya kebetulan sama-sama putih di halaman terang.
+
+   PERBAIKANNYA di sini, dan sengaja di UJUNG berkas:
+
+   * Ditaruh paling akhir supaya tidak ada aturan tema lain yang bisa
+     mendahuluinya lewat urutan. Masalahnya tadi memang lahir dari urutan.
+   * color memakai !important karena TIDAK ADA cara lain: plugin sudah
+     memakai !important, dan spesifisitas tidak pernah mengalahkannya.
+   * background dan border-color ikut !important supaya pasangan warnanya
+     tidak bisa terbelah lagi oleh aturan lain — persis kegagalan di atas.
+   * Halaman terang dan gelap dipisah secara eksplisit, bukan mengandalkan
+     var(--fd-ember) yang nilainya berubah tergantung kelas mana yang
+     kebetulan menang.
+
+   Berkas plugin tidak disentuh: ia akan tertimpa saat update.
+======================================================================= */
+
+/* Halaman TERANG (arsip & tunggal memakai .freefonts-archive).
+   Tombol unduh adalah aksi utama halaman, jadi ia solid hitam - satu-satunya
+   tombol terisi di halaman ini, seperti tombol View di sistem terang. */
+.freefonts-archive .foundry-download .ath-free-download-button,
+.freefonts-archive .foundry-download .ath-free-download-submit,
+.freefonts-archive .foundry-download .ath-free-download-ready a {
+	border: 1px solid #000000 !important;
+	background: #000000 !important;
+	color: #ffffff !important;
+}
+.freefonts-archive .foundry-download .ath-free-download-button:hover,
+.freefonts-archive .foundry-download .ath-free-download-submit:hover,
+.freefonts-archive .foundry-download .ath-free-download-ready a:hover {
+	background: #333333 !important;
+	border-color: #333333 !important;
+}
+
+/* Cancel BUKAN tombol teks: di plugin ia tombol ikon bulat 30x30 berlabel "x"
+ * dengan border: 0. Jadi HANYA warnanya yang diperbaiki di sini — menambahkan
+ * border atau latar akan mengubahnya jadi lingkaran bergaris, bukan ikon
+ * tutup. (Draf pertama aturan ini melakukan persis kesalahan itu; kelihatan
+ * begitu dirender.) */
+.freefonts-archive .foundry-download .ath-free-download-cancel {
+	color: #111111 !important;
+}
+
+/* Halaman GELAP murni (.foundry tanpa varian terang) - aksen oranye sebagai
+   garis, sesuai DESIGN3 yang melarang oranye dipakai sebagai isian. */
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-button,
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-submit,
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-ready a {
+	border: 1px solid #ff4d00 !important;
+	background: transparent !important;
+	color: #ff4d00 !important;
+}
+.foundry:not(.freefonts-archive) .foundry-download .ath-free-download-cancel {
+	color: #efefef !important;
+}

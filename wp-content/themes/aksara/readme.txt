@@ -1,0 +1,1901 @@
+=== Aksara ===
+Contributors: aksara
+Requires at least: 6.0
+Tested up to: 6.6
+Requires PHP: 7.4
+Requires Plugins: woocommerce
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+Tema marketplace font, Canva Template & Canva Element untuk Aksara. Full-custom (bukan starter theme), dibangun langsung mengikuti `mockup-home.html` dan `mockup-font-product.html`. Butuh plugin **Aksara Marketplace** aktif untuk fitur penuh (masih tampil tanpa plugin, hanya kehilangan fitur khusus marketplace).
+
+== Cakupan Fase 1 (fondasi) ==
+
+* Palet & tipografi awal mengikuti mockup (Fraunces + Inter, palet hangat). DIGANTI di v0.5.0 — lihat bagian "Sistem visual" di bawah.
+* Halaman **Home** (`front-page.php`): hero, 3 kartu kategori, daftar "Font pilihan" (statis, lihat catatan keamanan di bawah), grid Template/Element terbaru, trust section.
+* `woocommerce.php`: wrapper standar yang membungkus SEMUA halaman WooCommerce bawaan (shop, single product, cart, checkout, my account) dengan header/footer & styling tema — tanpa override template WooCommerce satu per satu.
+* Page template kustom (pilih lewat Page Attributes saat membuat Page baru):
+  * **Aksara — Daftar Font** (`page-templates/template-fonts.php`)
+  * **Aksara — Daftar Canva Template** (`page-templates/template-templates.php`)
+  * **Aksara — Daftar Canva Element** (`page-templates/template-elements.php`)
+  * **Aksara — Halaman License** (`page-templates/template-license.php`) — dirender otomatis dari data plugin (WooCommerce > Lisensi Font).
+* Single product font/template/element: info produk (jumlah style / dimensi / kategori), harga, tombol beli — semua lewat hook WooCommerce standar.
+* Blog & halaman generik (page.php, single.php, archive.php, search.php, 404.php, comments.php) dengan styling konsisten.
+
+== Cakupan Fase 2 (ditambahkan di atas Fase 1) ==
+
+* Single product **Font** kini menampilkan typing tool interaktif penuh (weight tabs, italic toggle, slider ukuran, grid style dengan pratinjau live per baris, sidebar lisensi + kalkulator harga real-time, tombol "Pilih Semua/Paket Lengkap") — implementasinya ada di plugin (`aksara-marketplace/templates/single-product/add-to-cart/font.php` + `assets/js/font-typing-tool.js`), tema hanya menyediakan hook & styling dasar (`.aksara-product-summary`).
+* CSS widget typing tool memakai custom property yang sama dengan tema (`var(--indigo, ...)` dst.) supaya otomatis mengikuti palet tema tanpa dependency langsung ke class PHP tema.
+
+## Catatan keamanan: bagaimana Home menampilkan font asli dengan aman
+
+Daftar "Font pilihan" di Home & halaman Fonts kini menampilkan nama font dalam font ASLINYA — tapi sebagai **gambar hasil render server** (PHP GD, lihat `aksara_font_specimen()` dari plugin), bukan dengan memuat berkas font ke browser lewat `@font-face`. Yang sampai ke pengunjung cuma piksel; berkas fontnya tidak pernah meninggalkan server.
+
+Ini berbeda dari versi awal tema yang sengaja memakai font tema karena saat itu belum ada mekanisme render gambar yang aman. Yang tetap TIDAK boleh dilakukan: memasang berkas font produk lewat `@font-face` publik di listing — itu membocorkannya utuh tanpa melewati mekanisme perlindungan apa pun.
+
+Kalau specimen tidak bisa dibuat (style diunggah sebagai .woff2 yang tidak terbaca FreeType, atau GD tidak tersedia di server), baris listing otomatis mundur ke teks biasa dalam font tema.
+
+== Cakupan Fase 3 (ditambahkan di atas Fase 1 & 2) ==
+
+* 3 tab My Account baru (Unduhan Saya, Sertifikat Lisensi, Wishlist) otomatis tampil di sidebar navigasi My Account bawaan WooCommerce — implementasinya di plugin (`class-account-endpoints.php`), tema tidak perlu perubahan template karena `woocommerce.php` sudah membungkus seluruh halaman My Account.
+* Tombol wishlist (ikon hati, `aksara_wishlist_button()`) tampil di kartu produk (`template-parts/asset-card.php`), baris spesimen font (`template-parts/font-specimen-row.php`), dan ringkasan single product (hook `woocommerce_single_product_summary`) — hanya untuk user yang sudah login.
+* `.asset-card` diubah dari `<a>` menjadi `<div>` berisi `<a>` di dalamnya (bukan lagi seluruh kartu jadi link) supaya tombol wishlist (elemen interaktif) tidak bersarang di dalam link lain — nesting interactive content di dalam `<a>` tidak valid HTML dan bikin klik ambigu.
+
+== Cakupan Fase 4 (ditambahkan di atas Fase 1-3) ==
+
+* **SEO** (`inc/seo.php`): meta description & Open Graph tags. Structured data Product, sitemap XML, dan meta `<title>`/`rel=canonical` **tidak ditambahkan di sini** karena WordPress core & WooCommerce core sudah mencetaknya otomatis tanpa kode tambahan — lihat penjelasan lengkap di komentar `inc/seo.php`.
+* **Performa**: `aksara_count_products_by_type()` (3x query WP_Query tiap Home dibuka) & `aksara_get_listing_url()` sekarang di-cache pakai transient (lihat `inc/woocommerce-helpers.php`), auto-flush saat produk/halaman terkait disimpan.
+* **Aksesibilitas**:
+  * Warna `--ochre` (dipakai untuk teks harga di mana-mana) digelapkan dari `#BE7A2E` ke `#835420` — versi asli mockup gagal kontras WCAG AA (2,9-3,5:1 terhadap latar situs, syarat minimal 4,5:1), versi baru 5,9-6,5:1.
+  * Indikator fokus keyboard (`:focus-visible`, outline indigo 2px) ditambahkan secara global, plus perbaikan pada elemen yang sebelumnya `outline:none` tanpa pengganti (kotak pencarian hero, kotak pratinjau font di plugin).
+* **Responsif**: tabel WooCommerce (cart, checkout, tab My Account) bisa di-scroll horizontal di layar sempit alih-alih merusak lebar halaman; baris "Font pilihan" di Home ditata ulang jadi 2 baris di mobile (≤640px) alih-alih 4 kolom sempit berdesakan.
+
+## Yang BELUM ada (menyusul di fase lanjut)
+
+* Halaman Cart/Checkout TERSTYLE lewat CSS bawaan `woocommerce.php`, belum ada template override kustom per halaman.
+* Customizer UI untuk hero (saat ini teks hero memakai default dari mockup lewat `get_theme_mod()` — sudah bisa diubah lewat kode/nanti Customizer, belum ada panel UI).
+* Produk font dan preview membutuhkan plugin Authentype. Preview archive dikirim sebagai raster PNG/canvas; font asli tidak dimuat oleh theme.
+* Testing end-to-end sungguhan di browser (responsive, keyboard, screen reader) — lihat checklist di `docs/QA-TEST-PLAN.md` (perlu staging WordPress aktif, tidak bisa dijalankan otomatis di environment development ini).
+
+== Instalasi ==
+
+1. Aktifkan WooCommerce, Authentype, dan plugin **Aksara Marketplace** terlebih dahulu.
+2. Unggah folder `aksara` ke `/wp-content/themes/`, lalu aktifkan.
+3. Archive font dibuat otomatis oleh CPT Authentype (default `/font-shop/`). Page manual hanya diperlukan untuk Templates/Elements/License.
+4. Atur halaman-halaman itu di **WooCommerce > Pengaturan > Halaman Muka** / menu navigasi sesuai kebutuhan.
+5. Buat font lewat Authentype; buat Canva Template/Element lewat Aksara Marketplace. Keduanya otomatis muncul di storefront yang sesuai.
+
+== Sistem visual (v0.5.0) — monokrom, mengikuti DESIGN.md ==
+
+Tema ini sekarang mengikuti DESIGN.md ("Studio Few — Style Reference"), yang
+menggantikan bahasa visual hangat dari mockup awal. Aturan yang dipegang:
+
+* **Tanpa warna kromatik sama sekali.** Hanya tinta (#000) & kertas (#fff),
+  ditambah abu-abu netral untuk hairline. Palet lama (indigo #33417A, ochre
+  #835420, teal, paper #EDEBE3) sudah dihapus seluruhnya — termasuk fallback
+  `var(--indigo, ...)` di CSS plugin, yang kalau dibiarkan justru akan aktif
+  dan mengembalikan warna itu karena tokennya tidak lagi didefinisikan tema.
+  Diverifikasi dengan memotret halaman di browser lalu mengaudit pikselnya:
+  0 piksel berwarna setelah antialiasing subpiksel dimatikan.
+* **Kedalaman dari hairline, bukan shadow.** Tidak ada box-shadow elevasi,
+  gradient, atau card. Baris spesimen dipisah garis 1px.
+* **Radius tepat dua nilai**: 6px untuk tombol, 2px untuk sisanya.
+* **Satu pola tombol**: `.btn-trial` (outline, tidak pernah terisi bahkan saat
+  hover) berpasangan dengan `.btn-view` (isi tinta penuh).
+* **Tipografi**: satu keluarga UI. Sterling disebut lebih dulu di `--font-ui`
+  supaya otomatis mengambil alih kalau berkasnya dipasang; Work Sans dimuat
+  sebagai failsafe sesuai perannya di DESIGN.md.
+
+Penyimpangan yang disengaja dari DESIGN.md, beserta alasannya:
+
+* Token Ash `#858585` TIDAK dipakai untuk teks kecil. Di atas kertas putih ia
+  cuma 3,69:1, sedangkan DESIGN.md menugaskannya ke label 12-14px — persis
+  kategori yang WCAG AA minta 4,5:1. Teks redup memakai `--color-ash-text`
+  (#767676 = 4,54:1); Ash tetap tersedia untuk elemen non-teks.
+* Status sukses/gagal tidak dibedakan lewat warna (DESIGN.md melarang merah &
+  hijau). Pembedanya: garis tinta di kiri + berat huruf. Ini juga yang diminta
+  WCAG 1.4.1, jadi bukan kompromi.
+* Spesimen di listing dirender 115px (token `--text-display`), bukan 158px.
+  Alasannya bukan selera: gambarnya PNG hasil render server, dan pada 158px
+  dengan skala 2x satu nama font panjang menghasilkan PNG ~4000px (≈90 KB)
+  per baris — diukur, bukan diperkirakan. Pada 115px jadi 2968px/51 KB.
+* Ukuran display memakai clamp() dengan batas bawah 40px. DESIGN.md menyebut
+  skala tetap, tapi teks hero bisa disunting admin lewat Customizer sehingga
+  panjang katanya tidak bisa dijamin; batas bawah menjaga kata terpanjang
+  tetap muat di layar sempit.
+
+Diverifikasi di browser (Chromium headless) pada lebar 375px, 768px & 1440px:
+`scrollWidth == clientWidth` di ketiganya, jadi tidak ada scroll horizontal.
+== Aksara 0.9.1 ==
+
+Font Library now shows the linked WooCommerce featured image and complete
+product gallery in a responsive horizontal slider: four visible columns on
+desktop, two on tablet, and a swipeable preview on mobile. Arrow controls,
+scroll snapping, keyboard focus, and reduced-motion behavior are included.
+
+== Aksara 0.9.2 ==
+
+The Font Library gallery now follows the supplied visual reference: four
+large image tiles in one uninterrupted carousel, rounded image corners,
+hidden scrollbar, and dark circular previous/next controls overlaid on the
+left and right edges. The controls wrap at either end; touch and trackpad
+scrolling remain available.
+
+== Aksara 0.9.3 ==
+
+Carousel arrows were reduced from 56px to 40px on desktop and to 36px on
+mobile, with smaller glyphs and a lighter shadow so controls no longer cover
+important product artwork.
+
+== Aksara 0.9.4 ==
+
+Gallery arrows are hidden by default and fade in only when the gallery is
+hovered or receives keyboard focus. Swipe, trackpad, and native scrolling
+continue to work while the controls are hidden.
+
+== Aksara 0.9.5 ==
+
+Font Library specimen padding was tightened to 8px above and below the
+server-rendered preview. The separation before the gallery was increased to
+48px. Gallery arrows are now an understated 32px on desktop and 30px on
+mobile, with a lighter shadow.
+
+== Aksara 0.9.6 ==
+
+The complete WooCommerce featured image and gallery set now uses the same
+four-column carousel on the homepage, Font Library archive, and single-font
+page. Legacy three-column grid rules are normalized without changing the
+native WooCommerce gallery used by non-font products.
+
+== Aksara 0.9.7 ==
+
+On single-font pages the overview separator now sits between the gallery and
+description, with 48px of breathing room below the images instead of touching
+their lower edge.
+
+== Aksara 0.9.8 ==
+
+Introduces a dedicated editorial Journal system inspired by DESIGN-2: a
+featured-story posts page, asymmetric archive grid, large serif single-post
+hero, reading time, author block, related stories, editorial navigation,
+capsule imagery, and a blog-only dark footer CTA with yellow highlight.
+
+
+== v0.9.9 - satu suara tipografi di seluruh tema ==
+
+Sebelum ini tema memakai DUA keluarga: --font-ui (Sterling/Work Sans, sans)
+untuk seluruh situs, dan --font-editorial ('Playfair Display', serif) untuk
+sembilan tempat di halaman editorial/blog yang masuk di 0.9.8.
+
+Yang menentukan mana yang menang bukan selera, tapi DESIGN.md:
+
+  "Work Sans - Failsafe ... never the primary voice, but THE ONLY GOOGLE FACE
+   IN THE SYSTEM."
+  "Do not use Work Sans or any Google fallback as a visible UI face; Sterling
+   is the only voice."
+
+Playfair Display tidak disebut sama sekali di DESIGN.md, dan ia adalah
+keluarga Google KEDUA - langsung bertentangan dengan "the only Google face in
+the system". Jadi ia yang dilepas, bukan Sterling.
+
+Yang diubah:
+
+* --font-editorial kini bernilai var(--font-ui). Tokennya sengaja
+  DIPERTAHANKAN, bukan dihapus lalu sembilan pemakaiannya ditulis ulang,
+  supaya peran "teks editorial" tetap punya nama kalau suatu saat diberi
+  keluarga tersendiri lagi. Pola ini sama persis dengan --font-display yang
+  memang sudah begitu sejak awal.
+* Playfair Display dilepas dari permintaan Google Fonts di functions.php.
+  Sekarang hanya Work Sans - satu request, bukan dua. Docblock di atas fungsi
+  itu sebetulnya SUDAH mengklaim "cuma SATU keluarga (Work Sans), bukan dua";
+  Playfair Display masuk di 0.9.8 tanpa memperbarui komentarnya, jadi kode dan
+  komentarnya saling bertentangan. Sekarang cocok.
+* font-family: Arial, sans-serif di baris ~1108 diganti var(--font-ui). Itu
+  satu-satunya font-family di tema yang menembus sistem token. Tempatnya
+  tombol bulat "x"; glyph itu ada di semua keluarga, jadi tidak ada alasan
+  teknis untuk mengecualikannya.
+* Tombol "ff" pembuka menu fitur OpenType milik plugin Authentype disetel
+  Georgia, serif oleh specimen.css. Berkas plugin tidak diedit (akan tertimpa
+  saat update), jadi diseragamkan lewat override di style.css tema.
+  Selektornya memakai button.… (0,1,1) dan .ath-specimen-v7 button.… (0,2,1)
+  supaya menang atas aturan plugin (0,1,0 dan 0,2,0) TANPA !important, dan
+  menang tanpa bergantung urutan cetak stylesheet - urutan itu tidak dijamin
+  karena specimen.css baru di-enqueue saat shortcode/template part berjalan.
+
+Yang SENGAJA dibiarkan berbeda: chip tag fitur (.ath-feature-chip) tetap
+monospace. Isinya tag OpenType mentah seperti "liga" dan "dlig"; monospace di
+situ fungsional, bukan dekoratif.
+
+Diverifikasi dengan pemindai yang membaca setiap deklarasi font-family di tema
+dan kedua plugin lalu menelusuri resolusi tokennya: 18 deklarasi di tema
+seluruhnya var(--font-*), ketiga token (--font-ui, --font-display,
+--font-editorial) bermuara ke satu stack yang sama, dan permintaan Google
+Fonts tinggal ['Work+Sans'].
+
+CATATAN, di luar cakupan perubahan ini: bagian editorial juga memasukkan warna
+KROMATIK, padahal DESIGN.md menetapkan 0% warna kromatik. Yang paling mencolok
+#fef199 (kuning, delta 101) pada border .editorial-footer-cta di baris ~1596,
+ditambah keluarga hitam kebiruan #111118 / #33333b / #292d35 (delta 7-12) di
+sekitar baris 1489-1602. Belum diubah karena ini soal warna, bukan font.
+
+
+== v0.9.10 - placeholder specimen yang jujur + umur nonce preview ==
+
+Dua perbaikan yang sempat hilang saat mengadopsi master 0.9.8, dipasang ulang
+dalam bentuk yang sudah disesuaikan.
+
+**1. Placeholder baris specimen (menggantikan versi asli yang ditolak)**
+
+Versi aslinya menukar canvas yang gagal dengan nama keluarga font, dicetak
+sebesar spesimen sungguhnya dalam tinta penuh. Itu ditolak dengan alasan yang
+benar: ini toko huruf. "Honic" yang dicetak 158px dalam font TEMA di kotak
+yang seharusnya berisi spesimen Honic bisa membuat pembeli mengira itulah
+wujud Honic - kesan percaya diri yang salah, lebih merugikan daripada mengaku
+terus terang.
+
+Versi yang dipakai sekarang sengaja TERBACA SEBAGAI PLACEHOLDER:
+* ukurannya clamp(26px, 4.5vw, 56px), jauh di bawah spesimen sungguhan yang
+  115-158px, jadi tidak pernah menempati peran visual yang sama;
+* warnanya --muted (#767676), bukan tinta penuh;
+* selalu disertai keterangan kecil yang menyebut apa yang sedang terjadi.
+
+Tiga keadaan ditangani dengan komponen yang sama tapi keterangan berbeda:
+* render gagal -> "Preview unavailable" (muncul saat specimen.js menandai
+  canvas dengan .has-error; canvas-nya disembunyikan CSS);
+* JavaScript mati -> "Preview needs JavaScript" lewat <noscript>. Master 0.9.8
+  kehilangan cadangan ini SAMA SEKALI, jadi pengunjung yang JS-nya diblokir
+  melihat katalog kosong total - itu diperbaiki sekalian;
+* font belum punya token preview -> "Preview not ready".
+
+Keadaan ketiga tadinya memakai .sp-specimen-fallback yang punya masalah
+menyesatkan yang persis sama (nama keluarga, 158px, tinta penuh), jadi ia ikut
+diseragamkan. Aturan CSS .sp-specimen-fallback jadi tidak terpakai dan
+dihapus, bukan ditinggal sebagai CSS mati.
+
+Canvas yang gagal sengaja TIDAK dihapus dari DOM, hanya display:none, supaya
+.has-error dan request admin-ajax yang gagal tetap bisa didiagnosis di
+DevTools. Ini degradasi tampilan, bukan penyembuhan penyebabnya.
+
+**2. Umur nonce preview - HANYA preview, bukan keranjang**
+
+renderNonce ditanam di HTML dan efektif hanya 12-24 jam. Di situs dengan
+full-page cache, HTML katalog disajikan lebih lama dari itu sehingga setiap
+preview gagal sampai cache dibersihkan. Tanpa page cache, bug ini tidak akan
+pernah muncul.
+
+Filter nonce_life yang disaring per $action memperpanjang
+ath_specimen_render_preview jadi 30 hari (jaminan minimum 15 hari), bisa
+diubah lewat filter aksara_specimen_nonce_ttl.
+
+Nonce keranjang (ath_specimen_cart) SENGAJA TIDAK ikut dilonggarkan meski
+kena masalah cache yang sama, karena ia action yang mengubah state:
+memperpanjangnya berarti memperlebar jendela CSRF add-to-cart. Kalau suatu
+saat tombol Add to cart terbukti gagal di halaman ter-cache, cabangnya
+ditambahkan secara sadar - bukan disamaratakan.
+
+Filternya harus berlaku untuk pembuatan DAN verifikasi: ada dua tempat
+pembuatan nonce (tema dan shortcode plugin) dan tiga tempat verifikasi. Kalau
+umurnya hanya dilonggarkan saat request AJAX, tick pembuatan dan verifikasi
+tidak akan pernah cocok dan semua preview langsung gagal.
+
+$action baru diteruskan ke nonce_life pada WordPress yang wp_nonce_tick()-nya
+menerima argumen. Versi persisnya tidak bisa diverifikasi dari lingkungan
+kerja ini, jadi kodenya memeriksa runtime lewat ReflectionFunction, bukan
+menebak nomor versi. Pada WordPress lama filternya mengembalikan umur apa
+adanya (fail-safe) dan statusnya dilaporkan di Tools > Site Health > Info >
+Aksara theme, lengkap dengan saran menurunkan TTL page cache di bawah 12 jam.
+
+Diverifikasi dengan harness PHP yang meniru mekanika tick nonce: preview valid
+di hari ke-14 dan kedaluwarsa di hari ke-31; nonce keranjang tetap kedaluwarsa
+di hari ke-1,5 seperti default; wp_rest tidak tersentuh; dan pemanggilan tanpa
+$action tidak mengubah apa pun.
+
+
+== v0.9.11 - audit responsif: batas kiri/kanan halaman ==
+
+Diaudit dengan merender tema di Chromium headless, bukan dengan membaca CSS.
+15 jenis halaman (front page, blog, arsip, single post, page, search, 404,
+arsip & single ath_font, halaman WooCommerce, dan empat page template) x 10
+lebar viewport (320, 360, 375, 414, 768, 900, 950, 1024, 1280, 1440), masing-
+masing dirender dalam iframe selebar itu supaya media query benar-benar
+dievaluasi, lalu diukur scrollWidth vs clientWidth plus bounding box tiap
+elemen.
+
+KOREKSI METODOLOGI. Putaran pertama melaporkan overflow di hampir semua
+halaman. Itu SALAH: fixture-nya menyuntikkan kata buatan sepanjang 43 huruf
+tanpa spasi ke setiap heading, dan pada clamp(..., 13vw, 160px) kata itu
+memang tidak mungkin muat. Angkanya mengukur fixture, bukan tema. Setelah
+diganti judul realistis, kelima belas halaman bersih di sepuluh lebar.
+
+Tapi ada yang memang lolos dari putaran itu: fixture dibuat dengan me-strip
+PHP, sehingga the_content() menghasilkan kosong dan ISI ARTIKEL DARI EDITOR
+tidak pernah teruji sama sekali. Di situlah empat bug sebenarnya berada.
+Diukur pada viewport 375px:
+
+  <pre> berisi satu baris kode panjang      meluber 338px
+  <table> enam kolom                        meluber  73px
+  URL panjang tanpa spasi di dalam <p>      meluber  60px
+
+Ketiganya karena tema sama sekali tidak punya aturan global untuk pre, table,
+maupun overflow-wrap - yang ada cuma img { max-width: 100% }. Isi artikel
+datang dari editor, bukan dari template, jadi tema tidak boleh mengandalkan
+markupnya berperilaku baik. Ditambahkan satu blok pagar untuk .entry-content
+dan .editorial-single__body: overflow-wrap break-word (bukan anywhere -
+break-word hanya memotong kata yang memang tidak muat dan tidak mengubah
+perhitungan min-content, jadi tipografi normal tidak terganggu), plus
+display:block + overflow-x:auto untuk pre dan table.
+
+  blockquote artikel     meluber 50px di 901px, 25px di 950px, 1px di 999px
+
+Ini yang paling halus. .editorial-single__body blockquote memasang
+margin: 64px -120px TANPA SYARAT sebagai efek bleed, lalu membatalkannya
+lewat margin-inline: 0 di bawah 900px. Badan artikel lebarnya
+min(100% - 32px, 760px), jadi bleed 120px per sisi baru benar-benar muat
+kalau viewport minimal 760 + 240 = 1000px. Yang tersisa adalah celah
+901-999px: pembatalannya sudah berhenti berlaku tapi ruangnya belum ada.
+
+Diperbaiki dengan membalik logikanya: bleed dinyatakan sebagai afordansi
+desktop lewat @media (min-width: 1040px), bukan default yang dibatalkan di
+layar kecil. Celahnya tertutup secara definisi, bukan dengan menambal
+breakpoint.
+
+Ambangnya 1040px dan bukan 1000px pas karena alasan yang terukur: saat
+halaman cukup panjang untuk memunculkan scrollbar vertikal, ruang yang
+tersedia berkurang selebar scrollbar (~15px) sementara media query tetap
+dievaluasi terhadap 1000px - tepat di 1000px masih tersisa 8px overflow.
+40px kelonggaran menutupinya di semua lebar scrollbar yang wajar.
+
+GUTTER. Padding kiri/kanan .wrap diperiksa di kelima belas halaman dan
+sepuluh lebar: konsisten 16px di <=600px dan 24px di atasnya, kiri selalu
+sama dengan kanan. Tidak ada yang menyimpang.
+
+HASIL AKHIR. Kelima belas halaman plus lima fixture isi-artikel: nol
+overflow horizontal di sepuluh lebar.
+
+
+== v0.9.12 - "ABOUT THE AUTHOR ke bawah" & lantai min-content ==
+
+Audit 0.9.11 melewatkan seluruh bagian bawah halaman single post, dan
+alasannya sama seperti sebelumnya: isinya digenerate PHP - get_avatar(),
+the_author(), the_post_navigation(), comments_template(), dan loop related -
+sedangkan fixture dibuat dengan me-strip PHP. Bagian itu dirender kosong,
+jadi tidak pernah benar-benar diuji. Fixture baru memakai markup WordPress
+yang sebenarnya untuk seluruh wilayah itu.
+
+PELAKUNYA: .editorial-author
+
+Lebarnya terkunci 405px berapa pun viewport-nya. Di 320px meluber 100px, di
+375px 45px, di 414px 6px, dan baru hilang di 600px - persis pola yang
+dilaporkan.
+
+Sebabnya bukan aturan width yang salah, melainkan lantai min-content:
+
+  Setiap anak grid atau flex punya min-width: auto secara bawaan, yang
+  berarti ia TIDAK BOLEH menyusut di bawah lebar min-content-nya.
+
+.editorial-author memakai grid-template-columns: 80px minmax(0, 600px).
+Trek keduanya memang boleh mengecil sampai 0 - tapi ITEM di dalamnya tidak.
+Bio penulis yang memuat satu URL panjang memaksa lebarnya 301px, sehingga
+kotaknya terkunci di 80 + 24 + 301 = 405px dan mendorong <body> ikut melebar.
+Tidak ada satu pun properti width yang keliru; yang keliru adalah asumsi
+bahwa anak grid boleh menyusut.
+
+PERBAIKAN - DUA LAPIS, KEDUANYA PERLU
+
+1. overflow-wrap: break-word di body. Teks yang tidak muat DIPOTONG, bukan
+   dibiarkan mendorong halaman. Ditaruh di body, bukan didaftar per wadah,
+   karena sumbernya bisa muncul di mana saja: nama font panjang, URL di
+   dalam judul, alamat email di heading footer. Dipakai break-word dan bukan
+   anywhere supaya perhitungan min-content tidak ikut berubah - tipografi
+   normal dan spesimen besar tidak berubah sama sekali.
+
+2. min-width: 0 pada anak setiap wadah grid/flex. Daftar selektornya TIDAK
+   ditulis tangan: ia diturunkan dari stylesheet ini sendiri dengan memindai
+   setiap aturan yang mendeklarasikan display: grid atau display: flex - 53
+   wadah. Daftar tangan terbukti selalu tertinggal: percobaan pertama
+   melewatkan .editorial-masthead dan .font-library-header, dan keduanya
+   langsung muncul di uji tekan.
+
+   Keduanya diperlukan. Tanpa overflow-wrap, teksnya tetap tumpah keluar
+   item meski itemnya sudah boleh menyusut. Tanpa min-width: 0, treknya
+   tetap dipaksa melebar meski teksnya sudah boleh dipotong.
+
+SATU LAGI: .editorial-footer-cta p
+
+max-width: 34ch pada font-size 18px = 321px. Di bawah 640px wadahnya jadi
+flex-direction: column dengan align-items: flex-start, sehingga item ini
+menyusut ke lebar kontennya - dibatasi max-width, TAPI mengabaikan lebar
+wadahnya. Di viewport 320px ruang yang tersedia cuma 273px, jadi meluber
+tepat 32px - di SETIAP halaman, karena footer ini dipakai semua halaman.
+min-width: 0 tidak menolong: itu soal penyusutan sumbu utama, bukan batas
+atas di sumbu silang. Diperbaiki jadi max-width: min(34ch, 100%).
+
+UJI TEKAN
+
+Selain suite konten normal, ditambahkan suite kedua yang menyuntikkan token
+88 karakter tanpa spasi ke SETIAP heading dan paragraf di semua halaman -
+worst case yang disengaja, bukan kecelakaan fixture seperti di 0.9.11.
+Ia langsung membuktikan pagar versi pertama terlalu sempit: 17 dari 21
+halaman masih meluber, sampai 1306px.
+
+HASIL AKHIR. 21 fixture (15 jenis halaman + bagian bawah single post + 5
+fixture isi artikel) x 10 lebar viewport, pada kedua suite: nol overflow
+horizontal.
+
+
+== v0.9.13 - gutter yang hilang: shorthand padding menimpa .wrap ==
+
+Gejalanya bukan overflow, melainkan KEBALIKANNYA: kotak About the author dan
+kartu Previous/Next berhenti tepat di 0 - menempel rata di tepi kiri dan
+kanan halaman - sementara badan artikel di atasnya tetap masuk karena ia
+punya width sendiri.
+
+Itulah sebabnya audit 0.9.11 dan 0.9.12 melewatkannya. Keduanya mengukur
+scrollWidth vs clientWidth, dan elemen yang berhenti PERSIS di 0 tidak
+menghasilkan overflow sama sekali. Pemeriksaan gutter-nya pun cacat: ia hanya
+mengukur .wrap PERTAMA di setiap halaman - yaitu header - lalu menyimpulkan
+seluruh halaman konsisten.
+
+PENYEBABNYA
+
+  .wrap                       { padding: 0 var(--gutter); }        /* baris 152 */
+  .editorial-single__footer   { padding: 64px 0 88px; }            /* baris 1739 */
+
+Elemen itu di markup berkelas "editorial-single__footer wrap". Kedua selektor
+sama-sama berbobot (0,1,0), jadi yang menang adalah yang muncul BELAKANGAN -
+aturan editorial. Shorthand `padding` menulis ulang KEEMPAT sisi, sehingga
+padding kiri/kanan dari .wrap ikut jadi 0.
+
+Ini regresi. Blok SPACING AUDIT 0.8.4 sudah pernah mengenali pola yang sama
+persis dan menambahkan padding-block untuk .content-area dan
+.aksara-product-summary. Kerja editorial di 0.9.8 memasukkannya kembali lewat
+selektor baru.
+
+DAN PERBAIKAN 0.8.4 ITU SENDIRI TERNYATA TIDAK TUNTAS
+
+Begitu pemeriksaan gutter diperbaiki supaya memeriksa SETIAP .wrap, bukan
+hanya yang pertama, dua korban lama langsung muncul:
+
+  .content-area              0/0 padahal harus 16/24  (404, index, page,
+                             search, dan tiga page template)
+  .aksara-product-summary    0/0 padahal harus 16/24  (halaman WooCommerce)
+
+Sebabnya: 0.8.4 MENAMBAHKAN aturan padding-block di baris 1534-1535, tapi
+tidak pernah MENGHAPUS shorthand aslinya di baris 824 dan 996. Shorthand itu
+sudah menolkan padding horizontal lebih dulu, dan padding-block hanya
+menyetel sumbu atas-bawah - horizontalnya tetap 0. Jadi tujuh halaman lain
+sebenarnya juga menempel di tepi selama ini, tanpa pernah terdeteksi.
+
+Ketiganya kini memakai padding-block.
+
+PENCEGAHAN
+
+Aturan .wrap diberi catatan eksplisit: elemen apa pun yang ikut memakai .wrap
+HANYA boleh menyetel padding sumbu blok, tidak boleh shorthand. Pemeriksaan
+gutter di harness juga diperbaiki permanen - ia kini memeriksa setiap .wrap
+di setiap halaman dan membandingkan padding kiri DAN kanan terhadap nilai yang
+diharapkan menurut lebar viewport (16px di <=600px, 24px di atasnya).
+
+VERIFIKASI
+
+Tiga pemeriksaan, seluruhnya lulus: gutter setiap .wrap di 21 fixture x 6
+lebar; overflow horizontal dengan konten normal; dan overflow horizontal pada
+uji tekan token 88 karakter. Ditambah pemeriksaan visual: screenshot 1440px
+memastikan avatar, About the author, kartu Previous/Next, dan Related stories
+semuanya mulai di 24px, bukan 0.
+
+
+== v0.9.14 - halaman Free Font (sistem visual Foundry) ==
+
+Dua halaman baru mengikuti docs/DESIGN3.md: arsip free font dan halaman
+tunggalnya.
+
+DATANYA BUKAN MILIK TEMA
+
+Authentype sudah punya seluruh sistemnya: CPT ath_free_download, preset
+lisensi, gerbang email (lead), token unduhan sekali pakai, rate limit per IP,
+dan honeypot. Tema hanya menyediakan tampilan. Tombol unduhnya TETAP dirender
+shortcode plugin, tidak ditulis ulang — di dalam markup kartu itu ada nonce,
+license fingerprint, dan hidden field yang seluruhnya bagian dari kontrak
+keamanan plugin, dan menyalinnya berarti menyalin sesuatu yang bisa berubah
+saat plugin di-update.
+
+Masalahnya [authentype_free_downloads] tidak punya atribut id — ia hanya
+menyaring lewat type/font_id, sedangkan halaman tunggal butuh tepat satu item.
+Jadi QUERY-nya yang dipersempit, bukan markupnya yang disalin: get_posts()
+memakai WP_Query di baliknya dan pre_get_posts berlaku untuk semua WP_Query.
+Cakupannya dipersempit tiga lapis — hanya saat bendera dipasang, hanya untuk
+post type ini, dan bendera dilepas segera setelah shortcode selesai.
+
+DUA SISTEM VISUAL YANG BERTENTANGAN, DIPISAH DENGAN SENGAJA
+
+  DESIGN.md  (Studio Few) — terang, 0% kromatik, Sterling/Work Sans
+  DESIGN3.md (Foundry)    — gelap #121212, aksen oranye #ff4d00, JetBrains Mono
+
+Keduanya tidak bisa digabung. Foundry ditaruh di assets/css/foundry.css,
+di-enqueue HANYA di arsip dan halaman tunggal ath_free_download, dan seluruh
+aturannya diberi awalan .foundry supaya tidak pernah bocor. Halaman Free Font
+karena itu TIDAK mengikuti DESIGN.md — itu memang yang diminta, tapi perlu
+disebut terang-terangan supaya tidak dikira regresi oleh audit monokrom.
+
+Header dan footernya juga terpisah (header-foundry.php / footer-foundry.php).
+DESIGN3 menetapkan sidebar kiri tetap dan melarang tata letak terpusat; itu
+struktur halaman yang berbeda, bukan variasi warna. Memakai header.php lalu
+menempelkan kanvas gelap akan menghasilkan bilah terang di atas ruang hitam,
+persis yang dilarang DESIGN3.
+
+SATU PENYIMPANGAN SADAR DARI DESIGN3, KARENA DIUKUR
+
+Ash #747474 di atas kanvas #121212 hanya 4,01:1. DESIGN3 menugaskannya ke
+"muted helper text, inactive labels, secondary metadata" — di sistem ini
+semuanya 12-14px, persis kategori yang WCAG AA minta 4,5:1. Jadi ia gagal
+untuk peran yang diberikan kepadanya. Ash tetap dipakai untuk hal non-teks,
+teks redup memakai --fd-ash-text (#7d7d7d = 4,55:1), nilai tergelap yang
+masih lolos. Draf pertama komentar di CSS sempat mengklaim 4,84:1; itu keliru
+dan ketahuan karena angkanya dihitung, bukan diasumsikan.
+
+Sisa palet lulus: bone #efefef 16,29:1, ember #ff4d00 5,63:1, chalk #e2e8f0
+15,20:1, tag terbalik 16,29:1.
+
+SPESIMEN & PLACEHOLDER
+
+Free download adalah post tersendiri dan tidak punya token preview. Yang punya
+token adalah ath_font, dan admin bisa menautkan keduanya lewat
+_ath_free_download_related_font. Kalau tautannya ada, spesimennya dirender
+sungguhan lewat Authentype; kalau tidak, halaman memakai placeholder yang
+jujur mengaku placeholder — pola yang sama dengan 0.9.10, dengan keterangan
+yang dibedakan: "Preview unavailable" (render gagal), "Preview needs
+JavaScript" (JS mati), "No specimen linked" (belum ditautkan).
+
+TIGA BUG DITEMUKAN OLEH PENGUJIAN SENDIRI
+
+* foundry.css tidak me-reset body. Di produksi style.css menutupinya, tapi
+  bergantung pada stylesheet lain itu rapuh, dan kanvas hitamnya bocor jadi
+  putih di area bawah konten pendek serta area overscroll. Ditambahkan
+  body.foundry-page, digerbangi body class supaya tidak menyentuh halaman lain.
+* Garis vertikal sidebar berhenti di tengah halaman: sidebar-nya sticky
+  dengan align-self: start sehingga setinggi isinya sendiri. Garisnya
+  dipindahkan ke border-left milik kanvas, yang selalu setinggi konten.
+* .foundry-sidebar punya overflow-y: auto untuk mode desktop dan itu tidak
+  ikut direset saat dilipat di mobile. Menyetel satu sumbu ke non-visible
+  memaksa sumbu lain jadi auto, jadi ia berubah menjadi wadah scroll yang
+  MENYEMBUNYIKAN overflow dari mata dan dari scrollWidth sekaligus. Direset
+  ke overflow: visible supaya pengukurannya kembali bisa dipercaya.
+
+VERIFIKASI
+
+Kedua halaman diuji dengan harness yang sama seperti audit responsif: 10
+lebar viewport (320-1440), pada suite konten normal DAN suite uji tekan token
+88 karakter tanpa spasi. Nol overflow horizontal di keduanya. Ditambah
+screenshot 1440px dan 390px.
+
+CATATAN PEMASANGAN
+
+URL arsipnya /free-downloads/ — slug itu ditetapkan plugin Authentype saat
+mendaftarkan CPT dan tidak punya filter, jadi tema tidak bisa mengubahnya.
+Setelah memasang versi ini, buka Settings > Permalinks lalu Save sekali agar
+rewrite rule-nya ter-flush.
+
+
+== v0.9.15 - font tester di halaman Free Font, + satu bug 0.9.14 ==
+
+BUG DI 0.9.14 YANG BARU KETAHUAN
+
+Canvas spesimen di halaman Free Font TIDAK PERNAH DIRENDER SAMA SEKALI.
+Bukan gagal render, tapi diam: specimen.js hanya menjalankan initRoot() pada
+elemen berkelas .ath-specimen-v7 (baris 1273), dan initRoot itulah yang
+memasang IntersectionObserver yang memicu render. Template Foundry di 0.9.14
+tidak punya wadah itu, jadi observernya tidak pernah terpasang.
+
+Ketahuan justru saat menyiapkan tester ini, karena pertanyaannya memaksa
+membaca kontrak specimen.js sampai ke fungsi init-nya, bukan hanya bagian
+requestnya. Ditambahkan wadah .ath-specimen-v7 dengan data-font-post-id yang
+berisi ID ath_font YANG DITAUTKAN — bukan ID free download-nya, karena nilai
+itulah yang dikirim sebagai post_id dan endpoint menolak apa pun yang bukan
+ath_font berstatus publish.
+
+Bug kedua di jalur yang sama: data-text-color / data-bg-color ditulis di
+canvas, padahal specimen.js membacanya dari ROOT (baris 173-174). Jadi
+setelan itu tidak berpengaruh apa pun.
+
+FONT TESTER
+
+Menumpang mesin milik plugin, bukan mesin baru. specimen.js sudah punya
+seluruh logikanya — debounce (360ms teks, 120ms ukuran), sinkronisasi antar
+kontrol, antrian maksimal 3 request paralel, dan cache hasil. Tema hanya
+menyediakan markup dengan kontrak yang tepat:
+
+  .ath-specimen-v7                          wadah yang di-init
+  data-font-post-id                         ID ath_font yang ditautkan
+  .ath-preview-toolbar                      wadah kontrol
+  .ath-master-text                          input teks
+  .ath-size                                 input ukuran
+  .ath-server-canvas[data-sync-master="1"]  canvas yang ikut berubah
+
+Testernya ada di halaman TUNGGAL, bukan di arsip. Alasannya struktural, bukan
+selera: satu toolbar hanya menggerakkan canvas di dalam ROOT-nya sendiri, dan
+data-font-post-id melekat pada root. Semua baris arsip punya ath_font yang
+berbeda, jadi satu tester bersama untuk seluruh arsip mustahil tanpa
+mengorbankan kebenaran post_id-nya. Tester per baris bisa ditambahkan kalau
+memang diinginkan.
+
+SATU MASALAH YANG MENUNTUT JAVASCRIPT SENDIRI
+
+initRoot() membuka dirinya dengan dua baris ini, tanpa syarat:
+
+    root.dataset.textColor = "#111111";
+    root.dataset.bgColor   = "#ffffff";
+
+Nilai itu dikirim ke endpoint render, jadi PNG-nya jadi tinta nyaris hitam di
+atas putih — di kanvas Foundry yang hitam hasilnya blok putih menyala, bukan
+spesimen. Berkas plugin tidak boleh diedit karena akan tertimpa saat update,
+jadi warnanya dipasang ulang dari assets/js/foundry-tester.js SESUDAH init.
+
+Urutannya dijamin, bukan untung-untungan: skrip tema mendeklarasikan handle
+plugin sebagai dependency sehingga selalu dicetak sesudahnya, jadi listener
+DOMContentLoaded-nya juga terdaftar dan berjalan sesudah initRoot. Render
+pertama dipicu IntersectionObserver, yang callback-nya selalu dikirim asinkron
+setelah layout — jadi penyetelan warna pasti selesai sebelum request pertama.
+
+Satu pengecualian yang diakui: kalau IntersectionObserver tidak tersedia,
+specimen.js me-render seluruh canvas secara SINKRON di dalam initRoot dan di
+situ skrip tema memang terlambat. Konsekuensinya hanya warna spesimen yang
+keliru, bukan halaman yang rusak.
+
+Tombol .ath-reset milik plugin sengaja TIDAK dipakai: handler-nya menyetel
+warna balik ke #111111, persis masalah di atas. Tombol reset tema memakai
+kelas sendiri dan bekerja dengan cara paling tidak invasif — menulis nilai ke
+input milik plugin lalu men-dispatch event "input", sehingga yang mengerjakan
+render tetap listener milik plugin.
+
+Pemilih warna (.ath-text-color) juga tidak dipakai: DESIGN3 monokrom.
+
+VERIFIKASI
+
+Kontrak JS-nya diuji dengan tiruan specimen.js yang meniru initRoot dan
+handler toolbarnya persis, dimuat dalam urutan yang sama seperti produksi.
+Delapan pemeriksaan lulus: warna gelap terpasang sesudah init, canvas ikut
+berubah saat mengetik, fit-single-line dilepas saat pengunjung mengetik
+sendiri, reset mengembalikan teks dan ukuran, warna tetap gelap sesudah
+reset, dan render terakhir benar-benar memakai warna terang.
+
+Responsif diuji ulang dengan tester terpasang: 10 lebar viewport, suite
+konten normal dan uji tekan, nol overflow.
+
+
+== v0.9.20 - tombol unduh yang tidak terlihat di halaman tunggal Free Font ==
+
+GEJALA: tombol unduh tampil sebagai kotak bergaris hitam yang KOSONG.
+Teksnya ada di DOM, ukurannya 151x42px, tapi tidak terlihat sama sekali.
+
+PENYEBAB, hasil pengukuran computed style di Chromium — bukan tebakan:
+
+    color       rgb(255, 255, 255)   putih
+    background  rgba(0, 0, 0, 0)     transparan
+    wadah       rgb(255, 255, 255)   putih
+
+Putih di atas putih. Rasio kontras 1:1.
+
+Yang membuatnya terbelah: TIGA aturan berebut, masing-masing menang untuk
+properti yang berbeda.
+
+1. specimen.css:1020 milik plugin
+     .ath-free-download-button { color: var(--ath-free-primary) !important }
+   !important, jadi ia mengalahkan aturan tema mana pun yang tidak memakai
+   !important, berapa pun spesifisitasnya. Ada aturan !important kedua yang
+   muncul belakangan di berkas plugin dan menyetel warnanya ke
+   var(--ath-free-surface, #fff) = PUTIH. Itu sumber warna putihnya.
+
+2. foundry.css:191 milik tema, varian terang
+     .freefonts-single .foundry-download .ath-free-download-button
+     { background: #000; color: #fff }
+   Spesifisitas (0,3,0). Kalah untuk background oleh nomor 3 yang
+   spesifisitasnya SAMA PERSIS tapi muncul belakangan di berkas yang sama,
+   dan kalah untuk color oleh !important plugin. Praktisnya aturan ini tidak
+   berpengaruh sama sekali.
+
+3. foundry.css:691 milik tema, varian gelap
+     .foundry .foundry-download .ath-free-download-button
+     { background: transparent; color: var(--fd-ember) }
+   Menang untuk background. Warnanya kalah oleh !important plugin. Itu sumber
+   latar transparannya.
+
+Jadi latar datang dari aturan gelap tema, warna datang dari plugin, dan
+keduanya kebetulan sama-sama putih di halaman yang sudah terang.
+
+PERBAIKANNYA ditaruh di UJUNG foundry.css, dengan tiga keputusan sadar:
+
+* Di ujung berkas, supaya tidak ada aturan tema lain yang bisa mendahuluinya
+  lewat urutan. Masalahnya tadi memang lahir dari urutan.
+* color memakai !important karena TIDAK ADA cara lain: plugin sudah memakai
+  !important dan spesifisitas tidak pernah mengalahkannya.
+* background dan border ikut !important supaya pasangan warnanya tidak bisa
+  terbelah lagi oleh aturan lain — persis kegagalan di atas.
+* Halaman terang dan gelap dipisah eksplisit lewat
+  .freefonts-archive dan .foundry:not(.freefonts-archive), bukan mengandalkan
+  var(--fd-ember) yang nilainya berubah tergantung kelas mana yang kebetulan
+  menang.
+
+SATU KESALAHAN SAYA SENDIRI, KETAHUAN SAAT DIRENDER
+
+Draf pertama aturan ini memberi border pada .ath-free-download-cancel. Tombol
+itu BUKAN tombol teks: di plugin ia tombol ikon bulat 30x30 berlabel "x"
+dengan border: 0. Border tadi mengubahnya jadi lingkaran bergaris. Sekarang
+hanya warnanya yang diperbaiki, bentuknya tidak disentuh.
+
+VERIFIKASI
+
+Kontras diukur ulang di Chromium pada dua konteks:
+
+  terang  Download Free   putih di atas hitam      21,00:1
+  terang  Send            putih di atas hitam      21,00:1
+  terang  Cancel          #111 di atas putih       18,88:1
+  gelap   Download Free   #ff4d00 di atas #121212   5,63:1
+
+Sebelumnya 1:1. Regresi responsif dijalankan ulang pada template 0.9.19: 9
+lebar viewport, suite konten normal dan uji tekan, nol overflow.
+
+
+== v0.9.21 - header & footer dipecah jadi template-parts ==
+
+header.php (65 baris) dan footer.php (60 baris) tadinya monolit: doctype,
+branding, navigasi, aksi keranjang, CTA, tiga menu footer, dan baris hak
+cipta semuanya bercampur di dua berkas. Sekarang keduanya HANYA MENYUSUN:
+
+  template-parts/header/branding.php      logo / judul situs
+  template-parts/header/nav-primary.php   toggle + menu utama
+  template-parts/header/actions.php       Sign in + Cart
+  template-parts/footer/cta.php           "Explore the font library"
+  template-parts/footer/menus.php         identitas + tiga kolom menu
+  template-parts/footer/bottom.php        hak cipta
+
+header.php tinggal 52 baris, footer.php 28 baris.
+
+KENAPA — INI PELAJARAN DARI KODE INI SENDIRI
+
+Dulu ada header-foundry.php: header kedua untuk halaman Free Font yang
+MENGGANDAKAN branding, navigasi, Sign in dan Cart dari header.php. Begitu
+header utama berubah, salinannya tidak ikut. Ia melenceng, lalu ditinggalkan
+sama sekali — di 0.9.19 seluruh template sudah kembali memanggil get_header()
+biasa dan kedua berkas foundry itu jadi yatim, 108 baris kode mati. Keduanya
+kini dihapus.
+
+Dengan pemecahan ini, varian header apa pun cukup menyusun ulang PART YANG
+SAMA. Perubahan pada penghitung keranjang mendarat di semua tempat sekaligus
+dan tidak bisa lagi melenceng diam-diam.
+
+Aturan yang dipegang ke depan, ditulis di docblock header.php: buat
+header-<nama>.php hanya kalau KERANGKA halamannya memang berbeda — landmark
+lain, tata letak lain. Kalau bedanya cuma warna, itu urusan body class dan
+CSS. Halaman Free Font membuktikannya: kerangka kedua dibuat untuk sesuatu
+yang ternyata varian palet, dan akhirnya dilipat kembali.
+
+PEMBUKTIAN: KELUARANNYA HARUS IDENTIK
+
+Refactor yang mengubah HTML bukan refactor. Dibuat harness PHP yang benar-
+benar MENJALANKAN header.php dan footer.php dengan stub WordPress
+deterministik, lalu membandingkan keluaran versi lama (diambil dari git) dan
+versi baru — dinormalkan seperti cara browser meruntuhkan whitespace, supaya
+perbedaan indentasi tidak dihitung tapi perbedaan nyata sekecil apa pun
+tetap terlihat.
+
+Sepuluh konteks diuji, seluruhnya identik: logo teks vs custom logo, menu
+primary terisi vs fallback, ketiga menu footer terisi vs kosong sebagian vs
+kosong semua, halaman editorial vs non-editorial (CTA muncul/hilang),
+keranjang berisi vs kosong, dan WooCommerce aktif vs nonaktif.
+
+SATU KESALAHAN SAYA SENDIRI, DITANGKAP OLEH PENGUJIAN ITU
+
+Draf pertama template-parts/header/actions.php melakukan `return` lebih awal
+saat WooCommerce nonaktif — kelihatan lebih rapi, tapi header.php lama SELALU
+mencetak pembungkus <div class="header-actions"> dan hanya isinya yang
+bersyarat. Menghilangkan div itu mengubah jumlah anak .site-header-inner yang
+memakai justify-content: space-between, jadi posisi branding dan navigasi ikut
+bergeser saat Woo nonaktif. Dikembalikan persis seperti semula.
+
+Ada juga celah di pengujiannya sendiri: kasus "WooCommerce nonaktif" awalnya
+tidak benar-benar teruji karena stub mendeklarasikan kelas WooCommerce tanpa
+syarat, dan class_exists() tidak bisa ditimpa. Kasus itu kini dijalankan
+sebagai proses tersendiri dengan deklarasi kelasnya dilewati.
+
+
+== v0.9.22 - header & footer yang bisa diedit dari wp-admin ==
+
+Pemecahan di 0.9.21 membuat setiap komponen header/footer punya berkasnya
+sendiri. Versi ini memakai itu: teks di dalamnya kini datang dari Customizer
+(Appearance > Customize > Aksara), bukan lagi ditulis di dalam template.
+
+YANG BISA DIUBAH
+
+  Header  bilah pengumuman: nyala/mati, teksnya, dan tautannya (opsional)
+  Footer  cakupan ajakan (editorial saja / semua halaman / mati),
+          teks & label ajakan, tautannya,
+          judul tiga kolom menu,
+          baris penutup di kanan bawah
+  Home    judul dan sub-judul hero
+
+Ditambah satu lokasi menu baru, "Footer - Social", yang merender baris tautan
+sosial di kolom identitas footer.
+
+YANG SENGAJA TIDAK BISA DIUBAH
+
+Tidak ada kontrol warna, ukuran huruf, atau lebar kolom, dan jumlah kolom
+footer tetap tiga. DESIGN.md yang menetapkan sistem visualnya; membuka warna
+ke admin berarti mengundang situs keluar dari sistemnya sendiri - persis yang
+dicegah theme.json waktu tema ini sempat jadi block theme.
+
+Navigasi juga tidak dibuatkan kontrol repeater sendiri. Menu WordPress sudah
+punya UI pengurutan, label, dan target; menirunya di Customizer hanya
+menghasilkan versi yang lebih buruk dari yang sudah ada.
+
+BAWAANNYA HARUS TIDAK MENGUBAH APA PUN, DAN ITU DIBUKTIKAN
+
+Setiap setting default-nya persis string yang selama ini tertulis di
+template, dikumpulkan di satu tempat (aksara_mod_defaults() di
+inc/customizer.php) supaya template dan Customizer tidak bisa berbeda
+pendapat soal apa yang default. Bilah pengumuman mati, dan baris sosial tidak
+mencetak apa pun tanpa menu.
+
+Harness yang sama dari 0.9.21 dipakai lagi, kali ini memuat inc/customizer.php
+SUNGGUHAN alih-alih men-stub aksara_mod(), supaya yang diuji benar-benar nilai
+bawaan yang dipakai situs. Sepuluh konteks dibandingkan dengan 0.9.21 dari
+git: seluruhnya identik.
+
+Perilaku barunya diuji terpisah: bilah muncul hanya kalau sakelar DAN teks
+sama-sama terisi (sakelar sendirian menghasilkan strip hitam kosong yang
+terbaca seperti kerusakan), ajakan footer muncul/hilang sesuai ketiga
+cakupan, ajakan hilang seluruhnya kalau teks atau labelnya dikosongkan,
+baris penutup yang dikosongkan menghapus <span>-nya alih-alih menyisakan span
+kosong yang menahan ruang di kanan, dan baris sosial tidak meninggalkan
+markup apa pun tanpa menu.
+
+SATU PERBAIKAN TAMPILAN YANG MEMANG DISENGAJA
+
+Menu footer keluar dari wp_nav_menu() sebagai <ul> polos dan tidak pernah ada
+yang mengatur ulang gayanya, jadi kolom Shop/Help/Company selama ini tampil
+BERBULATAN dan menjorok memakai gaya bawaan browser - bukan yang digambarkan
+DESIGN.md, dan bukan yang terlihat di kolom identitas di sebelahnya.
+.main-navigation ul sudah lama mengatur ulang hal yang sama untuk navigasi
+atas; sekarang .footer-grid ul juga. Ini satu-satunya hal di rilis ini yang
+mengubah tampilan bawaan, dan diubah karena tampilan sebelumnya keliru.
+
+CATATAN PRATINJAU LANGSUNG
+
+Partial selective refresh dipasang PER KOMPONEN, bukan per teks, dan
+render_callback-nya memanggil template part yang sama dengan halaman
+sungguhan. Satu partial per setting terlihat lebih sederhana tapi salah:
+label ajakan footer berbagi elemen <a> dengan panahnya, jadi mengganti isi
+elemen itu dengan teks polos akan menghapus panah tersebut di pratinjau - dan
+callback yang menyusun ulang markup sendiri berarti markup yang sama ditulis
+di dua tempat.
+
+REGRESI RESPONSIF
+
+Diukur di Chromium pada 320/360/375/414/768/900/1024/1280/1440: overflow
+halaman 0 dan gutter kiri-kanan tepat (16px di bawah 600, 24px di atasnya) di
+seluruh lebar, baik dengan bilah pengumuman + baris sosial maupun tanpa
+keduanya. Satu-satunya sisa temuan adalah glyph panah pada tombol ajakan
+footer yang advance-nya 23px di kotak 16px - ada juga di 0.9.21, terkurung di
+dalam <a>-nya, dan tidak melebarkan halaman.
+
+== v0.9.23 - logo header yang kekecilan ==
+
+Logo yang diunggah tampil sangat kecil, dan penyebabnya adalah dua baris di
+tema ini yang saling bertentangan:
+
+  functions.php  add_theme_support('custom-logo', height 60, width 200)
+                 -> media uploader menyuruh admin menyiapkan logo 200x60
+  style.css      .custom-logo { max-height: 20px }
+                 -> lalu mengecilkannya jadi 67x20, sepertiga ukuran itu
+
+Diukur di Chromium dengan berkas logo 200x60: terpasang 67x20, sementara
+kotak isi .site-header-inner menyediakan 32px (min-height 56px dikurangi
+padding 12px atas-bawah). Jadi 12px ruang header dibiarkan kosong.
+
+20px kemungkinan diambil dari DESIGN.md yang menyebut logomark 16px. Tapi
+yang dimaksud di sana WORDMARK TEKS - huruf telanjang tanpa apa pun di
+sekelilingnya. Berkas logo hampir selalu membawa ruang kosong di dalam
+gambarnya, sering pula lambang di samping tulisan, sehingga hurufnya sendiri
+jatuh jauh di bawah 16px: wordmark teks setinggi 16px, sedangkan gambar logo
+pada 20px cuma menyisakan huruf setinggi sekitar 9px.
+
+Sekarang 32px, yaitu seluruh kotak isi yang tersedia. Ini TIDAK menambah
+tinggi header sama sekali - diukur 57px sebelum dan sesudah, karena
+min-height 56px yang menentukan, bukan logonya.
+
+Ditambah kontrol "Logo height" di Customizer > Aksara > Header, dijepit
+16-48px. Ini satu-satunya kontrol ukuran yang dibuka ke admin, dan alasannya
+berbeda dari ukuran huruf atau lebar kolom: banyaknya ruang kosong di dalam
+berkas logo hanya diketahui pemilik berkasnya, tidak bisa ditebak tema.
+Batas bawah 16px supaya logo tidak bisa dibuat lebih kecil daripada wordmark
+teks yang digantikannya - persis masalah yang membuat kontrol ini ada. Di
+atas 32px header memang ikut meninggi, dan itu disebutkan di deskripsi
+kontrolnya.
+
+Nilainya dicetak sebagai custom property di wp_head, dan HANYA kalau berbeda
+dari bawaan - situs yang tidak mengubah apa pun tidak mendapat <style>
+tambahan. Aturan .custom-logo tetap hanya ada di style.css; yang dicetak PHP
+cuma angkanya. Angkanya lewat absint lalu dijepit, jadi masukan seperti
+"48px; } body{display:none" keluar sebagai 48 - diuji.
+
+Sepuluh konteks perbandingan HTML dengan 0.9.21 dijalankan ulang: seluruhnya
+masih identik. Perubahan di rilis ini murni CSS.
+
+== v0.9.24 - audit jarak atas-bawah seluruh halaman ==
+
+Diukur, bukan dikira-kira: 24 halaman dirender di Chromium dan setiap jarak
+vertikal antar-elemen di tingkat alur utama dicatat (padding, margin, dan
+jarak nyata antar-saudara sesudah margin collapsing), di 1280px dan 375px.
+
+APA YANG DITEMUKAN
+
+1. --section-gap adalah token MATI. .section memakainya di satu tempat, tapi
+   blok SPACING AUDIT di bawahnya menimpa dengan --section-rhythm - dua token
+   bernilai 80px untuk satu ritme, dan yang satu tidak pernah menang. Akibat
+   lanjutannya: @media (max-width: 600px) yang mengecilkan --section-gap ke
+   56px selama ini TIDAK berpengaruh apa pun. Token dan override-nya dihapus;
+   --gutter di media query yang sama tetap, karena itu memang dipakai.
+
+2. Enam wadah utama dideklarasikan DUA KALI dengan nilai persis sama
+   (.content-area, .aksara-product-summary, .font-library, .authentype-single,
+   .site-footer, .section). Tidak salah, tapi membuat berkas berbohong soal di
+   mana jaraknya diputuskan. Disatukan ke blok SPACING AUDIT.
+
+3. .font-library .specimen-list punya margin-top 28px lalu 24px. Yang 28px
+   tidak pernah menang; dihapus.
+
+4. .trust di Home memakai 72px di desktop tapi 56px di ponsel - dan 56px itu
+   PERSIS --section-rhythm di lebar tersebut. Jadi di ponsel bagian ini sudah
+   seirama dengan .section di atasnya, sementara di desktop meleset 8px tanpa
+   alasan. Kini memakai tokennya di kedua lebar.
+
+   Efek sampingnya: jarak bagian terakhir ke footer di Home tadinya 72+72=144,
+   sedangkan semua halaman lain 80+72=152. Sekarang Home ikut 152.
+
+5. .hero memakai angka lepas 76px (desktop) dan 56px (ponsel). Keduanya
+   ternyata BUKAN sembarang angka: --page-top bernilai 64px dan 44px, dan hero
+   selalu tepat 12px lebih lapang di kedua lebar. Itu keputusan yang konsisten,
+   cuma tidak pernah ditulis sebagai hubungan - jadi kalau --page-top berubah,
+   hero diam-diam berhenti mengikutinya. Ditulis ulang jadi
+   calc(var(--page-top) + var(--spacing-12)); nilainya identik, dan override
+   .hero di @media 782px jadi tidak perlu.
+
+   Bagian bawah hero (44px) SENGAJA dibiarkan. Sesudahnya datang .categories
+   yang tidak punya padding sendiri; yang memberi ruang adalah padding 36px
+   milik .cat-card. Jarak yang benar-benar terlihat karena itu 44+36 = 80px,
+   yaitu --section-rhythm. Menyamakan 44px ke token mana pun justru merusak
+   jumlah itu.
+
+6. DESIGN.md menetapkan base unit 4px. Ada 21 nilai vertikal yang melanggarnya.
+   Sebelas yang merupakan jarak ANTAR-ELEMEN dibawa ke kelipatan 4 (masing-
+   masing bergeser paling banyak 2px): .eyebrow 18->16, .font-breadcrumb 18->16,
+   .editorial-card h2 18/14->16/16, .editorial-read-link 22->24,
+   .editorial-single__byline 30->32, .editorial-author h2 6->8, dua margin
+   .editorial-masthead 10->12, dan .site-topbar__inner 10->12 (buatan 0.9.22
+   sendiri, jadi ikut melanggar sejak awal).
+
+   Sepuluh sisanya SENGAJA tidak diubah: semuanya padding DI DALAM komponen
+   (tombol, pil harga, badge diskon), bukan jarak antar-elemen. Membulatkannya
+   akan mengubah tinggi tombol, dan itu perubahan yang berbeda jenis dari yang
+   diminta.
+
+YANG SENGAJA TIDAK DISERAGAMKAN
+
+Halaman editorial memakai 72px atas / 112px bawah, bukan 64/80 seperti halaman
+lain. Itu sistem terpisah yang diadaptasi dari DESIGN-2 dan memang dilingkupi
+ke template blog saja. Menyamakannya bukan merapikan, itu mendesain ulang satu
+keluarga halaman.
+
+Begitu juga .single-product (40px atas, karena judul produknya raksasa) dan
+.authentype-single (0px atas, karena diawali breadcrumb full-bleed yang punya
+padding sendiri). Keduanya punya alasan, bukan kelalaian.
+
+DAMPAK YANG DIUKUR
+
+Tahap buang-kode-mati: 24 halaman diukur ulang, SELURUHNYA identik - nol
+perubahan tampilan, seperti yang seharusnya.
+
+Setelah semua perubahan, tinggi halaman bergeser di 7 dari 24 halaman, paling
+besar +14px (Home: trust +16, eyebrow -2). Setiap selisih cocok dengan
+aritmetika perubahannya, tidak ada yang tak terjelaskan. Di 375px, jarak di
+tingkat alur utama tidak berubah sama sekali.
+
+Regresi luber/gutter dijalankan di 9 lebar untuk 24 halaman, sebelum dan
+sesudah: hasilnya sama persis - overflow halaman 0 dan gutter tepat di
+semuanya. Empat halaman menandai scroll DI DALAM elemen (tabel di dalam
+overflow-x:auto seperti yang dirancang, dan dua fixture potongan tanpa
+kerangka halaman); keempatnya sudah begitu sebelum rilis ini.
+
+== v0.9.25 - lebar halaman Free Font, warna spesimen, gambar unggulan ==
+
+LEBAR: ISINYA TIDAK PERNAH SEJAJAR DENGAN HEADER-NYA SENDIRI
+
+Diukur di Chromium, tepi isi halaman Free Font dibandingkan dengan tepi isi
+header dan footer di halaman yang sama:
+
+    viewport      header/footer     isi Free Font
+    360-600            16px              16px   sejajar
+    768-1440           24px              49px
+    1600               24px              98px
+    1920               24px             258px
+    2560               24px             578px
+
+Dua sebabnya. Pertama GUTTER GANDA: .freefonts-archive__inner memberi 24px
+lewat width: min(100% - 48px, 1440px), lalu section di dalamnya memberi
+--fd-pad 24px lagi, ditambah 1px garis rambut - 49px, dua kali lipat gutter
+tema. Kedua BATAS 1440px: di atas ~1488px kolomnya berhenti melebar sementara
+header dan footer terus sampai tepi, dan selisihnya tumbuh tanpa batas.
+
+Batas 1440px itu datang dari DESIGN3, tapi di sana ia berpasangan dengan
+sidebar tetap 200px di kiri - tata letak yang TIDAK diadopsi tema ini;
+halaman Free Font memakai header Aksara biasa. Dan DESIGN.md, yang mengatur
+kerangka situs, menyatakan sistemnya tanpa max-width dan tanpa kolom yang
+dipusatkan. Jadi yang tersisa adalah batas warisan dari layout yang sudah
+tidak ada. Garis rambut kiri-kanan ikut dilepas: ia hanya masuk akal sebagai
+bingkai kolom terpusat.
+
+Gutter kini datang dari satu tempat saja, dan --fd-pad diikat ke --gutter
+milik tema. Nilainya persis sama dengan yang dulu ditulis lepas (24px, 16px
+di bawah 600px), jadi override --fd-pad di @media 600px ikut dihapus. Sesudah
+perbaikan, 11 lebar dari 360px sampai 2560px diukur ulang: SELURUHNYA sejajar
+dengan header dan footer.
+
+SPESIMEN ARSIP: LATAR HITAM DI ATAS HALAMAN PUTIH
+
+Arsip Free Font sudah lama putih (.freefonts-archive menimpa seluruh palet
+Foundry jadi terang), tapi template-parts/free-font-row.php masih mengirim
+text_color="#efefef" bg_color="#121212" ke shortcode - sisa dari masa arsip
+ini masih kanvas gelap. Warna itu dikirim ke SERVER dan ikut terbakar ke
+dalam PNG spesimennya, jadi yang muncul persegi hitam di atas halaman putih.
+Latar canvas di CSS tidak bisa menolong karena PNG-nya menutupi latar itu.
+Sekarang #111111 di atas #ffffff.
+
+assets/js/foundry-tester.js DIHAPUS. Berkas itu ada untuk menimpa warna yang
+dipaksakan initRoot() milik plugin, tapi sejak inc/free-fonts.php beralih ke
+atribut data-* milik Authentype 1.0.7 ia berhenti di-enqueue - yatim, sama
+seperti header-foundry.php dulu. Blok CSS .foundry-tester (~80 baris) ikut
+dihapus: tidak ada satu pun template yang mencetak markupnya, karena toolbar
+yang benar-benar tampil milik plugin (.ath-free-live-preview__toolbar).
+
+GAMBAR UNGGULAN DI KANAN DESKRIPSI
+
+Halaman tunggal Free Font sebelumnya TIDAK PERNAH mencetak gambar unggulan
+sama sekali - gambar yang sudah dipasang admin di editor tidak muncul di mana
+pun. Kini deskripsi dan gambar berdampingan: teks kiri, gambar kanan
+(minmax(0,1fr) / minmax(0,34%)), ditumpuk di bawah 900px dengan gambar turun
+mengikuti urutan DOM.
+
+Kalau salah satunya tidak ada, blok ini tidak memaksakan dua kolom. Kelas
+pembedanya dipasang di PHP, bukan lewat :has() di CSS, supaya perilakunya
+sama di peramban yang belum mendukung :has().
+
+SATU BUG YANG KETAHUAN SAAT MERAPIKANNYA
+
+Seluruh paragraf deskripsi free font selama ini MENEMPEL tanpa jarak.
+Penyebabnya spesifisitas: ".foundry p { margin: 0 }" bernilai (0,1,1)
+sedangkan ".foundry-body > * + * { margin-top: 1em }" hanya (0,1,0), jadi
+reset itulah yang menang. Terukur: margin-top setiap <p> dihitung 0px.
+Ditambah satu kelas jadi ".foundry .foundry-body > * + *" (0,2,0) dan aturan
+itu menang tanpa perlu !important - terukur kini 16px.
+
+Regresi luber/gutter untuk kedua halaman di 9 lebar: bersih seluruhnya.
+
+== v0.9.26 - gambar di kartu related free, audit paginasi seluruh halaman ==
+
+GAMBAR DI "MORE FREE RELEASES"
+
+Kartu related di halaman tunggal Free Font tidak pernah punya gambar, padahal
+blok yang setara di halaman font berbayar (template-parts/font-product-card.php,
+"Related font families") sudah lama menampilkannya. Kini keduanya memakai pola
+yang sama: gambar unggulan dengan cadangan teks kalau belum ada.
+
+Rasionya dikunci 3:2 lewat CSS, bukan lewat ukuran berkas - gambar unggulan
+diunggah admin dengan rasio apa pun, dan kartu yang tingginya berbeda-beda
+akan merusak grid hairline .foundry-grid. object-fit: cover memotong, bukan
+menggepengkan.
+
+Cadangannya diredupkan dan memakai font UI, bukan nama rilis yang dicetak
+besar - prinsip yang sama dengan .foundry-placeholder: ini toko huruf, dan
+nama font berukuran besar bisa dikira wujud fontnya.
+
+AUDIT PAGINASI: DUA HALAMAN KATALOG TIDAK PUNYA PAGINASI SAMA SEKALI
+
+Delapan template punya loop arsip yang butuh paginasi. Diperiksa satu per
+satu, dan dua di antaranya rusak.
+
+1. HALAMAN CANVA TEMPLATE & CANVA ELEMENT — PRODUK KE-25 TIDAK BISA DIJANGKAU
+
+Keduanya memuat 24 produk per halaman lalu memanggil
+the_posts_pagination( array( 'total' => $q->max_num_pages ) ). Itu tidak
+bekerja, dan alasannya diverifikasi langsung di sumber WordPress
+(wp-includes/link-template.php):
+
+    function get_the_posts_pagination( $args = array() ) {
+        global $wp_query;
+        $navigation = '';
+        // Don't print empty markup if there's only one page.
+        if ( $wp_query->max_num_pages > 1 ) {
+
+Fungsi itu membaca query UTAMA, bukan argumen yang kita kirim. Di Page
+template query utamanya satu halaman, jadi max_num_pages bernilai 1, fungsi
+keluar lebih awal, dan argumen 'total' bahkan tidak pernah dibaca. Hasilnya:
+tidak ada paginasi yang tercetak sama sekali, dan produk ke-25 dan seterusnya
+tidak bisa dijangkau dari mana pun.
+
+Masalah kedua di fungsi yang sama, dari wp-includes/general-template.php:
+
+    $current = get_query_var( 'paged' ) ? (int) get_query_var( 'paged' ) : 1;
+
+Di Page template get_query_var('paged') selalu 0 (WordPress memakai 'page'
+di sana), jadi nomor halaman yang disorot akan selalu 1 sekalipun markupnya
+tercetak.
+
+2. ARSIP FONT — PAGINASINYA TIDAK BERGAYA SAMA SEKALI
+
+archive-ath_font.php memanggil paginate_links( type => list ) mentah dan
+mencetaknya langsung. Aturan .pagination .page-numbers di style.css menuntut
+leluhur .pagination, dan <ul class="page-numbers"> polos tidak punya itu.
+Terukur di Chromium: padding 0px, border 0px, radius 0px - jadi nomor
+halamannya tampil sebagai teks telanjang tanpa kotak dan tanpa penanda
+halaman aktif, sementara semua halaman lain punya tombol berkotak. Ia juga
+tidak punya <nav> maupun label, jadi pembaca layar mendapat daftar tanpa nama.
+
+Catatan jujur: dugaan awal saya justru terbalik - saya mengira keluaran
+the_posts_pagination() yang salah gaya karena .pagination memakai flex
+sedangkan .nav-links tidak. Diukur, ternyata keluaran itu BENAR (aturannya
+menjangkau ke dalam .nav-links sebagai keturunan), dan yang rusak justru
+arsip font. Angkanya yang menentukan, bukan tebakannya.
+
+PERBAIKANNYA: SATU FUNGSI BERSAMA
+
+aksara_pagination( $total, $current, $args ) ditambahkan di
+inc/template-tags.php. Ia mengirim total DAN current secara eksplisit, dan
+mencetak markup yang meniru persis keluaran the_posts_pagination()
+(nav.navigation.pagination > h2.screen-reader-text + div.nav-links) supaya
+CSS .pagination yang sudah ada berlaku tanpa aturan baru. Dipakai di tiga
+tempat: template-elements, template-templates, dan archive-ath_font.
+
+Diverifikasi: kotak nomor aktif di paginasi bawaan dan paginasi baru kini
+identik - padding 8px 16px, border 1px, radius 6px, latar hitam.
+
+YANG SUDAH BENAR DAN TIDAK DIUBAH
+
+search.php, archive.php, home.php dan index.php memakai the_posts_pagination()
+di query UTAMA, tempat fungsi itu memang bekerja dengan benar.
+
+Arsip Free Font memakai .foundry-pagination miliknya sendiri - monospace 12px
+mengikuti chrome Foundry, dan itu disengaja. Satu hal yang diperbaiki di
+sana: ul.page-numbers di style.css menambahkan padding-top 40px yang ikut
+kena karena paginate_links(type=>list) mencetak kelas itu, sehingga jarak di
+atas paginasi jadi 32px + 40px = 72px yang tidak diminta siapa pun. Kini 0.
+
+Blok related di single-ath_font dan single-ath_free_download sengaja TIDAK
+diberi paginasi: keduanya hanya menampilkan enam item sebagai jalan keluar,
+bukan katalog yang perlu ditelusuri.
+
+Regresi luber/gutter halaman Free Font di 9 lebar: bersih seluruhnya.
+
+== v0.9.27 - dropdown satu tingkat di menu utama ==
+
+MASALAHNYA BUKAN "TIDAK ADA DROPDOWN", TAPI SUB-MENU YANG HILANG DIAM-DIAM
+
+Menu utama dirender wp_nav_menu() polos tanpa depth, lalu satu baris di
+style.css menutup semuanya:
+
+    .main-navigation ul ul { display: none; }
+
+Jadi sub-item yang dibuat admin di Appearance > Menus TETAP dicetak ke HTML
+tapi tidak pernah terlihat. Diukur di Chromium dengan menu berisi satu induk
+dan tiga anak: 6 tautan di HTML, hanya 3 yang tampil - di 1280px maupun di
+700px dengan menu ponsel sudah dibuka. Tidak ada tanda apa pun bahwa item itu
+disembunyikan; admin hanya melihat pekerjaannya tidak muncul.
+
+YANG SEKARANG
+
+Dropdown satu tingkat, murni CSS, dibuka oleh :hover DAN :focus-within.
+
+Yang kedua itulah yang membuatnya bisa dipakai keyboard: Tab masuk ke tautan
+induk membuka panelnya, Tab berikutnya masuk ke anak-anaknya, Tab terakhir
+keluar dan menutupnya - urutan fokus alami, tanpa satu baris skrip pun.
+Terukur di 1280px: diam = display none; fokus di tautan induk = panel terbuka
+dan anaknya terjangkau; fokus pindah ke anak = tetap terbuka; fokus keluar =
+tertutup lagi.
+
+Panelnya position: absolute, jadi membukanya tidak mengubah tinggi header -
+terukur 57px baik tertutup maupun terbuka.
+
+Di bawah 860px panelnya kembali ke alur normal dan selalu terbuka, menjorok
+16px. Alasannya: di sana tidak ada hover, dan panel yang hanya bisa dibuka
+lewat fokus akan sulit dijangkau dengan sentuhan.
+
+KENAPA TIDAK ADA aria-expanded
+
+Karena tidak ada JavaScript yang bisa memperbaruinya. Atribut itu harus
+mencerminkan keadaan sebenarnya; dipasang tanpa skrip ia akan selalu berbunyi
+"false" sementara panelnya terbuka - pembaca layar dibohongi, dan itu lebih
+buruk daripada tidak ada atributnya sama sekali. Kalau suatu saat perlu tombol
+yang bisa ditutup dengan Escape, polanya harus diganti utuh jadi pola
+disclosure ber-JS, bukan ditambal atributnya.
+
+DEPTH 2, DAN KENAPA ITU BUKAN HAL YANG SAMA DENGAN MENYEMBUNYIKAN
+
+nav-primary.php kini mengirim 'depth' => 2, jadi tingkat KETIGA tidak dicetak
+sama sekali. Bedanya penting dan itu persis pelajaran dari bug di atas: kalau
+memang tidak didukung, lebih jujur tidak mencetaknya - admin melihat item
+ketiganya tidak muncul di mana pun dan tahu itu batasnya, alih-alih mencarinya
+di sumber halaman dan menemukannya ada tapi tak terlihat.
+
+Penanda item berisi anak: segitiga kecil dalam tinta (border CSS), bukan ikon
+berwarna - sistemnya akromatik.
+
+Regresi: 24 halaman diukur ulang, jarak vertikalnya tidak berubah sama sekali
+(position: relative pada <li> tidak menggeser apa pun), dan regresi
+luber/gutter di 9 lebar memberi hasil sama persis seperti sebelumnya.
+
+== v0.9.28 - bagian Free Downloads di Home ==
+
+LETAKNYA: SESUDAH KATALOG BERBAYAR, SEBELUM .trust
+
+Urutannya disengaja dan itu keputusan dagang, bukan tata letak. Bagian ini
+ajakan penutup: pengunjung melihat dulu apa yang dijual, baru ditawari titik
+masuk gratis. Ditaruh di atas, ia akan menyerap perhatian sebelum satu pun
+produk berbayar sempat dilihat.
+
+BENTUKNYA: EMPAT KARTU, BUKAN PITA SPESIMEN
+
+Dua hal yang sengaja TIDAK dilakukan, dan alasannya:
+
+1. Tidak memakai template-parts/free-font-row.php. Pita spesimen di arsip Free
+   Font hidup di dalam lingkup .foundry - warna, jarak, dan tipografinya
+   seluruhnya dari variabel yang hanya ada di assets/css/foundry.css. Berkas
+   itu sengaja hanya dimuat di halaman free download karena menarik DUA webfont
+   Google. Memakainya di Home berarti membebani halaman paling ramai situs
+   dengan dua permintaan font demi satu bagian.
+
+2. Tidak menampilkan spesimen. Tepat di atasnya sudah ada enam spesimen font
+   berbayar setinggi layar. Blok spesimen kedua untuk font gratis akan membuat
+   yang gratis terlihat setara dengan yang dijual, di halaman yang tugasnya
+   justru menjual. Spesimen sungguhannya tetap ada, satu klik jauhnya.
+
+Kartunya memakai kelas yang SAMA dengan .asset-card, jadi ia berbaris persis
+dengan grid template & element di atasnya tanpa satu pun aturan grid baru.
+Empat item = satu baris penuh di desktop, dua kolom di bawah 980px, satu kolom
+di bawah 560px - persis seperti grid di atasnya.
+
+Barisnya berbunyi "Free · Font · SIL OFL 1.1": harga diganti status, dan
+bagian yang bisa kosong ditaruh di belakang supaya tidak pernah ada pemisah
+menggantung di depan. Kartu tanpa gambar unggulan menampilkan nama rilis kecil
+dan redup, bukan kotak abu-abu kosong dan bukan nama yang dicetak besar - ini
+toko huruf, nama font berukuran besar bisa dikira wujud fontnya.
+
+Seluruh bagian tidak dicetak kalau belum ada free download terbit. Judul
+dengan grid kosong di bawahnya lebih buruk daripada tidak ada bagiannya.
+
+.section--last DIHAPUS, DAN ITU BAGIAN YANG PALING PENTING DI RILIS INI
+
+Kelas itu menandai satu bagian TERTENTU sebagai yang terakhir supaya garis
+rambutnya tidak bertumpuk dengan border-top milik .trust. Menyisipkan bagian
+baru di antara keduanya langsung mematahkannya: batas templates->free
+kehilangan garis, batas free->trust punya dua.
+
+Dan mana yang terakhir memang TIDAK bisa diketahui di muka - bagian aset dan
+bagian free sama-sama hanya tampil kalau ada isinya. Jadi masalahnya bukan
+kelas yang salah pasang, melainkan pendekatan yang menuntut jawaban yang tidak
+ada.
+
+Aturannya sekarang satu arah: setiap bagian menggambar garis di BAWAHnya, dan
+tidak ada yang menggambar di atasnya. .trust karena itu kehilangan
+border-top-nya. Terukur di Chromium, dengan DAN tanpa bagian free: setiap
+batas mendapat tepat 1px.
+
+CATATAN AUDIT
+
+Kepala bagian di Home memang rata tengah dan bertumpuk, bukan kiri-kanan
+seperti di halaman lain. Sempat saya kira itu bug ketika melihat hasil render;
+ternyata ".home .section-head { flex-direction: column; align-items: center }"
+di style.css:564 memang menetapkannya begitu, seirama dengan .home .hero dan
+.home .cat-card yang juga rata tengah. Tidak diubah.
+
+Regresi luber/gutter Home di 9 lebar, dengan dan tanpa bagian free: bersih
+seluruhnya. Jarak vertikal 24 halaman diukur ulang: tidak berubah sama sekali.
+
+== v0.9.29 - halaman About, Contact, FAQ, Licenses, Privacy, Terms, Refund ==
+
+TEMANYA BELUM PUNYA LAPISAN TIPOGRAFI UNTUK PROSA PANJANG
+
+Sebelum satu halaman pun dibuat, ada yang harus dibereskan dulu. .entry-content
+tidak punya batas lebar sama sekali. Diukur di Chromium dengan paragraf
+sungguhan:
+
+    viewport   panjang baris
+    1024        ~120 karakter
+    1440        ~172
+    1920        ~234
+    2560        ~314
+
+Batas nyaman membaca 45-75. Di 2560px barisnya empat kali lipat itu. Full-bleed
+memang bawaan sistem ini, tapi DESIGN.md sendiri mengecualikan prosa, dan
+--measure sudah ada sejak awal untuk itu - ia hanya tidak pernah dipasang.
+
+Sesudah dipasang, dihitung PERSIS (bukan diperkirakan, dengan Range API
+menghitung karakter di baris pertama): 81 karakter. Turun dari 314, dan sedikit
+di atas 75 klasik - --measure 68ch memang menghasilkan sekitar 81 karakter
+karena lebar "0" lebih besar dari rata-rata huruf. Nilainya TIDAK saya ubah:
+--measure dipakai enam tempat lain juga, dan mengubah token bersama demi
+selisih enam karakter bukan perkaranya di sini. Kalau nanti mau lebih rapat,
+60ch memberi sekitar 72.
+
+Judul <h2> di dalam prosa juga margin-atasnya 0 (dari reset global), jadi bagian
+baru menempel ke paragraf terakhir bagian sebelumnya. Untuk halaman dua paragraf
+tidak terasa; untuk Privacy Policy dua belas bagian, dokumennya jadi tidak bisa
+dipindai. Kini ada ritme 1.8em/1.6em, plus gaya daftar, kutipan, dan tabel.
+
+Judul halaman disamakan dengan judul arsip (clamp 40-72px). Sebelumnya
+.entry-title 36px yang berlaku, jadi "Privacy Policy" tampil jauh lebih kecil
+daripada judul kategori blog di situs yang sama.
+
+DELAPAN HALAMAN, DIBUAT LEWAT TOMBOL DI Appearance > Aksara Pages
+
+About, Contact, Frequently Asked Questions, Licenses, Installing your fonts,
+Privacy Policy, Terms of Use, Refund Policy.
+
+Isinya milik pemilik situs, bukan milik tema - alamat berubah, kebijakan
+direvisi. Kalau ditulis di berkas PHP, setiap perubahan kecil jadi pekerjaan
+pengembang dan akan HILANG saat tema diperbarui. Jadi tema menyiapkan
+halamannya sekali, sesudah itu semuanya diedit lewat editor biasa.
+
+Lewat tombol, bukan otomatis saat aktivasi: membuat delapan halaman diam-diam
+di situs orang adalah perubahan besar yang tidak diminta. Halaman yang slug-nya
+sudah ada DILEWATI, tidak ditimpa, dan hasilnya dilaporkan satu per satu.
+Pencocokannya lewat slug, bukan judul - judul boleh diganti pemilik situs
+("About" jadi "About the studio") dan pencocokan judul akan membuat halaman
+yang sudah diedit terlihat seperti belum ada, lalu dibuat dua kali.
+
+TIGA DOKUMEN HUKUM DIBUAT SEBAGAI DRAF, DAN ITU BUKAN KEHATI-HATIAN BASA-BASI
+
+Privacy Policy, Terms of Use, dan Refund Policy adalah KERANGKA dengan nilai
+dalam kurung siku, bukan naskah siap pakai. Saya tidak tahu badan hukum,
+yurisdiksi, atau prosesor pembayaran situs ini, dan teks hukum yang salah lebih
+berbahaya daripada tidak ada - terutama klausul pembatasan tanggung jawab, yang
+paling sering tidak berlaku justru ketika disalin dari situs lain. Ketiganya
+berstatus draf sehingga menerbitkannya butuh tindakan sadar, dan masing-masing
+diawali peringatan yang harus dihapus dulu. Perlu ditinjau pengacara.
+
+FORMULIR KONTAK, DIBUAT SENDIRI
+
+Yang dibutuhkan cuma empat kolom dan satu email. Plugin formulir umum membawa
+pembuat formulir, penyimpanan entri, dan asetnya sendiri - jauh lebih besar,
+dan setiap entri yang tersimpan adalah data pribadi yang harus ikut dijaga dan
+dijelaskan di Privacy Policy. Di sini TIDAK ADA yang disimpan: dikirim lewat
+wp_mail() lalu selesai.
+
+Pertahanannya bertingkat: honeypot (dibuang tanpa biaya), nonce, lalu batas
+laju tiga pesan per jam per IP. Kunci transient-nya di-hash, karena alamat IP
+mentah di basis data adalah data pribadi yang disimpan tanpa alasan.
+
+Satu hal yang sengaja TIDAK dilakukan: alamat pengirim tidak pernah dipakai
+sebagai header From. Itu jalan masuk pemalsuan header, dan membuat email
+ditolak SPF/DKIM domain penerima. From tetap alamat situs; alamat pengirim
+ditaruh di Reply-To sesudah lolos is_email().
+
+Berhasil dan gagal dibedakan oleh ketebalan garis dan kata-katanya, bukan warna
+hijau/merah - sistemnya akromatik, dan pembeda yang hanya warna juga gagal
+untuk pembaca yang buta warna.
+
+FAQ MEMAKAI <details>/<summary> ASLI
+
+Bukan akordeon buatan sendiri. Peramban sudah memberi peran, keadaan
+terbuka/tertutup, dan dukungan keyboard secara bawaan - tanpa JS, dan tanpa
+risiko aria-expanded yang tidak sinkron seperti yang dihindari di dropdown menu.
+
+DUA KESALAHAN SAYA SENDIRI DI RILIS INI
+
+Honeypot-nya sempat memakai left:-9999px, yang meninggalkan elemen selebar
+sepuluh ribu piksel di luar sisi kiri setiap halaman kontak. Diganti clip-path
+1px - masih tercatat sebagai pelanggar. Akhirnya menumpang .screen-reader-text
+yang SUDAH ADA di tema: menyembunyikan sesuatu secara visual adalah masalah
+yang sudah dipecahkan sekali di berkas ini, dan salinan kedua akan melenceng.
+
+Dan harness responsifnya sendiri ternyata bocor: saringan .screen-reader-text
+cuma dipasang di pass pertama, tidak di pass scroll-dalam. Akibatnya SETIAP
+halaman yang punya .screen-reader-text tercatat sebagai pelanggar - itu yang
+selama ini membuat single-bottom selalu bertanda, dan ia menutupi pelanggar
+sungguhan kalau suatu saat ada. Saringannya diperbaiki; sesudah itu
+single-bottom hanya menyisakan glyph panah yang memang sudah dikenal.
+
+Regresi luber/gutter ketiga halaman baru di 9 lebar: bersih. Jarak vertikal 24
+halaman: tidak berubah sama sekali.
+
+== v0.9.30 - kolom prosa dipusatkan (perbaikan regresi 0.9.29) ==
+
+Pertanyaannya sederhana: apakah semua halaman punya ruang kosong di kanan?
+Jawabannya tidak semua — tapi halaman yang punya, punya karena kesalahan yang
+saya buat sendiri satu rilis sebelumnya.
+
+DIUKUR
+
+Halaman prosa (About, Contact, FAQ, Privacy, Terms, Refund, dan 404), isinya
+berhenti di 692px lalu menempel ke KIRI:
+
+    viewport   ruang kosong kanan
+    1280            564px
+    1440            724px
+    1920           1204px
+    2560           1844px
+
+Halaman katalog, Home, dan indeks blog: 0 — isinya sampai ke gutter seperti
+seharusnya. Jadi bukan seluruh situs, hanya halaman prosa.
+
+SEBABNYA
+
+0.9.29 memasang max-width: var(--measure) pada .entry-content untuk memperbaiki
+panjang baris 314 karakter, tapi TIDAK memasang margin-inline: auto. Kolomnya
+jadi menempel kiri, dan sisa lebarnya menumpuk seluruhnya di kanan. Di layar
+lebar halaman Privacy Policy tampak seperti gagal memuat separuh isinya.
+
+Yang membuat ini bukan sekadar selera: tema ini SUDAH memutuskan hal itu di dua
+tempat sebelum saya menyentuhnya —
+
+    .wrap--measure          { max-width: var(--measure); margin: 0 auto; }
+    .editorial-single__body { width: min(100% - 32px, 760px); margin: 88px auto; }
+
+Kolom prosa di tema ini dipusatkan. Yang saya tambahkan kemarin adalah pola
+KETIGA yang berbeda dari keduanya, di berkas yang sama.
+
+SEKARANG
+
+margin-inline: auto dipasang pada .entry-content, pada .entry-header halaman
+(supaya judul dan paragraf pertama tetap berbagi tepi kiri — tepi kiri yang
+sama itulah yang membuat keduanya terbaca sebagai satu dokumen), dan pada
+.no-results/.error-404 yang juga menempel kiri sejak sebelum rilis ini.
+
+Terukur sesudahnya: 294px kiri dan 294px kanan di 1280, 614/614 di 1920,
+934/934 di 2560. Simetris di setiap lebar.
+
+Regresi luber/gutter 28 halaman: sama seperti sebelumnya (empat yang bertanda
+adalah scroll di DALAM elemen yang sudah dikenal, bukan halaman meluber).
+Jarak vertikal: tidak berubah sama sekali.
+
+== v0.9.31 - pulihkan spesimen Free Font (regresi 0.9.20) ==
+
+SAYA YANG MERUSAKNYA, DAN INI CATATANNYA
+
+Sampai 0.9.19 kedua template Free Font mencetak canvas langsung:
+
+    <span class="ath-specimen ath-specimen-v7" data-font-post-id="...">
+      <canvas class="ath-server-canvas" data-font-token="..." ...>
+
+Mekanisme yang sama persis dengan baris spesimen berbayar, dan ia bekerja.
+
+Di 0.9.20 saya menggantinya dengan
+do_shortcode('[authentype_free_font_preview ...]'). Shortcode itu TIDAK PERNAH
+ADA. Plugin Authentype 1.0.7 hanya mendaftarkan dua shortcode:
+
+    authentype_free_downloads    (includes/free-downloads.php:914)
+    authentype_font_specimen     (includes/shortcode-specimen.php:981)
+
+Dicari di seluruh direktori plugin, string "free_font_preview" nihil. Begitu
+juga ath_free_download_preview_data() yang dipanggil aksara_free_font_specimen().
+Jadi shortcode_exists() selalu false dan sejak 0.9.20 setiap baris arsip dan
+setiap halaman tunggal jatuh ke placeholder.
+
+Perbaikan warna spesimen di 0.9.25 karena itu mengatur PNG yang tidak pernah
+diminta. Dan penghapusan blok CSS .foundry-tester di 0.9.26 sebagai "kode mati"
+adalah korban lanjutan: markupnya memang tidak dicetak, tapi penyebabnya bukan
+markup usang melainkan kerusakan di 0.9.20.
+
+Pelajaran yang saya tulis di berkasnya: sebelum menghapus CSS karena kelasnya
+tidak dicetak siapa pun, periksa dulu APAKAH yang menggantikannya benar-benar
+bekerja. Kalau tidak, yang dihapus bukan kode mati melainkan bukti.
+
+YANG DIPULIHKAN
+
+Canvas langsung di kedua template, plus toolbar tester (Type to test + Size) di
+halaman tunggal beserta ~70 baris CSS-nya. Tombol Reset dari 0.9.15 SENGAJA
+tidak dipulihkan: ia bergantung pada assets/js/foundry-tester.js yang memang
+sudah tidak diperlukan, dan kontrol milik plugin sudah cukup.
+
+WARNANYA TIDAK PERLU DIATUR SAMA SEKALI
+
+specimen.js baris 1259-1260 menimpa keduanya tanpa syarat:
+
+    root.dataset.textColor = "#111111";
+    root.dataset.bgColor   = "#ffffff";
+
+Tinta hitam di atas kertas putih — persis yang diminta untuk arsip ini. Jadi
+tidak ada JS tema dan tidak ada atribut warna di markup.
+
+Komentar di inc/free-fonts.php yang berbunyi "Authentype 1.0.7 menghormati
+data-text-color/data-bg-color langsung" juga diperbaiki: ia TIDAK menghormati,
+ia menimpa. Hasilnya kebetulan benar, penjelasannya salah, dan komentar yang
+salah lebih berbahaya daripada tidak ada komentar.
+
+DIPERIKSA
+
+Kontrak markup yang dituntut specimen.js (root .ath-specimen-v7 + canvas
+.ath-server-canvas + data-font-token + data-font-post-id) kini lengkap di
+ketiga template yang memakainya. Tidak ada lagi kode yang memanggil shortcode
+hantu itu — dua rujukan tersisa hanya di dalam komentar penjelasan.
+
+Regresi luber/gutter kedua halaman Free Font di 9 lebar: bersih.
+
+CATATAN UNTUK PEMILIK SITUS
+
+Kalau situs Anda masih memakai tema 0.9.19 atau lebih lama, spesimen free font
+Anda memang berfungsi — dan MEMASANG 0.9.20 sampai 0.9.30 akan membuatnya
+hilang. Lompat langsung ke 0.9.31.
+
+== v0.9.32 - alat diagnosis: kenapa badge diskon menampilkan 31% padahal diketik 30% ==
+
+BADGE-NYA TIDAK SALAH HITUNG. HARGANYA YANG MELESET.
+
+Dua sebab yang saling menumpuk, keduanya diverifikasi di sumber.
+
+1. PERSEN YANG ANDA KETIK TIDAK PERNAH DISIMPAN
+
+Kolom "Discount %" di matriks harga Authentype tidak punya atribut name
+(includes/admin-metaboxes.php:487):
+
+    <input type="number" class="ath-matrix-discount-input" step="0.01"
+           min="0" max="95" value="..." placeholder="Optional helper">
+
+Tanpa name, ia tidak ikut terkirim saat disimpan. Ia hanya alat bantu di
+peramban: Anda ketik 30, JavaScript menghitung harga jual, dan yang masuk
+basis data cuma harga normal + harga jual. Nilai 30 itu sendiri hilang.
+
+Sesudah itu SETIAP tampilan persen menghitung ulang dari dua harga tadi —
+di shortcode PHP, di specimen.js, dan di badge tema — dengan rumus yang sama:
+
+    round( ( ( normal - jual ) / normal ) * 100 )
+
+Rumus itu benar. Tapi karena pembulatan ke bilangan bulat, badge berbunyi 31%
+begitu harga jual turun ke 0,695 x normal — hanya 0,5% di bawah 70%:
+
+    harga 39, diskon 30% tepat = 27,30
+    diketik rapi jadi 27       -> (39-27)/39 = 30,77% -> tampil 31%
+
+Makin kecil harganya makin sempit tolerannya. Pada 19, harga jual 13 (dari
+13,30) sudah tampil 32%. Pada harga rupiah enam digit selisih seribu perak
+tidak berpengaruh sama sekali.
+
+2. TEMA MENAMPILKAN NILAI TERTINGGI DARI SELURUH VARIASI
+
+aksara_product_discount_data() mengumpulkan persen setiap variasi lalu memakai
+max(). Satu sel gaya x lisensi yang meleset, dari puluhan sel, sudah cukup
+mengubah badge seluruh produk. Kalau semuanya seragam labelnya "-30%"; kalau
+tidak, "Up to 31% off".
+
+ALAT BARU: Products > Discount audit
+
+Layar baca-saja yang menampilkan, per variasi: harga normal, harga jual,
+diskon SEBENARNYA sampai dua desimal, angka yang ditampilkan sesudah
+dibulatkan, dan harga jual yang menghasilkan angka bulat persis. Baris yang
+menyimpang disorot. Tidak menulis apa pun dan tidak mengubah harga.
+
+Sengaja tidak memakai get_variation_prices( true ) seperti badge-nya: argumen
+itu menyalakan penyesuaian pajak dan pembulatan tampilan, sedangkan di layar
+diagnosis kita justru ingin melihat angka yang tersimpan apa adanya.
+
+KENAPA TIDAK "DIPERBAIKI" DI TEMA
+
+Membulatkan badge dengan toleransi, atau menampilkan persen terendah, akan
+membuat badge berbohong: diskonnya memang benar-benar 30,77%. Perbaikan yang
+jujur ada di data — samakan harga jualnya — dan kolom terakhir alat ini
+memberi angkanya. Menyimpan persen yang diketik admin akan menjadi perbaikan
+yang lebih baik lagi, tapi itu harus dikerjakan di plugin Authentype, dan
+tema tidak boleh menyunting plugin pihak ketiga.
+
+== v0.9.33 - badge diskon dibulatkan ke bawah, tidak lagi melebihkan ==
+
+JAWABAN SINGKAT: BUKAN SALAH HITUNG, TAPI MEMANG SALAH ARAH PEMBULATANNYA.
+
+Ketiga tempat yang ditanyakan — Home, blok related, dan ringkasan produk —
+memakai fungsi yang sama persis, aksara_product_discount_badge(), dengan rumus
+yang benar. Tidak ada satu pun yang menghitung berbeda. Diperiksa satu per satu:
+
+    template-parts/asset-card.php:29         get_price_html() + badge
+    template-parts/font-product-card.php:17  get_price_html() + badge
+    template-parts/font-specimen-row.php:36  get_price_html() + badge
+
+Yang keliru arah pembulatannya. Persen ini tidak pernah disimpan (lihat 0.9.32),
+jadi selalu dihitung ulang dari harga normal dan harga jual. Dengan round(),
+diskon sebenarnya 30,77% — yang terjadi begitu harga jual dirapikan, misalnya
+27 dari 27,30 pada harga 39 — diiklankan sebagai "31% off".
+
+Itu mengklaim potongan LEBIH BESAR daripada yang benar-benar diberikan. Untuk
+angka yang dipajang sebagai janji harga, melebihkan adalah kesalahan yang
+berbeda kelas dengan mengurangi: yang satu bisa menjadi soal perlindungan
+konsumen, yang lain sekadar konservatif.
+
+Kini floor():
+
+     normal    jual   sebenarnya   lama   baru
+         39      27       30,77%    31%    30%   berubah
+         49      34       30,61%    31%    30%   berubah
+         19      13       31,58%    32%    31%   berubah
+    149.000 104.300       30,00%    30%    30%
+    250.000 175.000       30,00%    30%    30%
+
+Diskon yang tepat 30,00% tetap tampil 30%. Yang berubah hanya kasus di mana
+badge tadinya melebihkan.
+
+TEMUAN TAMBAHAN: BADGE DAN HARGA BISA MENGGAMBARKAN VARIASI BERBEDA
+
+Diverifikasi langsung di sumber WooCommerce (class-wc-product-variable.php).
+Untuk produk variabel dengan harga berbeda antar variasi — dan font selalu
+begitu, karena gaya x lisensi — get_price_html() menjalankan:
+
+    if ( $min_price !== $max_price ) {
+        $price = wc_format_price_range( $min_price, $max_price );
+
+Yaitu RENTANG harga aktif saja, TANPA harga coret sama sekali. Sementara badge
+memakai max() dari seluruh variasi. Jadi persen di badge bisa milik variasi
+yang harganya tidak sedang ditampilkan, dan pengunjung tidak punya harga normal
+untuk memeriksanya.
+
+Logika labelnya sendiri sudah benar dan tidak diubah: "-30%" hanya dipakai
+kalau SELURUH variasi sepakat; begitu ada yang berbeda, labelnya jadi
+"Up to 30% off". Kalau Anda melihat bentuk pertama, artinya semua variasi
+memang membulat ke angka itu.
+
+Products > Discount audit (0.9.32) kini memakai floor() yang sama, jadi angka
+di layar diagnosis dan di badge tidak bisa berbeda.
+
+== v0.9.34 - audit SEO: schema halaman font & canonical arsip ==
+
+TEMUAN TERBESAR: HALAMAN KOMERSIAL UTAMA TIDAK PUNYA PRODUCT SCHEMA
+
+Catatan lama di inc/seo.php menyatakan Product structured data "sudah otomatis
+dari WooCommerce core untuk SEMUA WC_Product". Itu benar untuk halaman post
+type 'product' — dan tidak berlaku untuk halaman yang sebenarnya dikunjungi
+pembeli.
+
+WC_Structured_Data mengumpulkan datanya lewat hook
+woocommerce_single_product_summary, dan hook itu hanya berjalan di dalam
+template WooCommerce. Halaman font di situs ini CPT 'ath_font'
+(single-ath_font.php), dan SELURUH daftar menaut ke sana —
+template-parts/font-specimen-row.php bahkan langsung return kalau post
+type-nya bukan ath_font. Diperiksa: tema tidak pernah memicu hook itu, dan
+plugin Authentype tidak mencetak JSON-LD apa pun (dicari 'ld+json' dan
+'schema.org' di seluruh plugin: nihil).
+
+Jadi tidak ada harga, ketersediaan, atau rating di hasil kaya Google untuk
+produk yang paling ingin diperingkat.
+
+Kini tema mencetaknya sendiri, khusus untuk ath_font, dan sengaja tidak
+menyentuh halaman product supaya tidak ada dua blok Product yang bertabrakan.
+Harganya diambil dari produk tertaut, bukan dari post ath_font yang memang
+tidak punya harga; kalau tautannya belum diisi, blok ini TIDAK dicetak sama
+sekali — Product tanpa penawaran lebih buruk daripada tidak ada schema.
+
+Font selalu variabel (gaya x lisensi), jadi dipakai AggregateOffer dengan
+lowPrice/highPrice. Memaksakan satu angka Offer di sana berarti mengiklankan
+harga yang belum tentu bisa dibeli. aggregateRating hanya dicetak kalau
+reviewCount > 0; mencetaknya dengan nilai 0 adalah pelanggaran pedoman Google,
+bukan sekadar kosong.
+
+Ditambah BreadcrumbList: remah roti visualnya sudah lama ada di
+single-ath_font.php tapi tidak pernah punya padanan terstruktur.
+
+TEMUAN KEDUA: ARSIP TIDAK PERNAH PUNYA CANONICAL
+
+rel_canonical() milik WordPress core dibuka dengan
+"if ( ! is_singular() ) return;". Sementara tema ini punya empat parameter URL
+yang semuanya bisa di-crawl:
+
+    ?q=          pencarian di arsip font
+    ?type=       penyaring tipe di arsip free download
+    ?kategori=   penyaring kategori di halaman Template & Element
+    /page/N/     paginasi
+
+Tanpa canonical, setiap kombinasi adalah halaman terpisah dengan isi yang
+sebagian besar sama. Yang dirugikan bukan cuma duplikasi — crawl budget habis
+di kombinasi filter alih-alih di halaman font yang ingin diperingkat.
+
+Kini arsip mendapat canonical. Paginasi TETAP canonical ke dirinya sendiri,
+bukan ke halaman 1: menyatukan semuanya ke halaman 1 akan menyembunyikan font
+di halaman 2 dan seterusnya dari indeks, persis kebalikan dari yang diinginkan
+toko dengan katalog panjang. Hasil pencarian diberi noindex,follow — ia dibuat
+pengunjung, jumlahnya tak terbatas, dan tidak satu pun layak diindeks.
+
+Halaman ?kategori= tidak perlu penanganan tambahan: itu Page, jadi
+rel_canonical() core sudah menunjuk permalink bersihnya.
+
+DUA PERBAIKAN KECIL
+
+Meta description bisa berisi shortcode mentah. get_the_content() mengembalikan
+isi MENTAH dan wp_strip_all_tags() tidak menghapus shortcode karena shortcode
+bukan tag HTML — halaman berisi "[authentype_font_specimen id=12]" akan
+menghasilkan deskripsi berbunyi persis begitu di hasil pencarian. Kini lewat
+strip_shortcodes() lebih dulu.
+
+twitter:card ditambahkan. Twitter/X tidak membaca og:* sendirian; tanpa tag
+ini tautan tampil polos tanpa gambar. summary_large_image kalau ada gambar.
+
+DIUJI
+
+Tujuh kasus dijalankan dengan stub: produk variabel (AggregateOffer low/high),
+tanpa produk tertaut (tidak mencetak apa pun), tanpa harga (tidak mencetak),
+dengan ulasan (aggregateRating ikut), arsip halaman 1, arsip halaman 3
+(canonical ke dirinya sendiri), dan arsip dengan ?q= (noindex tanpa canonical).
+Seluruhnya sesuai.
+
+YANG BELUM DIKERJAKAN
+
+og:image tanpa width/height/alt dan mundur ke logo situs yang biasanya kecil;
+tidak ada schema Organization/WebSite; tidak ada Article schema untuk artikel
+blog; dan judul kolom footer memakai <h5> sehingga struktur judul melompat
+2->5 di setiap halaman (temuan dari audit total sebelumnya).
+
+== v0.9.35 - menutup daftar "belum dikerjakan" ==
+
+Pertanyaannya wajar: kenapa ada temuan yang saya tandai lalu tinggalkan.
+Untuk sebagian besar, tidak ada alasan yang bagus. Semuanya kecil dan bisa
+dikerjakan; berikut hasilnya.
+
+SEO YANG TERTINGGAL
+
+og:image kini lengkap dengan width, height, dan alt. Tanpa ukuran, sebagian
+platform (terutama WhatsApp dan Slack) menunda pengambilan gambar sampai kartu
+sudah terlanjur dirender tanpa gambar — dan tautan pertama yang dibagikan
+justru yang paling sering diklik. Cadangannya juga BUKAN lagi logo situs: logo
+biasanya kecil, sering transparan, dan di kartu berlatar putih tampak seperti
+gambar yang gagal dimuat. Kini memakai aksara-preview-xl (1820x1214), di atas
+anjuran 1200x630.
+
+Organization + WebSite JSON-LD, dicetak SEKALI di halaman depan saja.
+Mengulanginya di seluruh situs tidak menambah apa pun bagi mesin pencari dan
+hanya memberati setiap dokumen. sameAs diambil dari menu "Footer - Social"
+kalau sudah diisi — itu satu-satunya tempat di situs yang tahu akun resminya,
+jadi tidak ada daftar kedua yang bisa basi.
+
+Article JSON-LD untuk artikel blog, hanya post type 'post'. Halaman statis
+sengaja tidak diberi Article: About dan Privacy bukan tulisan bertanggal
+dengan penulis, dan memberinya schema Article berarti mengklaim sesuatu yang
+tidak benar. datePublished dan dateModified keduanya dicetak; tanpa yang kedua,
+artikel yang direvisi tetap terbaca seumur tanggal terbitnya.
+
+AKSESIBILITAS
+
+Judul kolom footer <h5> menjadi <h2>. Footer ada di setiap halaman, jadi
+lompatan tingkat 2->5 (dan 1->5 di halaman 404) terjadi di mana-mana. Pembaca
+layar memakai daftar judul untuk melompat antar bagian, dan tingkat yang
+dilewati membuat daftar itu berbohong soal susunan halaman. Ukuran visualnya
+tidak berubah sedikit pun — .footer-grid h5 sudah menetapkan 12px sendiri dan
+selektornya tinggal mengikuti elemen barunya. Diukur ulang: lompatan hilang di
+seluruh halaman.
+
+Kontras, dua yang gagal di audit total:
+
+    teks editorial  #7c7c7c -> #6a6a6a   4,17 -> 5,41 (dan 4,91 di atas #f4f4f2)
+    border kontrol  #b7b7b7 -> #949494   2,01 -> 3,03
+
+Yang kedua perlu penjelasan. --hairline-strong dipakai untuk DUA hal dengan
+syarat berbeda: garis pemisah dekoratif (tidak ada syarat kontras) dan batas
+kolom isian (WCAG 1.4.11 menuntut 3:1, karena batas itulah yang memberi tahu di
+mana kolomnya). Menaikkan tokennya akan menebalkan seluruh garis rambut di
+situs. Jadi nilainya dipertahankan untuk garis, dan kontrol memakai token baru
+--control-border. #949494 adalah nilai TERTERANG yang masih lolos, supaya
+kolom isian tetap ringan dan tidak berubah jadi kotak bergaris tebal.
+
+KODE MATI
+
+238 baris chrome Foundry lama dihapus dari foundry.css — sidebar, ticker, logo,
+nav, shell, root, canvas, dan .ath-free-live-preview yang ternyata tidak pernah
+dicetak plugin (plugin mencetak .ath-free-download-*). Berkasnya 1039 -> 855
+baris. Ikut hilang: --fd-max dan --fd-sidebar, yang hanya melayani tata letak
+sidebar itu.
+
+--color-ash (#858585) dihapus. DESIGN.md menugaskannya sebagai "quiet link
+text", tapi di atas putih ia 3,69:1 — gagal AA untuk teks kecil, yang justru
+satu-satunya perannya. Tidak ada aturan yang memakainya; membiarkannya berarti
+menyimpan nilai yang siap dipakai orang berikutnya dan langsung gagal.
+
+--color-graphite, --font-weight-light, --fd-radius-card, --fd-ash: dihapus,
+tidak dipakai apa pun.
+
+--spacing-112/136/160 SENGAJA dipertahankan walau belum dipakai: ketiganya
+bagian resmi skala spacing di DESIGN.md, bukan sisa.
+
+searchform.php DIBUAT. Tanpa berkas ini WordPress mencetak formulir bawaannya
+di tempat yang tidak terduga — hasil pencarian kosong, halaman 404, dan widget
+mana pun yang memanggil get_search_form(). Bentuknya meminjam .hero-search yang
+sudah ada, bukan gaya baru.
+
+SATU YANG SENGAJA TIDAK DIKERJAKAN, DAN ALASANNYA
+
+Warna kromatik di bagian editorial (#fef199 kuning 98% saturasi pada tombol
+ajakan footer, dan lima hitam kebiruan #111118 / #33333b / #292d35 / #18181d /
+#111318). Ini satu-satunya sisa yang punya alasan sungguhan: DESIGN3
+membenarkan #ff4d00 dan #e2e8f0 secara eksplisit, DESIGN.md membenarkan #ebedee
+dan #18181d — tapi palet editorial berasal dari mockup DESIGN-2 yang TIDAK ADA
+di repo. Mengubahnya ke akromatik atau membiarkannya sama-sama keputusan
+desain, dan tanpa dokumen rujukan saya akan menebak. Itu keputusan Anda, bukan
+tebakan saya.
+
+SATU TEMUAN LAMA YANG TERNYATA SALAH
+
+Audit total menyebut "2 tautan tanpa nama yang bisa dibaca" di arsip font.
+Ditelusuri sampai tuntas: itu .sp-specimen, dan templatenya MEMANG menyetel
+aria-label="View {judul}" (font-specimen-row.php:42). Fixture saya yang
+judulnya kosong. Bukan temuan.
+
+REGRESI
+
+Jarak vertikal 24 halaman: tidak berubah sama sekali. Luber/gutter di 9 lebar:
+sama seperti sebelumnya. Lint PHP seluruh tema lolos.
+
+== v0.9.36 - teks penjelasan lisensi kini bisa diedit ==
+
+PETA HALAMAN LICENSE: SIAPA MENGATUR APA
+
+Halaman License (/licenses/, page-templates/template-license.php) seluruhnya
+sudah bisa diedit:
+
+    judul halaman            Pages > License
+    paragraf pengantar       Pages > License (editor)
+    nama tiap lisensi        WooCommerce > Font Licenses
+    penjelasan tiap lisensi  WooCommerce > Font Licenses (editor kaya)
+
+Satu-satunya yang tidak: kalimat "No license types have been set up yet." —
+dan itu hanya muncul kalau belum ada satu pun lisensi dibuat.
+
+YANG SEBENARNYA TIDAK BISA DIEDIT ADA DI TEMPAT LAIN
+
+Tab "Licensing" di halaman produk font dirender shortcode Authentype
+(includes/shortcode-specimen.php sekitar baris 843-856). Yang datang dari data
+hanya label dan deskripsi tiap lisensi; EMPAT kalimat di sekelilingnya ditulis
+langsung di berkas plugin:
+
+    "Licensing Options"                     judul bagian
+    "Choose the license that matches..."    paragraf penjelasan
+    "usage license"                         akhiran di belakang nama lisensi
+    "Read full license details"             label tautan
+
+Tidak ada satu pun layar di wp-admin yang bisa mengubahnya.
+
+DIPERBAIKI TANPA MENYUNTING PLUGIN
+
+Authentype plugin pihak ketiga; setiap suntingan di sana hilang pada pembaruan
+berikutnya — dan hilangnya diam-diam, biasanya baru ketahuan berbulan-bulan
+kemudian ketika seseorang bertanya kenapa teksnya kembali ke bahasa Inggris.
+
+Keempat kalimat itu dibungkus esc_html_e( ..., 'authentype-font-specimen' ),
+artinya semuanya melewati gettext. Filter 'gettext' menukar hasilnya sebelum
+dicetak — mekanisme resmi WordPress, dipakai persis untuk keperluan ini, dan
+aman terhadap pembaruan plugin.
+
+Kontrolnya di Customizer > Aksara > Licensing text. Dibiarkan KOSONG secara
+bawaan, dan kosong berarti "pakai teks asli plugin". Kalau defaultnya diisi
+salinan kalimat plugin, salinan itu akan membeku: plugin memperbaiki
+kalimatnya di versi berikutnya, situs tetap menampilkan versi lama tanpa ada
+yang tahu kenapa.
+
+Kalau plugin mengubah kalimatnya, penggantian untuk kalimat itu berhenti
+berlaku dan teks aslinya yang tampil — gagal ke keadaan yang masih benar,
+bukan ke halaman rusak.
+
+BIAYANYA DIJAGA
+
+Filter gettext berjalan untuk SETIAP string yang diterjemahkan di setiap
+permintaan halaman — ribuan kali. Fungsinya karena itu keluar pada baris
+pertama kalau domainnya bukan milik Authentype, yang menyingkirkan hampir
+seluruh panggilan sebelum ada pekerjaan apa pun, dan peta penggantinya
+dibangun sekali lalu disimpan statis.
+
+DIUJI
+
+Tujuh kasus: tanpa pengaturan apa pun tidak ada satu string pun berubah;
+dengan dua kalimat diisi hanya kedua itu yang berubah; string berdomain
+'woocommerce' tidak tersentuh bahkan ketika teksnya sama persis; dan string
+Authentype yang tidak dipetakan tetap apa adanya.
+
+SATU KESALAHAN SAYA DI TENGAH PENELUSURAN INI
+
+Saya sempat menyimpulkan kolom "Description" di WooCommerce > Font Licenses
+tidak ada, dan bahwa menyunting lisensi akan menghapus deskripsinya. Itu
+KELIRU. Kolomnya ada dan berfungsi (class-license-admin.php memakai wp_editor
+dengan textarea_name => 'description'). Grep saya mencari atribut name="
+literal, sedangkan wp_editor menyetelnya lewat argumen array — jadi tidak
+terlihat. Tidak ada kehilangan data, dan tidak ada yang perlu diperbaiki di
+sana.

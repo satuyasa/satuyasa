@@ -1,0 +1,55 @@
+##
+# Unit systemd untuk Aksara Font Preview Service.
+#
+# Dipasang oleh deploy/install.sh — jangan disalin manual ke /etc kalau
+# belum menyesuaikan placeholder di bawah (skrip install yang mengisinya).
+#
+# Jumlah worker: pakai proses (bukan thread). Subsetting font itu kerja
+# CPU-bound, dan thread Python tidak benar-benar paralel karena GIL —
+# load test Fase 4 menunjukkan bedanya besar (rata-rata ~1.700 ms dengan
+# thread vs p95 206 ms dengan 4 proses). Aturan praktis: sebanyak jumlah
+# core CPU server, minimal 2.
+##
+
+[Unit]
+Description=Aksara Font Preview Service (subsetting font untuk typing tool)
+Documentation=https://github.com/satuyasa/satuyasa/blob/main/services/font-preview-service/README.md
+After=network.target
+
+[Service]
+Type=exec
+User=__RUN_USER__
+Group=__RUN_GROUP__
+WorkingDirectory=__SERVICE_DIR__
+
+# Folder privat WordPress tempat berkas font asli disimpan. Service ini
+# hanya boleh membaca berkas di dalam folder ini (lihat _resolve_font_path
+# di app.py yang menolak path traversal).
+Environment="AKSARA_FONT_STORAGE_DIR=__FONT_STORAGE_DIR__"
+
+ExecStart=__GUNICORN_BIN__ \
+    --workers __WORKERS__ \
+    --bind 127.0.0.1:__PORT__ \
+    --timeout 30 \
+    --access-logfile - \
+    --error-logfile - \
+    app:app
+
+Restart=always
+RestartSec=3
+
+# Pengetatan dasar: service ini cuma perlu membaca berkas font dan
+# mendengarkan di loopback — tidak perlu akses tulis ke mana pun.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=__FONT_STORAGE_DIR__
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aksara-font-preview
+
+[Install]
+WantedBy=multi-user.target
