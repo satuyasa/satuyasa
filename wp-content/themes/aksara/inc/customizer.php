@@ -68,6 +68,42 @@ function aksara_mod_defaults() {
 		// Home (sudah dipakai front-page.php tapi belum pernah didaftarkan)
 		'aksara_hero_title'    => __( 'The right type for your work.', 'aksara' ),
 		'aksara_hero_subtitle' => __( 'Thousands of clearly licensed fonts, ready-made Canva templates, and design elements — all in one place, with a live preview before you buy.', 'aksara' ),
+
+		// License page — public presentation only; product/license records stay in the plugin.
+		'aksara_license_eyebrow'          => __( 'HiveGlyph licensing guide', 'aksara' ),
+		'aksara_license_intro'            => __( 'Clear rights for type used in real work. Choose the scope that matches your project, then contact us when your use falls outside the standard options.', 'aksara' ),
+		'aksara_license_guide_title'      => __( 'Start with the output, not the font.', 'aksara' ),
+		'aksara_license_guide_text'       => __( 'Use Desktop for static graphics, Webfont for one self-hosted domain, App for software embedding, ePub for digital publications, Server for server-side generation, and Extended when your project creates products for resale.', 'aksara' ),
+		'aksara_license_catalogue_title'  => __( 'Six ways to put type to work.', 'aksara' ),
+		'aksara_license_catalogue_note'   => __( 'The summaries below explain the standard HiveGlyph scopes. The license attached to your purchase controls the permitted use.', 'aksara' ),
+		'aksara_license_ip_text'          => __( 'The Font Software remains the intellectual property of Ekayasa. HiveGlyph is authorized to distribute the Font Software and grant usage licenses. Redistribution outside the license terms is prohibited.', 'aksara' ),
+		'aksara_license_contact_title'    => __( 'Need a different scope?', 'aksara' ),
+		'aksara_license_contact_text'     => __( 'For upgrades, larger teams, higher traffic, multi-app use, exclusive rights, or unlisted usage, contact HiveGlyph before purchasing.', 'aksara' ),
+		'aksara_license_contact_label'    => __( 'Contact HiveGlyph', 'aksara' ),
+		'aksara_license_desktop_overview' => __( 'Installation and use on desktop devices for personal and commercial projects.', 'aksara' ),
+		'aksara_license_desktop_allowed' => "Installation on up to 3 devices within one organization or household.\nCreation of static designs such as logos, posters, brochures, and packaging.\nUse in social media graphics and marketing materials.",
+		'aksara_license_desktop_prohibited' => "Embedding the font in software, games, or apps.\nDistributing editable design files containing the font.\nSharing or sublicensing the font with third parties.",
+		'aksara_license_desktop_limitations' => __( 'For larger teams or more devices, an enterprise license is required.', 'aksara' ),
+		'aksara_license_webfont_overview' => __( 'Usage of the font on one self-hosted website domain.', 'aksara' ),
+		'aksara_license_webfont_allowed' => "Usage on one self-hosted domain.\nUp to 10,000 monthly pageviews.\nStyling headings, body text, and website design elements.",
+		'aksara_license_webfont_prohibited' => "Hosting or providing the font for public download.\nEmbedding the font in email templates.\nUsing it on multiple domains without proper licensing.",
+		'aksara_license_webfont_limitations' => __( 'For traffic above 10,000 monthly pageviews, an extended or enterprise license is required.', 'aksara' ),
+		'aksara_license_app_overview' => __( 'Embedding the font in a single mobile or desktop application.', 'aksara' ),
+		'aksara_license_app_allowed' => "Use in one mobile or desktop application (iOS, Android, or WebApp).\nUnlimited downloads for that single application.\nSecure embedding where font extraction is not possible.",
+		'aksara_license_app_prohibited' => "Using the font in multiple apps without additional licensing.\nProviding the font as a downloadable asset within the application.\nRedistributing the font file outside the application.",
+		'aksara_license_app_limitations' => __( 'Contact HiveGlyph for multi-app or enterprise embedding options.', 'aksara' ),
+		'aksara_license_epub_overview' => __( 'Embedding the font in digital publications distributed as ePub files.', 'aksara' ),
+		'aksara_license_epub_allowed' => "Embedding the font in ePub publications you create.\nDistributing the finished ePub to readers through your chosen store or platform.\nUsing the font for text and display typography inside the publication.",
+		'aksara_license_epub_prohibited' => "Distributing the font as a standalone file.\nUsing the embedded font in unrelated publications without a valid license.\nAllowing readers to extract or reuse the font as a design asset.",
+		'aksara_license_epub_limitations' => __( 'For subscription libraries, large catalogues, or app-based reading platforms, contact us for a custom license.', 'aksara' ),
+		'aksara_license_server_overview' => __( 'Using the font on a server to generate rendered documents, images, or other fixed outputs.', 'aksara' ),
+		'aksara_license_server_allowed' => "Server-side rendering of fixed visual outputs such as PDFs, images, and documents.\nUse within one owned or operated service.\nServing the generated output to your customers or end users.",
+		'aksara_license_server_prohibited' => "Exposing the font file or font-generation access to end users.\nAllowing users to download or install the Font Software.\nUsing the font across unrelated services without additional licensing.",
+		'aksara_license_server_limitations' => __( 'For SaaS platforms, high-volume generation, or multiple services, contact us for a custom license.', 'aksara' ),
+		'aksara_license_extended_overview' => __( 'Expanded rights for products for resale, including the rights of Desktop, Webfont, and App licenses.', 'aksara' ),
+		'aksara_license_extended_allowed' => "All rights granted under Desktop, Webfont, and App licenses.\nCreation of products for resale, including templates, merchandise, and digital goods.\nUse in large-scale commercial projects and campaigns.",
+		'aksara_license_extended_prohibited' => "Selling or distributing the font as a standalone product.\nSharing the font with third parties outside the licensed organization.",
+		'aksara_license_extended_limitations' => __( 'For exclusive rights or large-scale usage such as TV, films, or SaaS platforms, contact us for a custom license.', 'aksara' ),
 	);
 }
 
@@ -291,6 +327,36 @@ function aksara_customize_register( $wp_customize ) {
 		'label'   => __( 'Sub-headline', 'aksara' ),
 		'type'    => 'textarea',
 	) );
+
+	/* --- License page -------------------------------------------------- */
+	$wp_customize->add_section( 'aksara_license_page', array(
+		'title'       => __( 'License page', 'aksara' ),
+		'panel'       => 'aksara_panel',
+		'description' => __( 'Edit the public presentation of the HiveGlyph license guide. These controls do not change WooCommerce products, purchase rights, or the license engine. Use one line per bullet in the Allowed Uses and Prohibited Uses fields.', 'aksara' ),
+	) );
+	$license_text_fields = array(
+		'aksara_license_eyebrow' => __( 'Eyebrow', 'aksara' ),
+		'aksara_license_intro' => __( 'Introductory text', 'aksara' ),
+		'aksara_license_guide_title' => __( 'Guide heading', 'aksara' ),
+		'aksara_license_guide_text' => __( 'Guide text', 'aksara' ),
+		'aksara_license_catalogue_title' => __( 'Catalogue heading', 'aksara' ),
+		'aksara_license_catalogue_note' => __( 'Catalogue note', 'aksara' ),
+		'aksara_license_ip_text' => __( 'Intellectual Property text', 'aksara' ),
+		'aksara_license_contact_title' => __( 'Contact heading', 'aksara' ),
+		'aksara_license_contact_text' => __( 'Contact text', 'aksara' ),
+		'aksara_license_contact_label' => __( 'Contact button label', 'aksara' ),
+	);
+	foreach ( $license_text_fields as $key => $label ) {
+		$wp_customize->add_setting( $key, array( 'default' => $defaults[ $key ], 'sanitize_callback' => 'sanitize_textarea_field', 'transport' => 'refresh' ) );
+		$wp_customize->add_control( $key, array( 'section' => 'aksara_license_page', 'label' => $label, 'type' => 'textarea' ) );
+	}
+	foreach ( array( 'desktop', 'webfont', 'app', 'epub', 'server', 'extended' ) as $license_key ) {
+		foreach ( array( 'overview', 'allowed', 'prohibited', 'limitations' ) as $part ) {
+			$key = 'aksara_license_' . $license_key . '_' . $part;
+			$wp_customize->add_setting( $key, array( 'default' => $defaults[ $key ], 'sanitize_callback' => 'sanitize_textarea_field', 'transport' => 'refresh' ) );
+			$wp_customize->add_control( $key, array( 'section' => 'aksara_license_page', 'label' => ucfirst( $license_key ) . ' — ' . ucfirst( $part ), 'type' => 'textarea' ) );
+		}
+	}
 
 	/* --- Pratinjau langsung -------------------------------------------
 	 * Setting bertransport postMessage tidak memuat ulang halaman, jadi bagian

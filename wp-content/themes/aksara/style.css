@@ -108,6 +108,7 @@ Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
 	--spacing-20: 20px;
 	--spacing-24: 24px;
 	--spacing-36: 36px;
+	--spacing-40: 40px;
 	--spacing-112: 112px;
 	--spacing-136: 136px;
 	--spacing-160: 160px;
@@ -1491,16 +1492,42 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 	-webkit-overflow-scrolling: touch;
 }
 
-.license-page-item {
-	border: 0;
-	border-top: 1px solid var(--hairline);
-	background: transparent;
-	padding: var(--spacing-36) 0;
-	margin-bottom: 0;
-	border-radius: 0;
+.license-page { padding: var(--page-top) var(--gutter) var(--page-bottom); }
+.license-page__hero { max-width: 1180px; margin: 0 auto var(--section-rhythm); padding-bottom: var(--spacing-40); border-bottom: 1px solid var(--hairline-strong); }
+.license-page__eyebrow, .license-page__section-label { color: var(--muted); font-size: var(--text-caption); letter-spacing: .08em; text-transform: uppercase; }
+.license-page__hero h1 { max-width: 820px; margin: 22px 0 24px; font-size: clamp(52px, 9vw, 132px); line-height: .88; letter-spacing: -.065em; }
+.license-page__intro { max-width: 620px; margin: 0 0 28px; font-size: clamp(18px, 2.2vw, 26px); line-height: 1.28; }
+.license-page__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; color: var(--muted); font-size: var(--text-caption); }
+.license-page__editorial, .license-page__guide, .license-page__catalogue, .license-page__ip, .license-page__contact { max-width: 1180px; margin: 0 auto var(--section-rhythm); }
+.license-page__editorial { max-width: var(--measure); margin-bottom: var(--section-rhythm); }
+.license-page__guide, .license-page__ip { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr); gap: var(--spacing-36); padding-top: var(--spacing-24); border-top: 1px solid var(--hairline-strong); }
+.license-page h2 { max-width: 700px; margin: 0 0 14px; font-size: clamp(30px, 4vw, 58px); letter-spacing: -.045em; }
+.license-page__guide p, .license-page__ip p, .license-page__section-head p, .license-page__contact p { max-width: 620px; color: var(--muted); margin: 0; }
+.license-page__section-head { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr); gap: var(--spacing-36); padding-top: var(--spacing-24); margin-bottom: var(--spacing-36); border-top: 1px solid var(--hairline-strong); }
+.license-page__items { border-top: 1px solid var(--hairline-strong); }
+.license-page-item { display: grid; grid-template-columns: 64px minmax(160px, 1fr) minmax(0, 2fr); gap: var(--spacing-24); padding: 32px 0 40px; border-bottom: 1px solid var(--hairline); }
+.license-page-item__index { color: var(--muted); font-size: var(--text-caption); padding-top: 7px; }
+.license-page-item__title h3 { margin: 0; font-size: clamp(28px, 3vw, 46px); letter-spacing: -.04em; }
+.license-page-item__body { min-width: 0; }
+.license-page__overview { max-width: 620px; margin-bottom: 28px; font-size: 18px; line-height: 1.35; }
+.license-page__detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.license-page__detail-grid h4 { margin: 0 0 10px; color: var(--muted); font-size: var(--text-caption); letter-spacing: .08em; text-transform: uppercase; }
+.license-page__detail-grid p, .license-page__list { margin: 0; font-size: var(--text-body-sm); line-height: var(--leading-body-sm); }
+.license-page__list { padding: 0; list-style: none; }
+.license-page__list li { margin-bottom: 9px; padding-left: 18px; position: relative; }
+.license-page__list li::before { content: '—'; position: absolute; left: 0; color: var(--muted); }
+.license-page__contact { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); gap: var(--spacing-36); padding: 32px 0; border-top: 1px solid var(--hairline-strong); border-bottom: 1px solid var(--hairline-strong); }
+.license-page__contact h2 { margin-top: 14px; }
+.license-page__contact .button { display: inline-block; margin-top: 24px; }
+.license-page__contact-meta { margin-top: 20px !important; font-size: var(--text-caption); line-height: 1.7; }
+@media (max-width: 700px) {
+	.license-page { padding-top: 40px; }
+	.license-page__hero { margin-bottom: 56px; }
+	.license-page__guide, .license-page__ip, .license-page__section-head, .license-page__contact { grid-template-columns: 1fr; gap: 18px; }
+	.license-page-item { grid-template-columns: 38px 1fr; gap: 14px; }
+	.license-page-item__body { grid-column: 2; }
+	.license-page__detail-grid { grid-template-columns: 1fr; gap: 22px; }
 }
-.license-page-item h3 { font-size: 28px; letter-spacing: -0.02em; margin-bottom: var(--spacing-12); }
-.license-page-item > div { max-width: var(--measure); font-size: var(--text-body-sm); line-height: var(--leading-body-sm); }
 
 @media (max-width: 600px) {
 	/* --section-gap dulu juga disetel di sini, tapi tidak pernah berpengaruh:
