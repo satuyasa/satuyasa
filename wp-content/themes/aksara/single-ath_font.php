@@ -15,6 +15,7 @@ while ( have_posts() ) :
 	if ( ! $content && $product ) {
 		$content = trim( (string) $product->get_description() );
 	}
+	$facts   = function_exists( 'aksara_authentype_style_facts' ) ? aksara_authentype_style_facts( $styles ) : array();
 	$related = function_exists( 'aksara_related_authentype_fonts' ) ? aksara_related_authentype_fonts( $font_id, 3 ) : null;
 	$rating_count = $product ? (int) $product->get_rating_count() : 0;
 	?>
@@ -43,6 +44,7 @@ while ( have_posts() ) :
 			<div class="font-overview__content"><p class="eyebrow"><?php esc_html_e( 'About this family', 'aksara' ); ?></p><?php echo $content ? wp_kses_post( apply_filters( 'the_content', $content ) ) : '<p>' . esc_html__( 'Product description will be available soon.', 'aksara' ) . '</p>'; ?></div>
 			<aside class="font-overview__meta"><h2><?php esc_html_e( 'Product details', 'aksara' ); ?></h2><dl class="font-spec">
 				<div><dt><?php esc_html_e( 'Styles', 'aksara' ); ?></dt><dd><?php echo esc_html( count( $styles ) ); ?></dd></div>
+				<?php get_template_part( 'template-parts/font-details', 'spec', array( 'facts' => $facts ) ); ?>
 				<?php if ( $product ) : ?><div><dt><?php esc_html_e( 'Availability', 'aksara' ); ?></dt><dd><?php echo esc_html( $product->is_in_stock() ? __( 'Available', 'aksara' ) : __( 'Unavailable', 'aksara' ) ); ?></dd></div><?php endif; ?>
 				<?php if ( $product && $product->get_sku() ) : ?><div><dt><?php esc_html_e( 'SKU', 'aksara' ); ?></dt><dd><?php echo esc_html( $product->get_sku() ); ?></dd></div><?php endif; ?>
 				<?php if ( $categories ) : ?><div><dt><?php esc_html_e( 'Categories', 'aksara' ); ?></dt><dd><?php echo wp_kses_post( aksara_term_links( $categories ) ); ?></dd></div><?php endif; ?>

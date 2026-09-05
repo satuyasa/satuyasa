@@ -77,6 +77,9 @@ function aksara_font_details( $post_id ) {
 		'updated'   => trim( (string) get_post_meta( $post_id, '_aksara_font_updated', true ) ),
 		'changelog' => aksara_font_details_lines( get_post_meta( $post_id, '_aksara_font_changelog', true ) ),
 		'extras'    => $extras,
+		'formats'   => trim( (string) get_post_meta( $post_id, '_aksara_font_formats', true ) ),
+		'languages' => trim( (string) get_post_meta( $post_id, '_aksara_font_languages', true ) ),
+		'version'   => trim( (string) get_post_meta( $post_id, '_aksara_font_version', true ) ),
 	);
 }
 
@@ -156,6 +159,21 @@ function aksara_font_details_meta_box_render( $post ) {
 		.aksara-fd .aksara-fd-extra input { width: 100%; font-weight: 400; }
 	</style>
 	<div class="aksara-fd">
+		<h2 class="title"><?php esc_html_e( 'Specification', 'aksara' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Three facts buyers ask for that nothing else on the page states. Leave any of them empty to hide that row. Number of styles, weight range and whether italics are included are worked out from the styles themselves — there is nothing to type for those.', 'aksara' ); ?></p>
+		<p>
+			<label for="aksara_font_formats"><strong><?php esc_html_e( 'Formats in the download', 'aksara' ); ?></strong></label><br>
+			<input type="text" id="aksara_font_formats" name="aksara_font_formats" class="regular-text" value="<?php echo esc_attr( $data['formats'] ); ?>" placeholder="<?php esc_attr_e( 'OTF, TTF, WOFF2', 'aksara' ); ?>">
+		</p>
+		<p>
+			<label for="aksara_font_languages"><strong><?php esc_html_e( 'Language coverage', 'aksara' ); ?></strong></label><br>
+			<input type="text" id="aksara_font_languages" name="aksara_font_languages" class="regular-text" value="<?php echo esc_attr( $data['languages'] ); ?>" placeholder="<?php esc_attr_e( 'Latin Extended, Vietnamese', 'aksara' ); ?>">
+		</p>
+		<p>
+			<label for="aksara_font_version"><strong><?php esc_html_e( 'Version', 'aksara' ); ?></strong></label><br>
+			<input type="text" id="aksara_font_version" name="aksara_font_version" class="regular-text" value="<?php echo esc_attr( $data['version'] ); ?>" placeholder="2.100">
+		</p>
+
 		<h2 class="title"><?php esc_html_e( 'Team', 'aksara' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'One person per line. Add a role after a vertical bar, for example: Ana Prasetya | Type design', 'aksara' ); ?></p>
 		<textarea name="aksara_font_team" rows="4" class="large-text code"><?php echo esc_textarea( trim( $team_raw ) ); ?></textarea>
@@ -226,8 +244,11 @@ function aksara_font_details_save( $post_id ) {
 	}
 
 	$text_fields = array(
-		'_aksara_font_release' => 'aksara_font_release',
-		'_aksara_font_updated' => 'aksara_font_updated',
+		'_aksara_font_release'   => 'aksara_font_release',
+		'_aksara_font_updated'   => 'aksara_font_updated',
+		'_aksara_font_formats'   => 'aksara_font_formats',
+		'_aksara_font_languages' => 'aksara_font_languages',
+		'_aksara_font_version'   => 'aksara_font_version',
 	);
 	foreach ( $text_fields as $meta_key => $field ) {
 		$value = isset( $_POST[ $field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) : '';

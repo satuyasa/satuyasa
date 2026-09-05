@@ -228,6 +228,49 @@ function aksara_authentype_styles( $font_id ) {
 }
 
 /**
+ * Fakta yang bisa DIHITUNG dari daftar style, bukan diketik ulang.
+ *
+ * Authentype sudah menyimpan bobot dan miring/tegak tiap style. Dua hal itu
+ * jadi pertanyaan pertama pembeli huruf — "sampai berapa tebalnya?", "ada
+ * italic-nya?" — dan tidak dinyatakan di mana pun di halaman: bagian
+ * "Preview every style" memperlihatkannya, tapi memperlihatkan bukan
+ * menyatakan, dan pembeli harus menghitung sendiri.
+ *
+ * Diturunkan, bukan disediakan sebagai kolom isian. Kolom isian untuk hal yang
+ * sudah diketahui sistem hanya menciptakan dua sumber kebenaran yang cepat
+ * melenceng: seseorang menambah style Black, lalu lupa mengubah "100-800"
+ * yang diketiknya setahun lalu.
+ *
+ * @param array $styles Hasil aksara_authentype_styles().
+ * @return array{count:int, weight_min:int, weight_max:int, has_italic:bool}
+ */
+function aksara_authentype_style_facts( $styles ) {
+	$weights = array();
+	$italic  = false;
+	foreach ( (array) $styles as $style ) {
+		if ( ! is_array( $style ) ) {
+			continue;
+		}
+		if ( isset( $style['font_weight'] ) ) {
+			$weight = (int) $style['font_weight'];
+			if ( $weight > 0 ) {
+				$weights[] = $weight;
+			}
+		}
+		if ( isset( $style['font_style'] ) && 'normal' !== $style['font_style'] ) {
+			$italic = true;
+		}
+	}
+
+	return array(
+		'count'      => count( (array) $styles ),
+		'weight_min' => $weights ? min( $weights ) : 0,
+		'weight_max' => $weights ? max( $weights ) : 0,
+		'has_italic' => $italic,
+	);
+}
+
+/**
  * Umur nonce preview specimen.
  *
  * Masalahnya: renderNonce ditanam ke dalam HTML halaman. Umur nonce WordPress
