@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.40
+Version: 0.9.41
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -1824,32 +1824,51 @@ button.ath-feature-menu-btn,
 	aspect-ratio: 3 / 2;
 	object-fit: cover;
 }
-/* Dua kolom yang BENAR-BENAR bersebelahan.
+/* Deskripsi yang diprioritaskan; spesifikasi jadi sidebar sempit.
  *
- * Versi lama memakai 1.7fr / .7fr. Proporsi itu terdengar masuk akal sampai
- * diukur: kolom kiri dibatasi --measure (68ch = 692px), tapi jalur gridnya
- * ikut membesar mengikuti lebar layar. Di 1440px jalurnya jadi ~940px,
- * sehingga ada 313px KOSONG antara akhir kalimat dan garis "Product details"
- * — dua kolom yang seharusnya berpasangan malah tampak tidak berhubungan.
- * Di 1280px jaraknya masih 199px.
+ * TIGA VERSI, DAN KENAPA YANG INI
  *
- * Sekarang jalur kiri dibatasi tepat pada --measure, jadi sisa lebar jatuh ke
- * kolom kanan, bukan ke ruang mati. Kolom kanan itu memang yang membutuhkan:
- * baris "Additionally" menaruh pil dan penjelasannya berdampingan.
+ * 1.7fr/.7fr — kolom kiri dibatasi --measure (68ch = 692px) tapi jalur
+ * gridnya ikut membesar, jadi di 1440px ada 313px KOSONG antara akhir
+ * kalimat dan garis Product details. Dua kolom yang tampak tidak
+ * berhubungan.
+ *
+ * measure/1fr — ruang matinya hilang, tapi sisa lebar semuanya jatuh ke
+ * kolom kanan: di 1920px daftar spesifikasi jadi 1093px, lebih lebar dari
+ * deskripsinya sendiri. Sidebar yang lebih besar dari isi utama.
+ *
+ * Sekarang kebalikannya, dan ini yang diminta: kolom kanan diberi lebar
+ * tetap yang secukupnya, sisanya milik deskripsi.
+ *
+ * PENTING — mengubah jalur grid saja TIDAK cukup. Yang benar-benar membatasi
+ * teksnya adalah `max-width: var(--measure)` di .font-overview__content;
+ * tanpa mencabutnya, jalur kiri boleh selebar apa pun dan paragrafnya tetap
+ * berhenti di 692px. Batas itu kini hanya berlaku saat kolomnya menumpuk
+ * (lihat media query 900px), di mana jalur = lebar halaman penuh dan prosa
+ * memang perlu direm.
+ *
+ * Sebagai gantinya ada batas atas yang jauh lebih longgar, 100ch. Ia tidak
+ * mengikat sama sekali sampai sekitar 1460px; tugasnya hanya mencegah monitor
+ * ultralebar menghasilkan baris 145 karakter yang tidak bisa dibaca siapa pun.
  *
  * Ambang runtuhnya 900px, bukan 782px seperti bagian lain. Di 783px kolom
- * kiri hanya menyisakan 391px (≈38ch) — terlalu sempit untuk prosa. Di atas
- * 900px sisanya minimal 513px (≈50ch), masih nyaman dibaca. */
+ * kiri hanya menyisakan 391px (≈38ch) — terlalu sempit untuk prosa. */
 .font-overview {
 	display: grid;
-	grid-template-columns: minmax(0, var(--measure)) minmax(300px, 1fr);
+	grid-template-columns: minmax(0, 100ch) minmax(260px, 330px);
 	column-gap: clamp(40px, 4vw, 72px);
+	/* Sisa lebar di layar sangat lebar jatuh ke JARAK antar kolom, bukan ke
+	 * dalam kolom deskripsi. Bedanya penting: ruang kosong di dalam kolom
+	 * terbaca sebagai tata letak yang rusak (persis cacat 313px yang
+	 * diperbaiki di 0.9.37), sedangkan jarak antar kolom terbaca sebagai
+	 * jarak. Tanpa ini, batas 100ch akan menyisakan 452px menganggur di
+	 * 1920px sementara Product details tetap di tepi kanan. */
+	justify-content: space-between;
 	row-gap: 40px;
 	padding-block: 56px;
 	border-top: 1px solid var(--hairline);
 }
 .font-overview__content {
-	max-width: var(--measure);
 	font-size: 16px;
 	line-height: 1.65;
 }
@@ -2060,6 +2079,9 @@ a.font-extras__link:focus-visible {
 		row-gap: 36px;
 	}
 	.font-overview__meta { padding: 0; border-left: 0; }
+	/* Menumpuk berarti jalurnya selebar halaman. Di situ --measure kembali
+	 * jadi satu-satunya yang menahan panjang baris. */
+	.font-overview__content { max-width: var(--measure); }
 }
 
 @media (max-width: 782px) {
