@@ -457,40 +457,45 @@ function aksara_authentype_linked_product_ids() {
 }
 
 /**
- * Daftar jenis lisensi yang BENAR-BENAR dijual, dikumpulkan dari seluruh
- * keluarga font.
+ * Lisensi yang BENAR-BENAR ditawarkan toko, dikumpulkan dari seluruh keluarga
+ * font terbit dan dikunci pada SLUG, bukan pada namanya.
  *
- * KENAPA INI ADA
+ * KENAPA SLUG, BUKAN NAMA
  *
- * Halaman Licenses menjanjikan, dengan kalimatnya sendiri: "generated from
- * the same data the shop uses — so what you read here is what you are
- * actually buying." Dulu janji itu benar, ketika lisensi dikelola di
- * WooCommerce > Font Licenses milik plugin Aksara Marketplace.
+ * Slug (`license_variation_value`) adalah nilai atribut variasi WooCommerce —
+ * ia yang benar-benar dibeli orang, dan ia stabil. Nama bisa diketik ulang
+ * ("Webfont" jadi "Web Font") tanpa mengubah apa pun yang dijual; kalau
+ * penggabungan dikunci pada nama, satu pengetikan ulang akan memutus
+ * hubungannya dengan ketentuan yang sudah ditulis di Customizer dan halaman
+ * Licenses diam-diam kehilangan satu kartu.
  *
- * Sekarang tidak lagi. Begitu Authentype aktif, aksara-marketplace.php
- * melewati Aksara_License_Admin::init() (lihat pemeriksaan
- * aksara_marketplace_uses_authentype() di berkas utama plugin itu), sehingga
- * layar admin satu-satunya yang mengisi tabel aksara_font_licenses tidak
- * pernah terdaftar. Yang dipakai toko adalah _ath_license_options — meta per
- * keluarga font milik Authentype. Jadi halaman Licenses membaca tabel yang
- * sudah yatim: entah kosong sama sekali, atau berisi baris lama yang tidak
- * bisa disunting siapa pun dan diam-diam melenceng dari yang dijual.
+ * Kosakata slug Authentype (desktop, webfont, app, epub, server, extended)
+ * kebetulan sudah persis sama dengan kunci setting Customizer
+ * (aksara_license_desktop_*, dan seterusnya), jadi penggabungannya langsung.
  *
- * Fungsi ini mengembalikan janji itu: sumbernya persis data yang dipakai
- * halaman produk.
+ * KENAPA LEWAT ath_specimen_get_licenses(), BUKAN MEMBACA META SENDIRI
  *
- * PENGGABUNGAN. Lisensi disimpan per keluarga font, jadi nama yang sama
- * muncul berkali-kali. Baris digabung berdasarkan namanya (tanpa peduli
- * besar-kecil huruf) dan deskripsi pertama yang tidak kosong yang dipakai.
- * Urutannya: yang ditawarkan pada paling banyak keluarga lebih dulu — itu
- * lisensi utama toko — lalu alfabetis supaya hasilnya stabil.
+ * Karena fungsi itu menerapkan satu aturan yang tidak terlihat di meta:
+ * keluarga font yang BELUM diisi _ath_license_options tetap menawarkan tiga
+ * lisensi bawaan — Desktop, Webfont, App. Membaca meta mentah akan
+ * menganggapnya "tidak menjual apa-apa", sehingga tiga lisensi yang benar-benar
+ * bisa dibeli hilang dari halaman Licenses. Itu justru kebalikan dari yang
+ * ingin dicapai.
  *
- * @return array<int, array{name:string, description:string, families:int}>
+ * Fungsi itu milik plugin, jadi pemakaiannya dijaga function_exists() dan
+ * hanya untuk MEMBACA. Kalau suatu saat ia hilang, hasilnya kosong dan
+ * templat jatuh ke daftar terdokumentasi — bukan halaman kosong.
+ *
+ * @return array<string, array{slug:string, label:string, description:string, families:int}>
  */
-function aksara_authentype_license_catalogue() {
-	$cached = get_transient( 'aksara_authentype_license_catalogue' );
+function aksara_authentype_sold_licenses() {
+	$cached = get_transient( 'aksara_authentype_sold_licenses' );
 	if ( false !== $cached && is_array( $cached ) ) {
 		return $cached;
+	}
+
+	if ( ! function_exists( 'ath_specimen_get_licenses' ) ) {
+		return array();
 	}
 
 	$font_ids = get_posts( array(
@@ -500,59 +505,51 @@ function aksara_authentype_license_catalogue() {
 		'fields'         => 'ids',
 		'no_found_rows'  => true,
 	) );
-
-	// Satu query untuk seluruh meta, bukan satu query per font. Tanpa ini
-	// katalog berisi ratusan keluarga berarti ratusan query per pemuatan
-	// halaman pertama setelah cache kedaluwarsa.
 	if ( $font_ids ) {
+		// Satu query untuk seluruh meta, bukan satu per font.
 		update_meta_cache( 'post', $font_ids );
 	}
 
-	$catalogue = array();
+	$sold = array();
 	foreach ( $font_ids as $font_id ) {
-		$rows = get_post_meta( $font_id, '_ath_license_options', true );
-		if ( ! is_array( $rows ) ) {
-			continue;
-		}
-		foreach ( $rows as $row ) {
+		foreach ( (array) ath_specimen_get_licenses( $font_id ) as $row ) {
 			if ( ! is_array( $row ) ) {
 				continue;
 			}
-			$name = trim( (string) ( isset( $row['license_label'] ) ? $row['license_label'] : '' ) );
-			if ( '' === $name ) {
+			$slug = sanitize_key( isset( $row['value'] ) ? $row['value'] : '' );
+			if ( '' === $slug ) {
 				continue;
 			}
-			$key = strtolower( $name );
-			if ( ! isset( $catalogue[ $key ] ) ) {
-				$catalogue[ $key ] = array(
-					'name'        => $name,
+			if ( ! isset( $sold[ $slug ] ) ) {
+				$sold[ $slug ] = array(
+					'slug'        => $slug,
+					'label'       => trim( (string) ( isset( $row['label'] ) ? $row['label'] : $slug ) ),
 					'description' => '',
 					'families'    => 0,
 				);
 			}
-			++$catalogue[ $key ]['families'];
-			$description = trim( (string) ( isset( $row['license_description'] ) ? $row['license_description'] : '' ) );
-			if ( '' === $catalogue[ $key ]['description'] && '' !== $description ) {
-				$catalogue[ $key ]['description'] = $description;
+			++$sold[ $slug ]['families'];
+			$description = trim( (string) ( isset( $row['description'] ) ? $row['description'] : '' ) );
+			if ( '' === $sold[ $slug ]['description'] && '' !== $description ) {
+				$sold[ $slug ]['description'] = $description;
 			}
 		}
 	}
 
-	uasort( $catalogue, function ( $a, $b ) {
+	uasort( $sold, function ( $a, $b ) {
 		if ( $a['families'] !== $b['families'] ) {
 			return $b['families'] - $a['families'];
 		}
-		return strcasecmp( $a['name'], $b['name'] );
+		return strcasecmp( $a['label'], $b['label'] );
 	} );
-	$catalogue = array_values( $catalogue );
 
-	set_transient( 'aksara_authentype_license_catalogue', $catalogue, HOUR_IN_SECONDS );
-	return $catalogue;
+	set_transient( 'aksara_authentype_sold_licenses', $sold, HOUR_IN_SECONDS );
+	return $sold;
 }
 
 function aksara_flush_authentype_product_cache() {
 	delete_transient( 'aksara_authentype_linked_product_ids' );
-	delete_transient( 'aksara_authentype_license_catalogue' );
+	delete_transient( 'aksara_authentype_sold_licenses' );
 }
 add_action( 'save_post_ath_font', 'aksara_flush_authentype_product_cache' );
 add_action( 'deleted_post', 'aksara_flush_authentype_product_cache' );

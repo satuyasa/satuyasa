@@ -19,14 +19,75 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 get_header();
 
-$licenses = array(
-	'desktop' => array( 'name' => 'Desktop', 'number' => '01', 'overview' => aksara_mod( 'aksara_license_desktop_overview' ), 'allowed' => aksara_mod( 'aksara_license_desktop_allowed' ), 'prohibited' => aksara_mod( 'aksara_license_desktop_prohibited' ), 'limitations' => aksara_mod( 'aksara_license_desktop_limitations' ) ),
-	'webfont' => array( 'name' => 'Webfont', 'number' => '02', 'overview' => aksara_mod( 'aksara_license_webfont_overview' ), 'allowed' => aksara_mod( 'aksara_license_webfont_allowed' ), 'prohibited' => aksara_mod( 'aksara_license_webfont_prohibited' ), 'limitations' => aksara_mod( 'aksara_license_webfont_limitations' ) ),
-	'app' => array( 'name' => 'App', 'number' => '03', 'overview' => aksara_mod( 'aksara_license_app_overview' ), 'allowed' => aksara_mod( 'aksara_license_app_allowed' ), 'prohibited' => aksara_mod( 'aksara_license_app_prohibited' ), 'limitations' => aksara_mod( 'aksara_license_app_limitations' ) ),
-	'epub' => array( 'name' => 'ePub', 'number' => '04', 'overview' => aksara_mod( 'aksara_license_epub_overview' ), 'allowed' => aksara_mod( 'aksara_license_epub_allowed' ), 'prohibited' => aksara_mod( 'aksara_license_epub_prohibited' ), 'limitations' => aksara_mod( 'aksara_license_epub_limitations' ) ),
-	'server' => array( 'name' => 'Server', 'number' => '05', 'overview' => aksara_mod( 'aksara_license_server_overview' ), 'allowed' => aksara_mod( 'aksara_license_server_allowed' ), 'prohibited' => aksara_mod( 'aksara_license_server_prohibited' ), 'limitations' => aksara_mod( 'aksara_license_server_limitations' ) ),
-	'extended' => array( 'name' => 'Extended', 'number' => '06', 'overview' => aksara_mod( 'aksara_license_extended_overview' ), 'allowed' => aksara_mod( 'aksara_license_extended_allowed' ), 'prohibited' => aksara_mod( 'aksara_license_extended_prohibited' ), 'limitations' => aksara_mod( 'aksara_license_extended_limitations' ) ),
+/* Enam slug yang ketentuannya SUDAH ditulis di Customizer. Ini bukan daftar
+ * yang dirender — ini kamus nama tampilan. Yang dirender ditentukan toko. */
+$aksara_license_names = array(
+	'desktop'  => __( 'Desktop', 'aksara' ),
+	'webfont'  => __( 'Webfont', 'aksara' ),
+	'app'      => __( 'App', 'aksara' ),
+	'epub'     => __( 'ePub', 'aksara' ),
+	'server'   => __( 'Server', 'aksara' ),
+	'extended' => __( 'Extended', 'aksara' ),
 );
+
+/* Daftar kartu mengikuti lisensi yang benar-benar ditawarkan keluarga font
+ * terbit (lihat aksara_authentype_sold_licenses()). Yang ketentuannya sudah
+ * ditulis tapi tidak dijual di mana pun TIDAK dirender — halaman ini berjanji
+ * "what you are actually buying", jadi memuat sesuatu yang tidak bisa dibeli
+ * adalah janji yang dilanggar. Teksnya tidak hilang: begitu lisensinya
+ * ditawarkan lagi, kartunya kembali sendiri.
+ *
+ * Kalau toko tidak bisa dibaca sama sekali — Authentype nonaktif, atau belum
+ * ada font terbit — daftar terdokumentasi dipakai sebagai cadangan. Situs baru
+ * lebih baik menampilkan enam lisensi standar daripada halaman kosong. */
+$aksara_sold = function_exists( 'aksara_authentype_sold_licenses' ) ? aksara_authentype_sold_licenses() : array();
+
+/* URUTAN. aksara_authentype_sold_licenses() mengurutkan menurut jumlah keluarga
+ * lalu alfabet — masuk akal untuk daftar admin, salah untuk halaman ini.
+ * Alfabet menghasilkan App, Desktop, ePub, Extended, Server, Webfont, yang
+ * mematahkan urutan cakupan yang disengaja (paling sempit ke paling luas) dan
+ * bertentangan dengan paragraf panduan di atasnya, yang menyebut keenamnya
+ * dalam urutan itu. Jadi yang sudah terdokumentasi tampil sesuai urutan
+ * dokumennya, dan lisensi yang belum dikenal menyusul di belakang — tempat
+ * paling terlihat untuk sesuatu yang baru dan belum ditulis ketentuannya. */
+$aksara_ordered = array();
+foreach ( array_keys( $aksara_license_names ) as $slug ) {
+	if ( isset( $aksara_sold[ $slug ] ) ) {
+		$aksara_ordered[ $slug ] = $aksara_sold[ $slug ];
+	}
+}
+foreach ( $aksara_sold as $slug => $entry ) {
+	if ( ! isset( $aksara_ordered[ $slug ] ) ) {
+		$aksara_ordered[ $slug ] = $entry;
+	}
+}
+$aksara_sold = $aksara_ordered;
+
+$licenses = array();
+if ( $aksara_sold ) {
+	foreach ( $aksara_sold as $slug => $entry ) {
+		$licenses[] = array(
+			'name'     => isset( $aksara_license_names[ $slug ] ) ? $aksara_license_names[ $slug ] : $entry['label'],
+			'overview' => aksara_mod( 'aksara_license_' . $slug . '_overview' ),
+			'allowed'  => aksara_mod( 'aksara_license_' . $slug . '_allowed' ),
+			'prohibited' => aksara_mod( 'aksara_license_' . $slug . '_prohibited' ),
+			'limitations' => aksara_mod( 'aksara_license_' . $slug . '_limitations' ),
+			// Dipakai hanya kalau ketentuannya belum ditulis sama sekali.
+			'shop_note' => $entry['description'],
+		);
+	}
+} else {
+	foreach ( $aksara_license_names as $slug => $name ) {
+		$licenses[] = array(
+			'name'     => $name,
+			'overview' => aksara_mod( 'aksara_license_' . $slug . '_overview' ),
+			'allowed'  => aksara_mod( 'aksara_license_' . $slug . '_allowed' ),
+			'prohibited' => aksara_mod( 'aksara_license_' . $slug . '_prohibited' ),
+			'limitations' => aksara_mod( 'aksara_license_' . $slug . '_limitations' ),
+			'shop_note' => '',
+		);
+	}
+}
 
 if ( ! function_exists( 'aksara_license_bullets' ) ) {
 	/** Render a newline-separated editable list safely. */
@@ -61,11 +122,23 @@ if ( ! function_exists( 'aksara_license_bullets' ) ) {
 	<section class="license-page__catalogue" aria-labelledby="license-catalogue-title">
 		<header class="license-page__section-head"><div class="license-page__section-label">01 / <?php esc_html_e( 'License catalogue', 'aksara' ); ?></div><div><h2 id="license-catalogue-title"><?php echo esc_html( aksara_mod( 'aksara_license_catalogue_title' ) ); ?></h2><p><?php echo esc_html( aksara_mod( 'aksara_license_catalogue_note' ) ); ?></p></div></header>
 		<div class="license-page__items">
-			<?php foreach ( $licenses as $license ) : ?>
-				<article class="license-page-item">
-					<div class="license-page-item__index"><?php echo esc_html( $license['number'] ); ?></div>
+			<?php foreach ( $licenses as $aksara_index => $license ) : ?>
+				<?php
+				// Ketentuan dianggap "belum ditulis" hanya kalau KEEMPAT ruasnya
+				// kosong. Satu ruas terisi berarti penyunting sudah mulai, dan
+				// kartunya harus tampil apa adanya — bukan diganti ringkasan toko.
+				$aksara_written = '' !== trim( $license['overview'] . $license['allowed'] . $license['prohibited'] . $license['limitations'] );
+				?>
+				<article class="license-page-item<?php echo $aksara_written ? '' : ' license-page-item--brief'; ?>">
+					<div class="license-page-item__index"><?php echo esc_html( sprintf( '%02d', $aksara_index + 1 ) ); ?></div>
 					<div class="license-page-item__title"><h3><?php echo esc_html( $license['name'] ); ?></h3></div>
-					<div class="license-page-item__body"><div class="license-page__overview"><?php echo nl2br( esc_html( $license['overview'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sudah di-escape sebelum nl2br. ?></div><div class="license-page__detail-grid"><div><h4><?php esc_html_e( 'Allowed Uses', 'aksara' ); ?></h4><?php aksara_license_bullets( $license['allowed'] ); ?></div><div><h4><?php esc_html_e( 'Prohibited Uses', 'aksara' ); ?></h4><?php aksara_license_bullets( $license['prohibited'] ); ?></div><div><h4><?php esc_html_e( 'Limitations', 'aksara' ); ?></h4><p><?php echo nl2br( esc_html( $license['limitations'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sudah di-escape sebelum nl2br. ?></p></div></div></div>
+					<div class="license-page-item__body">
+						<?php if ( $aksara_written ) : ?>
+							<div class="license-page__overview"><?php echo nl2br( esc_html( $license['overview'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sudah di-escape sebelum nl2br. ?></div><div class="license-page__detail-grid"><div><h4><?php esc_html_e( 'Allowed Uses', 'aksara' ); ?></h4><?php aksara_license_bullets( $license['allowed'] ); ?></div><div><h4><?php esc_html_e( 'Prohibited Uses', 'aksara' ); ?></h4><?php aksara_license_bullets( $license['prohibited'] ); ?></div><div><h4><?php esc_html_e( 'Limitations', 'aksara' ); ?></h4><p><?php echo nl2br( esc_html( $license['limitations'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sudah di-escape sebelum nl2br. ?></p></div></div>
+						<?php else : ?>
+							<div class="license-page__overview"><?php echo esc_html( $license['shop_note'] ); ?></div>
+						<?php endif; ?>
+					</div>
 				</article>
 			<?php endforeach; ?>
 		</div>
