@@ -29,7 +29,14 @@ class Aksara_Service_Health {
 
 	const EXPOSURE_TRANSIENT = 'aksara_private_dir_exposed';
 	const EXPOSURE_TTL       = 12 * HOUR_IN_SECONDS;
-	const CANARY_FILENAME    = 'exposure-check.txt';
+	/*
+	 * DUA umpan, dengan ekstensi berbeda. Sebagian konfigurasi server memblokir
+	 * berdasarkan ekstensi, bukan direktori: umpan .txt bisa tertolak sementara
+	 * .ttf — persis jenis berkas yang dijual — terbuka lebar. Menguji .txt saja
+	 * menghasilkan "aman" yang salah, dan negatif palsu adalah kesalahan paling
+	 * merugikan yang bisa dibuat pemeriksaan ini.
+	 */
+	const CANARY_FILENAMES   = array( 'exposure-check.txt', 'exposure-check.ttf' );
 	const CANARY_CONTENT     = 'aksara-private-dir-exposure-canary';
 	const CACHE_TTL     = 5 * MINUTE_IN_SECONDS;
 
@@ -38,6 +45,35 @@ class Aksara_Service_Health {
 	 */
 	public static function init() {
 		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_notice' ) );
+		self::init_storage_guard();
+	}
+
+	/**
+	 * Bagian yang HARUS hidup di mode apa pun: peringatan folder privat terbuka.
+	 *
+	 * KENAPA DIPISAH DARI init()
+	 *
+	 * aksara-marketplace.php melewati Aksara_Service_Health::init() ketika
+	 * Authentype aktif, dan itu benar untuk sebagian besar isi kelas ini:
+	 * pratinjau font dirender Authentype di server, jadi kesehatan microservice
+	 * Python memang tidak relevan lagi.
+	 *
+	 * Tapi satu hal ikut mati bersamanya, dan tidak semestinya: uji keterbukaan
+	 * folder berkas privat. Folder itu tetap ada, tetap berisi berkas font
+	 * berbayar dari katalog lama, dan tetap hanya dilindungi .htaccess —
+	 * yang Nginx abaikan sepenuhnya. Selama Authentype aktif, satu-satunya
+	 * pemeriksaan yang pernah menemukan kebocoran itu tidak pernah dijalankan.
+	 *
+	 * Versi 0.8.3 mencoba menambalnya dengan menebak dari
+	 * $_SERVER['SERVER_SOFTWARE']. Tebakan itu salah di kedua arah: Nginx
+	 * sebagai reverse proxy di depan Apache melapor "nginx" padahal .htaccess
+	 * bekerja (peringatan palsu, dan peringatan palsu yang berulang akan
+	 * diabaikan), sedangkan Apache dengan AllowOverride None melapor "Apache"
+	 * padahal .htaccess-nya tidak dibaca sama sekali (diam padahal bocor).
+	 * Uji sungguhan di bawah sudah ada sejak awal; ia hanya perlu dinyalakan.
+	 */
+	public static function init_storage_guard() {
+		add_action( 'admin_notices', array( __CLASS__, 'maybe_render_storage_notice' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'add_status_page' ) );
 	}
 
@@ -103,41 +139,47 @@ class Aksara_Service_Health {
 			return null;
 		}
 
-		$canary_path = trailingslashit( $dir ) . self::CANARY_FILENAME;
-
-		if ( ! file_exists( $canary_path ) ) {
-			$written = file_put_contents( $canary_path, self::CANARY_CONTENT ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
-			if ( false === $written ) {
-				return null;
-			}
-		}
-
 		$uploads = wp_upload_dir();
 		if ( empty( $uploads['baseurl'] ) ) {
 			return null;
 		}
 
-		$url = trailingslashit( $uploads['baseurl'] ) . Aksara_File_Storage::SUBDIR . '/' . self::CANARY_FILENAME;
-
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout'   => 5,
-				'sslverify' => false, // Staging sering memakai sertifikat self-signed; yang diuji akses berkasnya, bukan rantai TLS-nya.
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			// Tidak bisa memanggil diri sendiri (loopback diblokir, DNS internal
-			// aneh). Itu bukan bukti aman — jadi jangan laporkan sebagai aman.
+		$written = array();
+		foreach ( self::CANARY_FILENAMES as $filename ) {
+			$path = trailingslashit( $dir ) . $filename;
+			if ( file_exists( $path ) || false !== file_put_contents( $path, self::CANARY_CONTENT ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+				$written[] = $filename;
+			}
+		}
+		if ( ! $written ) {
 			return null;
 		}
 
-		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			return false;
+		$verdict = false;
+		foreach ( $written as $filename ) {
+			$response = wp_remote_get(
+				trailingslashit( $uploads['baseurl'] ) . Aksara_File_Storage::SUBDIR . '/' . $filename,
+				array(
+					'timeout'   => 5,
+					'sslverify' => false, // Staging sering memakai sertifikat self-signed; yang diuji akses berkasnya, bukan rantai TLS-nya.
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				// Tidak bisa memanggil diri sendiri (loopback diblokir, DNS
+				// internal aneh). Itu bukan bukti aman — jadi jangan pernah
+				// melaporkannya sebagai aman.
+				$verdict = null;
+				continue;
+			}
+
+			if ( 200 === (int) wp_remote_retrieve_response_code( $response )
+				&& false !== strpos( wp_remote_retrieve_body( $response ), self::CANARY_CONTENT ) ) {
+				return true; // Satu saja tembus sudah cukup untuk disebut bocor.
+			}
 		}
 
-		return false !== strpos( wp_remote_retrieve_body( $response ), self::CANARY_CONTENT );
+		return $verdict;
 	}
 
 	public static function is_up( $force = false ) {
@@ -171,24 +213,6 @@ class Aksara_Service_Health {
 			return;
 		}
 
-		/*
-		 * Keterbukaan folder privat diperiksa lebih dulu, dan TIDAK dibatasi
-		 * ke layar-layar tertentu seperti notice layanan pratinjau di bawah.
-		 * Layanan pratinjau mati hanya menurunkan satu fitur; folder privat
-		 * yang terbuka berarti seluruh katalog font berbayar bisa diunduh
-		 * siapa saja. Itu harus terlihat di mana pun admin sedang berada.
-		 */
-		if ( true === self::is_private_dir_exposed() ) {
-			?>
-			<div class="notice notice-error">
-				<p><strong><?php esc_html_e( 'Aksara: your font files are publicly downloadable.', 'aksara-marketplace' ); ?></strong></p>
-				<p><?php esc_html_e( 'The private uploads folder can be fetched directly over HTTP, so anyone who guesses a file URL can download your paid font files without buying them. This was verified by requesting a test file from the folder, not merely assumed.', 'aksara-marketplace' ); ?></p>
-				<p><?php esc_html_e( 'This usually means the site runs on Nginx, which ignores .htaccess entirely. Add a matching deny rule to your server configuration.', 'aksara-marketplace' ); ?></p>
-				<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=aksara-service-status' ) ); ?>"><?php esc_html_e( 'Show me the rule to add →', 'aksara-marketplace' ); ?></a></p>
-			</div>
-			<?php
-		}
-
 		$relevant = in_array( $screen->id, array( 'product', 'edit-product', 'dashboard' ), true )
 			|| false !== strpos( $screen->id, 'aksara' );
 
@@ -213,9 +237,42 @@ class Aksara_Service_Health {
 	}
 
 	/**
+	 * Peringatan folder privat terbuka.
+	 *
+	 * TIDAK dibatasi ke layar-layar tertentu seperti notice layanan pratinjau.
+	 * Layanan pratinjau mati hanya menurunkan satu fitur; folder privat yang
+	 * terbuka berarti seluruh katalog font berbayar bisa diunduh siapa saja.
+	 * Itu harus terlihat di mana pun admin sedang berada.
+	 */
+	public static function maybe_render_storage_notice() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+		if ( true !== self::is_private_dir_exposed() ) {
+			return;
+		}
+		?>
+		<div class="notice notice-error">
+			<p><strong><?php esc_html_e( 'Aksara: your font files are publicly downloadable.', 'aksara-marketplace' ); ?></strong></p>
+			<p><?php esc_html_e( 'The private uploads folder can be fetched directly over HTTP, so anyone who guesses a file URL can download your paid font files without buying them. This was verified by requesting a test file from the folder, not merely assumed.', 'aksara-marketplace' ); ?></p>
+			<p><?php esc_html_e( 'This usually means the site runs on Nginx, which ignores .htaccess entirely. Add a matching deny rule to your server configuration.', 'aksara-marketplace' ); ?></p>
+			<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=aksara-service-status' ) ); ?>"><?php esc_html_e( 'Show me the rule to add', 'aksara-marketplace' ); ?></a></p>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Daftarkan halaman status di bawah menu WooCommerce.
 	 */
 	public static function add_status_page() {
+		// init() dan init_storage_guard() sama-sama memanggil ini di mode
+		// non-Authentype. Tanpa penjaga ini submenunya muncul dua kali.
+		static $added = false;
+		if ( $added ) {
+			return;
+		}
+		$added = true;
+
 		add_submenu_page(
 			'woocommerce',
 			__( 'Aksara Service Status', 'aksara-marketplace' ),

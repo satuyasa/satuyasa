@@ -3,7 +3,7 @@
  * Plugin Name: Aksara Marketplace
  * Plugin URI: https://github.com/satuyasa/satuyasa
  * Description: Aksara storefront companion for WooCommerce. Authentype owns font generation, previews, pricing, variations and delivery; Aksara manages Canva Templates, Canva Elements, wishlists and shared storefront features.
- * Version: 0.8.3
+ * Version: 0.8.4
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Akses langsung tidak diizinkan.
 }
 
-define( 'AKSARA_MARKETPLACE_VERSION', '0.8.3' );
+define( 'AKSARA_MARKETPLACE_VERSION', '0.8.4' );
 define( 'AKSARA_MARKETPLACE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKSARA_MARKETPLACE_FILE', __FILE__ );
@@ -132,24 +132,19 @@ function aksara_marketplace_init() {
 		Aksara_Dashboard_Widget::init();
 	}
 	Aksara_Error_Logger::init();
-	if ( ! aksara_marketplace_uses_authentype() ) {
+	if ( aksara_marketplace_uses_authentype() ) {
+		// Sisa Service_Health mengurus microservice pratinjau Python, yang di
+		// mode ini memang tidak dipakai. Tapi uji keterbukaan folder berkas
+		// privat bukan bagian dari itu dan harus tetap jalan — folder itu masih
+		// menyimpan font berbayar katalog lama. Lihat init_storage_guard().
+		Aksara_Service_Health::init_storage_guard();
+	} else {
 		Aksara_Service_Health::init();
 	}
 
 	Aksara_DB_Installer::maybe_upgrade();
 }
 add_action( 'plugins_loaded', 'aksara_marketplace_init' );
-
-/** Nginx ignores the protection files written inside uploads. */
-function aksara_marketplace_nginx_storage_notice() {
-	if ( ! current_user_can( 'manage_woocommerce' ) ) return;
-	$software = isset( $_SERVER['SERVER_SOFTWARE'] ) ? strtolower( sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) ) ) : '';
-	if ( false === strpos( $software, 'nginx' ) ) return;
-	echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Verify private-download protection on Nginx.', 'aksara-marketplace' ) . '</strong> ';
-	echo esc_html__( 'Nginx does not read .htaccess. Deny direct HTTP access to wp-content/uploads/aksara-private and use Force Downloads or X-Accel-Redirect before selling files.', 'aksara-marketplace' );
-	echo '</p></div>';
-}
-add_action( 'admin_notices', 'aksara_marketplace_nginx_storage_notice' );
 
 function aksara_marketplace_hide_legacy_font_products( $visible, $product_id ) {
 	return has_term( 'font', 'product_type', $product_id ) ? false : $visible;

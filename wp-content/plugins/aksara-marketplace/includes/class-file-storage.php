@@ -69,6 +69,18 @@ class Aksara_File_Storage {
 			file_put_contents( $index, "<?php\n// Silence is golden.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		}
 
+		// IIS tidak membaca .htaccess, tapi membaca web.config. Ini melengkapi
+		// Apache. Nginx tidak punya berkas per-direktori sama sekali dan harus
+		// diurus di server block — yang itu dibuktikan, bukan diasumsikan, oleh
+		// Aksara_Service_Health::is_private_dir_exposed().
+		$webconfig = trailingslashit( $base_dir ) . 'web.config';
+		if ( ! file_exists( $webconfig ) ) {
+			file_put_contents( // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+				$webconfig,
+				"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\t<system.webServer>\n\t\t<authorization>\n\t\t\t<deny users=\"*\" />\n\t\t</authorization>\n\t</system.webServer>\n</configuration>\n"
+			);
+		}
+
 		return $dir;
 	}
 

@@ -11,10 +11,32 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Marketplace WooCommerce pendamping Authentype untuk Canva Template, Canva Element, wishlist, akun, dan storefront bersama. Sejak 0.8.0, Authentype adalah satu-satunya pemilik katalog, preview, harga, variation, cart, dan delivery produk font.
 
+== v0.8.4 - the exposure check actually runs ==
+
+- **Uji keterbukaan folder privat kini hidup di mode Authentype.** Pemeriksaan
+  yang menulis berkas umpan lalu mengambilnya lewat HTTP sudah ada sejak 0.8.1,
+  tapi ia ikut mati bersama `Aksara_Service_Health::init()` yang dilewati ketika
+  Authentype aktif — yaitu keadaan default. Selama itu satu-satunya pemeriksaan
+  yang pernah menemukan kebocoran font berbayar tidak pernah dijalankan.
+  Sekarang dipisah ke `init_storage_guard()` yang jalan di mode apa pun.
+- **Tebakan SERVER_SOFTWARE dari 0.8.3 dibuang.** Tebakan itu salah di kedua
+  arah: Nginx sebagai reverse proxy di depan Apache melapor "nginx" padahal
+  `.htaccess` bekerja (peringatan palsu yang lama-lama diabaikan), sedangkan
+  Apache dengan `AllowOverride None` melapor "Apache" padahal `.htaccess`-nya
+  tidak dibaca sama sekali (diam padahal bocor). Yang dipakai sekarang bukti,
+  bukan banner server.
+- **Umpannya dua, bukan satu.** Sebagian konfigurasi memblokir per ekstensi,
+  bukan per direktori: `.txt` bisa tertolak sementara `.ttf` — persis jenis
+  berkas yang dijual — terbuka lebar. Kini `.txt` dan `.ttf` sama-sama diuji,
+  dan satu saja tembus sudah cukup untuk disebut bocor.
+- **`web.config` ikut ditulis** untuk IIS, melengkapi `.htaccess` untuk Apache.
+  Nginx tetap tidak punya berkas per-direktori dan harus diurus di server block
+  — itulah yang dibuktikan oleh uji di atas.
+
 == v0.8.3 - dependency and storage hardening ==
 
 - Authentype mode is selected automatically only when its bootstrap is active; a dependency outage no longer silently hides all legacy Aksara font products.
-- Nginx administrators receive an explicit warning because Nginx does not honor `.htaccess` protection files.
+- Nginx administrators receive an explicit warning because Nginx does not honor `.htaccess` protection files. (Digantikan di 0.8.4 — tebakannya tidak bisa diandalkan.)
 
 Engine font lama Aksara tetap tersimpan untuk kompatibilitas data historis, tetapi tidak dimuat pada mode default 0.8.0. Ini mencegah dua generator font mengelola produk yang sama. Python Font Preview Service tidak diperlukan pada mode Authentype karena preview dirender menjadi PNG oleh Authentype di server.
 
