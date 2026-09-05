@@ -70,6 +70,15 @@ function aksara_mod_defaults() {
 		'aksara_hero_subtitle' => __( 'Thousands of clearly licensed fonts, ready-made Canva templates, and design elements — all in one place, with a live preview before you buy.', 'aksara' ),
 
 		// License page — public presentation only; product/license records stay in the plugin.
+		/* Nama merek dan foundry dulu dipatok langsung di template-license.php,
+		 * di lima tempat. Artinya mengganti nama merek — hal yang lumrah
+		 * terjadi — menuntut menyunting PHP, dan satu dari lima tempat pasti
+		 * terlewat. Dijadikan setting supaya cukup diketik sekali. Nilai
+		 * bawaannya persis seperti yang dulu dipatok, jadi tampilannya tidak
+		 * berubah sama sekali sampai ada yang mengubahnya. */
+		'aksara_license_brand'            => 'HiveGlyph',
+		'aksara_license_foundry'          => 'Ekayasa',
+		'aksara_license_website'          => 'https://www.hiveglyph.com',
 		'aksara_license_eyebrow'          => __( 'HiveGlyph licensing guide', 'aksara' ),
 		'aksara_license_intro'            => __( 'Clear rights for type used in real work. Choose the scope that matches your project, then contact us when your use falls outside the standard options.', 'aksara' ),
 		'aksara_license_guide_title'      => __( 'Start with the output, not the font.', 'aksara' ),
@@ -334,6 +343,25 @@ function aksara_customize_register( $wp_customize ) {
 		'panel'       => 'aksara_panel',
 		'description' => __( 'Edit the public presentation of the HiveGlyph license guide. These controls do not change WooCommerce products, purchase rights, or the license engine. Use one line per bullet in the Allowed Uses and Prohibited Uses fields.', 'aksara' ),
 	) );
+	/* Tiga ruas identitas didaftarkan TERPISAH dari prosa di bawahnya. Loop
+	 * prosa memakai type "textarea" dan sanitize_textarea_field — masuk akal
+	 * untuk paragraf, tapi bukan untuk nama merek (satu baris) apalagi untuk
+	 * URL, yang butuh esc_url_raw supaya skema aneh tidak pernah tersimpan.
+	 * Keluarannya memang sudah lewat esc_url(), jadi ini bukan lubang XSS —
+	 * tapi menyimpan nilai yang tidak sah lalu membuangnya saat mencetak
+	 * berarti penyunting melihat kolomnya terisi sementara halamannya kosong,
+	 * tanpa penjelasan apa pun. */
+	$license_identity_fields = array(
+		'aksara_license_brand'   => array( __( 'Brand name', 'aksara' ), 'text', 'sanitize_text_field' ),
+		'aksara_license_foundry' => array( __( 'Type foundry name', 'aksara' ), 'text', 'sanitize_text_field' ),
+		'aksara_license_website' => array( __( 'Website URL', 'aksara' ), 'url', 'esc_url_raw' ),
+	);
+	foreach ( $license_identity_fields as $key => $field ) {
+		list( $label, $type, $sanitize ) = $field;
+		$wp_customize->add_setting( $key, array( 'default' => $defaults[ $key ], 'sanitize_callback' => $sanitize, 'transport' => 'refresh' ) );
+		$wp_customize->add_control( $key, array( 'section' => 'aksara_license_page', 'label' => $label, 'type' => $type ) );
+	}
+
 	$license_text_fields = array(
 		'aksara_license_eyebrow' => __( 'Eyebrow', 'aksara' ),
 		'aksara_license_intro' => __( 'Introductory text', 'aksara' ),

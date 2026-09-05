@@ -4,7 +4,7 @@ Theme URI: https://github.com/satuyasa/satuyasa
 Author: Aksara
 Author URI: https://github.com/satuyasa
 Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
-Version: 0.9.41
+Version: 0.9.42
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
@@ -1499,7 +1499,22 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 .license-page__intro { max-width: 620px; margin: 0 0 28px; font-size: clamp(18px, 2.2vw, 26px); line-height: 1.28; }
 .license-page__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; color: var(--muted); font-size: var(--text-caption); }
 .license-page__editorial, .license-page__guide, .license-page__catalogue, .license-page__ip, .license-page__contact { max-width: 1180px; margin: 0 auto var(--section-rhythm); }
-.license-page__editorial { max-width: var(--measure); margin-bottom: var(--section-rhythm); }
+/* Blok editorial ikut aturan bersama di atas, yang memasang max-width 1180px
+ * DAN margin: 0 auto. Menimpa max-width-nya saja dengan --measure (692px)
+ * meninggalkan margin auto itu tetap berlaku — sehingga bloknya melayang di
+ * TENGAH kolom 1180px sementara hero, guide, catalogue dan contact semuanya
+ * rata kiri. Terukur: tepi kirinya 286px di 1280px dan 366px di 1440px,
+ * sementara semua bagian lain di 43px dan 123px. Selisih 243px yang terbaca
+ * seperti paragraf yang salah tempat.
+ *
+ * Persis jenis kesalahan yang sama pernah dibuat di 0.9.29 dan diperbaiki di
+ * 0.9.30: max-width dipasang tanpa memikirkan margin yang sudah ada.
+ *
+ * Perbaikannya bukan mencabut margin auto — bloknya memang harus sejajar
+ * kolom 1180px — melainkan membatasi panjang barisnya di dalam, bukan di
+ * pembungkusnya. */
+.license-page__editorial { margin-bottom: var(--section-rhythm); }
+.license-page__editorial > * { max-width: var(--measure); }
 .license-page__guide, .license-page__ip { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr); gap: var(--spacing-36); padding-top: var(--spacing-24); border-top: 1px solid var(--hairline-strong); }
 .license-page h2 { max-width: 700px; margin: 0 0 14px; font-size: clamp(30px, 4vw, 58px); letter-spacing: -.045em; }
 .license-page__guide p, .license-page__ip p, .license-page__section-head p, .license-page__contact p { max-width: 620px; color: var(--muted); margin: 0; }
@@ -1510,7 +1525,28 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 .license-page-item__title h3 { margin: 0; font-size: clamp(28px, 3vw, 46px); letter-spacing: -.04em; }
 .license-page-item__body { min-width: 0; }
 .license-page__overview { max-width: 620px; margin-bottom: 28px; font-size: 18px; line-height: 1.35; }
-.license-page__detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+/* auto-fit, bukan repeat(3), dan bukan pula media query.
+ *
+ * Lebar tiga kolom ini ditentukan kolom isi kartu lisensi, bukan lebar layar —
+ * jadi media query tidak bisa menyatakan syaratnya dengan benar. Diukur pada
+ * repeat(3): di 768px tiap kolom hanya 116px, di 900px 145px, di 1024px 173px.
+ * 116px untuk kalimat seperti "Installation on up to 3 devices within one
+ * organization or household." berarti sekitar 14 karakter per baris — daftar
+ * yang tercabik, bukan daftar yang ringkas. Media query 700px di bawah tidak
+ * menolong karena masalahnya justru DI ATAS 700px.
+ *
+ * minmax(200px, 1fr) membuat jumlah kolomnya mengikuti ruang yang benar-benar
+ * ada: satu kolom selama sempit, dua di tengah, tiga begitu muat.
+ *
+ * 200px, bukan 220px. Diukur: kolom isi kartu berhenti tumbuh di 712px karena
+ * .license-page__catalogue dibatasi 1180px. Tiga kolom 220px butuh
+ * 3x220 + 2x28 = 716px — lebih empat piksel dari yang akan pernah ada, jadi
+ * tiga kolom TIDAK PERNAH terjadi di lebar mana pun dan perbandingan
+ * Allowed/Prohibited/Limitations yang memang ingin dilihat berdampingan
+ * diam-diam hilang. Dengan 200px syaratnya 656px: tiga kolom kembali muncul
+ * di desktop, sementara 768-1024px — tempat masalah sebenarnya, dulu 116-173px
+ * per kolom — tetap turun ke satu atau dua kolom yang lapang. */
+.license-page__detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px 28px; }
 .license-page__detail-grid h4 { margin: 0 0 10px; color: var(--muted); font-size: var(--text-caption); letter-spacing: .08em; text-transform: uppercase; }
 .license-page__detail-grid p, .license-page__list { margin: 0; font-size: var(--text-body-sm); line-height: var(--leading-body-sm); }
 .license-page__list { padding: 0; list-style: none; }
@@ -1526,7 +1562,6 @@ label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption);
 	.license-page__guide, .license-page__ip, .license-page__section-head, .license-page__contact { grid-template-columns: 1fr; gap: 18px; }
 	.license-page-item { grid-template-columns: 38px 1fr; gap: 14px; }
 	.license-page-item__body { grid-column: 2; }
-	.license-page__detail-grid { grid-template-columns: 1fr; gap: 22px; }
 }
 
 @media (max-width: 600px) {
