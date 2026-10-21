@@ -40,6 +40,9 @@ class _W(object):
 	def setSelection(self, s):
 		self.selection = list(s)
 
+	def enable(self, on):
+		self.enabled = bool(on)
+
 	def setTitle(self, t):
 		self.title = t
 

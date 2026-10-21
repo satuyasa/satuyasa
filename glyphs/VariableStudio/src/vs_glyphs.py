@@ -835,3 +835,106 @@ def instance_to_master(font, instance, kerning=True):
 	if kerning:
 		_set_kerning(font, nm.id, _kerning_of(f2, m2.id))
 	return nm, missing
+
+
+# ---------------------------------------------------------------------------
+# Tebal / tipis
+
+def master_zones(master):
+	zones = [0.0]
+	for attr in ("xHeight", "capHeight", "ascender", "descender"):
+		try:
+			zones.append(float(getattr(master, attr)))
+		except Exception:
+			pass
+	return zones
+
+
+def _selected_nodes(layer):
+	"""set (indeks path, indeks node) dari on-curve terpilih."""
+	sel = set()
+	for pi, p in enumerate(layer.paths):
+		for ni, n in enumerate(p.nodes):
+			if node_type(n) != "offcurve" and getattr(n, "selected", False):
+				sel.add((pi, ni))
+	return sel
+
+
+def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False):
+	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
+	jumlah atau urutan titik. Hasil: jumlah titik yang digeser."""
+	paths = [(bool(getattr(p, "closed", True)), [node_type(n) for n in p.nodes], [_xy(n) for n in p.nodes])
+		for p in layer.paths]
+	if not paths:
+		return 0
+	selected = None
+	if selected_only:
+		selected = _selected_nodes(layer)
+		if not selected:
+			return 0
+	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
+		keep_sidebearings, zones, selected)
+	moved = 0
+	for p, pts in zip(layer.paths, res["pts"]):
+		for n, (x, y) in zip(p.nodes, pts):
+			if _xy(n) != (x, y):
+				n.position = NSPoint(x, y)
+				moved += 1
+	if selected is None:
+		for a in layer.anchors:
+			x, y = res["anchor"](a.position.x, a.position.y)
+			a.position = NSPoint(x, y)
+		layer.width = res["width"]
+	return moved
+
+
+def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=None,
+		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True):
+	"""Isi master target (atau master baru `name`) dengan salinan master
+	sumber yang ditebalkan/ditipiskan. target == src berarti diubah di tempat.
+	Hasil: (master, jumlah glyph diubah)."""
+	if target is None:
+		target = _new_master_from(font, src, name or "%s %+d" % (src.name, int(add_x)))
+		vals = axis_values(src, font)
+		if axis_idx is not None and axis_value is not None:
+			vals[axis_idx] = float(axis_value)
+		set_axis_values(target, font, vals)
+		_set_metrics(target, _metrics(src))
+		if kerning:
+			_set_kerning(font, target.id, _kerning_of(font, src.id))
+		glyphs = None  # master baru: semua glyph harus terisi
+	zones = master_zones(src) if keep_heights else None
+	todo = glyphs if glyphs is not None else list(font.glyphs)
+	old_width = {}
+	for g in font.glyphs:
+		s = g.layers[src.id]
+		if s is not None:
+			old_width[g.name] = float(s.width)
+	done = 0
+	composites = []
+	for g in todo:
+		s = g.layers[src.id]
+		if s is None:
+			continue
+		layer = s if target is src else _put_layer(g, target.id, s)
+		if not layer.paths and layer.components:
+			composites.append(layer)
+		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones):
+			done += 1
+	# Glyph yang hanya berisi komponen: lebar ikut glyph dasarnya, komponen
+	# berikutnya (aksen) digeser setengahnya agar tetap di tengah.
+	if keep_sidebearings:
+		for layer in composites:
+			base = layer.components[0].componentName
+			bg = font.glyphs[base]
+			bl = bg.layers[target.id] if bg is not None else None
+			if bl is None or base not in old_width:
+				continue
+			delta = float(bl.width) - old_width[base]
+			if abs(delta) < 1e-9:
+				continue
+			layer.width = float(layer.width) + delta
+			for c in list(layer.components)[1:]:
+				c.position = NSPoint(c.position.x + delta / 2.0, c.position.y)
+			done += 1
+	return target, done

@@ -326,6 +326,84 @@ def test_reporter():
 	R.bezier_from_paths([(True, ["line", "offcurve", "qcurve", "line"], [(0, 0), (5, 10), (10, 0), (10, -5)])])
 
 
+def test_embolden():
+	# kotak = stem 100 -> 140, sidebearing tetap, lebar +40
+	sq = [(True, ["line"] * 4, [(50, 0), (150, 0), (150, 700), (50, 700)])]
+	r = P.embolden(sq, 200, 40, 0, True, [0, 700])
+	assert r["pts"][0] == [(50, 0), (190, 0), (190, 700), (50, 700)] and r["width"] == 240
+	# arah path terbalik tetap menebal; negatif = menipis
+	cw = [(True, ["line"] * 4, [(50, 0), (50, 700), (150, 700), (150, 0)])]
+	assert P.embolden(cw, 200, 40, 0, True, [0, 700])["pts"][0][2] == (190, 700)
+	assert P.embolden(sq, 200, -40, 0, True, [0, 700])["pts"][0][1] == (110, 0)
+	f = make_font()
+	light = f.masters[0]
+	o = f.glyphs["o"].layers[light.id]
+	outer_top = o.paths[0].nodes[2].position.y
+	inner = [P._xy(n) for n in o.paths[1].nodes]
+	nodes_before = [len(p.nodes) for p in o.paths]
+	# Bold dari Light: master baru, kompatibel, axis diisi
+	bold, done = P.embolden_master(f, light, 60, 40, None, "Heavy", 0, 100)
+	assert done == 4 and list(bold.axes) == [100], (done, list(bold.axes))
+	ob = f.glyphs["o"].layers[bold.id]
+	assert [len(p.nodes) for p in ob.paths] == nodes_before
+	assert abs(ob.paths[0].nodes[2].position.y - outer_top) < 1e-6  # x-height/overshoot dipegang
+	assert abs(ob.width - (o.width + 60)) < 1e-6
+	# counter menyempit
+	ib = [P._xy(n) for n in ob.paths[1].nodes]
+	assert (max(x for x, _ in ib) - min(x for x, _ in ib)) < (max(x for x, _ in inner) - min(x for x, _ in inner)) - 50
+	h = f.glyphs["H"].layers[bold.id]
+	assert abs((h.paths[0].nodes[1].position.x - h.paths[0].nodes[0].position.x) - 80) < 1e-6
+	# komposit: lebar ikut glyph dasar, aksen bergeser setengah
+	c = f.glyphs["oacute"].layers[bold.id]
+	assert abs(c.width - (620 + 60)) < 1e-6 and abs(c.components[1].position.x - 330) < 1e-6
+	assert f.kerning[bold.id]["H"]["o"] == -10
+	assert P.scan_font(f) == [], P.scan_font(f)
+	# di tempat, hanya glyph tertentu
+	w0 = f.glyphs["H"].layers[bold.id].width
+	P.embolden_master(f, bold, 10, 0, bold, glyphs=[f.glyphs["H"]])
+	assert abs(f.glyphs["H"].layers[bold.id].width - (w0 + 10)) < 1e-6
+	assert abs(f.glyphs["o"].layers[bold.id].width - (o.width + 60)) < 1e-6
+	# hanya titik terpilih: satu stem saja
+	lay = f.glyphs["H"].layers[light.id]
+	for n in lay.paths[0].nodes:
+		n.selected = True
+	x2 = lay.paths[1].nodes[0].position.x
+	w = lay.width
+	P.embolden_layer(lay, 20, 0, selected_only=True)
+	assert abs(lay.paths[0].nodes[1].position.x - 80) < 1e-6 and lay.paths[1].nodes[0].position.x == x2 and lay.width == w
+	assert P.check_glyph(f.glyphs["H"], f) == []
+
+
+def test_window_weight():
+	f = make_font()
+	f.selectedLayers = [f.glyphs["H"].layers[f.masters[0].id]]
+	w = P.VariableStudioWindow()
+	t = w.w.tabs[6]
+	t.p10.press()
+	t.m2.press()
+	h = f.glyphs["H"].layers[f.masters[0].id]
+	assert abs(h.paths[0].nodes[1].position.x - 78) < 1e-6, h.paths[0].nodes[1].position
+	t.apply.press()
+	t.src.value = 0
+	t.target.value = 0
+	w.on_weight_target()
+	assert t.value.value == "80"
+	t.name.value = "Bold 2"
+	t.make.press()
+	assert f.masters[-1].name == "Bold 2" and list(f.masters[-1].axes) == [80]
+	t.target.value = 2
+	t.glyphSel.value = True
+	t.make.press()
+	t.selOnly.value = True
+	try:
+		t.m10.press()
+	finally:
+		pass
+	assert GlyphsApp.MESSAGES and "Pilih dulu" in GlyphsApp.MESSAGES[-1][1]
+	del GlyphsApp.MESSAGES[:]
+	w.w.binds["close"](None)
+
+
 if __name__ == "__main__":
 	n = 0
 	for name, fn in sorted(globals().items()):

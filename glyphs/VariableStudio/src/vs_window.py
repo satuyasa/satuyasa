@@ -65,14 +65,15 @@ class VariableStudioWindow(object):
 		self.point_columns = None
 		self.plan = []
 
-		self.w = Window((660, 640), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
-		self.w.tabs = Tabs((10, 10, -10, -10), ["Titik", "Axis & Master", "Style", "Italic", "Master Baru", "Pratinjau"])
+		self.w = Window((720, 640), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
+		self.w.tabs = Tabs((10, 10, -10, -10), ["Titik", "Axis & Master", "Style", "Italic", "Master Baru", "Pratinjau", "Tebal / Tipis"])
 		self._build_points(self.w.tabs[0])
 		self._build_axes(self.w.tabs[1])
 		self._build_styles(self.w.tabs[2])
 		self._build_italic(self.w.tabs[3])
 		self._build_newmaster(self.w.tabs[4])
 		self._build_preview(self.w.tabs[5])
+		self._build_weight(self.w.tabs[6])
 		self.w.bind("close", self.on_close)
 		Glyphs.addCallback(self.on_update, UPDATEINTERFACE)
 		self.refresh_all()
@@ -359,6 +360,13 @@ class VariableStudioWindow(object):
 		n.axis.setItems(axes)
 		n.inst.setItems([i.name for i in font.instances if is_static(i)] if font else [])
 		self.w.tabs[3].masters.set([{"name": m} for m in masters])
+		wt = self.w.tabs[6]
+		wt.src.setItems(masters)
+		cur = wt.target.get()
+		wt.target.setItems(["Master baru"] + masters)
+		wt.target.set(cur if cur < len(masters) + 1 else 0)
+		wt.axis.setItems(axes)
+		self.on_weight_target()
 
 	def _changed(self):
 		self.refresh_all()
@@ -710,6 +718,128 @@ class VariableStudioWindow(object):
 		except Exception:
 			self.stop_timer()
 			print(traceback.format_exc())
+
+
+	# ------------------------------------------------------- tab Tebal / Tipis
+
+	def _build_weight(self, t):
+		t.info = TextBox((10, 10, -10, 34),
+			"Menebalkan / menipiskan kontur tanpa mengubah jumlah, urutan, atau arah titik, jadi master "
+			"hasilnya langsung kompatibel untuk interpolasi. Nilai = tambahan tebal stem (negatif = tipis).",
+			sizeStyle="small")
+		t.xLabel = TextBox((10, 54, 170, 17), "Stem tegak (horizontal)")
+		t.addX = EditText((180, 52, 70, 22), "40")
+		t.yLabel = TextBox((270, 54, 150, 17), "Stem datar (vertikal)")
+		t.addY = EditText((420, 52, 70, 22), "30")
+		t.keepSB = CheckBox((10, 82, 260, 20), "Pertahankan sidebearing", value=True)
+		t.keepH = CheckBox((270, 82, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
+		t.line = HorizontalLine((10, 112, -10, 1))
+		t.lLabel = TextBox((10, 124, -10, 17), "Glyph yang sedang dibuka (bisa di-Undo):")
+		t.selOnly = CheckBox((10, 146, -10, 20), "Hanya titik terpilih (mis. satu stem saja)")
+		t.m10 = Button((10, 172, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
+		t.m2 = Button((76, 172, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
+		t.p2 = Button((132, 172, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
+		t.p10 = Button((188, 172, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
+		t.apply = Button((260, 172, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
+		t.line2 = HorizontalLine((10, 206, -10, 1))
+		t.mLabel = TextBox((10, 218, -10, 17), "Satu master sekaligus (mis. Bold dari Light):")
+		t.sLabel = TextBox((10, 244, 80, 17), "Sumber")
+		t.src = PopUpButton((90, 242, 200, 22), [], callback=lambda s: self.on_weight_target())
+		t.tLabel = TextBox((310, 244, 60, 17), "Hasil ke")
+		t.target = PopUpButton((370, 242, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
+		t.nLabel = TextBox((10, 276, 80, 17), "Nama")
+		t.name = EditText((90, 274, 200, 22), "Bold")
+		t.aLabel = TextBox((310, 276, 60, 17), "Axis")
+		t.axis = PopUpButton((370, 274, 150, 22), [])
+		t.value = EditText((530, 274, -10, 22), "", placeholder="nilai")
+		t.glyphSel = CheckBox((10, 304, -10, 20), "Hanya glyph terpilih (untuk master yang sudah ada)")
+		t.kern = CheckBox((10, 326, -10, 20), "Salin kerning ke master baru", value=True)
+		t.make = Button((10, 356, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
+		t.tip = TextBox((10, 392, -10, 120),
+			"Tips: ukur stem master sumber (alat ukur, L), lalu isi tambahan yang diinginkan. Misalnya stem "
+			"Light 40 dan Bold ingin 160: stem tegak 120, stem datar sekitar 90. Nilai axis disarankan = tebal "
+			"stem baru. Hasilnya titik awal yang kompatibel; sudut tajam, sambungan stem, dan counter kecil "
+			"tetap perlu dirapikan. Untuk Thin/Black ekstrem pakai nilai negatif dari Light atau tab Master Baru.",
+			sizeStyle="small")
+		t.status = TextBox((10, -26, -10, 17), "", sizeStyle="small")
+
+	def _weight_amounts(self):
+		t = self.w.tabs[6]
+		return _num(t.addX.get()), _num(t.addY.get())
+
+	def on_weight_target(self):
+		t = self.w.tabs[6]
+		font = self.font
+		new = t.target.get() == 0
+		for k in ("name", "axis", "value", "kern"):
+			getattr(t, k).enable(new)
+		if font is None or not len(font.masters) or not new or not len(font.axes):
+			return
+		try:
+			src = font.masters[t.src.get()]
+			ax = t.axis.get()
+			add_x = _num(t.addX.get(), 0)
+			t.value.set(fmt_num(axis_values(src, font)[ax] + add_x))
+		except Exception:
+			pass
+
+	def _layer_zones(self, layer):
+		if not self.w.tabs[6].keepH.get():
+			return None
+		mid = getattr(layer, "associatedMasterId", None)
+		for m in self.font.masters:
+			if m.id == mid:
+				return master_zones(m)
+		return None
+
+	def _embolden_current(self, add_x, add_y):
+		t = self.w.tabs[6]
+		layer = self._layer()
+		if layer is None:
+			raise ValueError("Buka glyph di Edit View dulu.")
+		glyph = layer.parent
+		glyph.beginUndo()
+		try:
+			moved = embolden_layer(layer, add_x, add_y, bool(t.keepSB.get()), self._layer_zones(layer),
+				bool(t.selOnly.get()))
+		finally:
+			glyph.endUndo()
+		if not moved and t.selOnly.get():
+			raise ValueError("Pilih dulu titik on-curve yang mau digeser.")
+		t.status.set("/%s: %d titik digeser (%+g, %+g)." % (glyph.name, moved, add_x, add_y))
+		self.refresh_points()
+		Glyphs.redraw()
+
+	def nudge_layer(self, step):
+		add_x, add_y = self._weight_amounts()
+		# langkah kecil dengan perbandingan tegak : datar yang sama seperti isian
+		ratio = (add_y / add_x) if add_x else 1.0
+		self._embolden_current(float(step), float(step) * ratio)
+
+	def apply_layer(self):
+		self._embolden_current(*self._weight_amounts())
+
+	def weight_master(self):
+		t = self.w.tabs[6]
+		font = self.font
+		if font is None or not len(font.masters):
+			raise ValueError("Buka font dulu.")
+		add_x, add_y = self._weight_amounts()
+		src = font.masters[t.src.get()]
+		target = None if t.target.get() == 0 else font.masters[t.target.get() - 1]
+		glyphs = None
+		if target is not None and t.glyphSel.get():
+			glyphs = [l.parent for l in font.selectedLayers]
+		name = t.name.get().strip()
+		if target is None and not name:
+			raise ValueError("Isi nama master baru.")
+		axis_idx = t.axis.get() if len(font.axes) else None
+		axis_value = _num(t.value.get()) if (target is None and axis_idx is not None and t.value.get()) else None
+		with _Batch(font):
+			m, done = embolden_master(font, src, add_x, add_y, target, name, axis_idx, axis_value,
+				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()))
+		t.status.set("Master %s: %d glyph diubah. Cek di tab Titik > Cek seluruh font." % (m.name, done))
+		self._changed()
 
 
 class VariableStudio(GeneralPlugin):

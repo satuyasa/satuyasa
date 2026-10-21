@@ -4,7 +4,7 @@ Dua plugin yang dipakai bersama:
 
 | Bundle | Dibuka dari | Isi |
 |---|---|---|
-| `Variable Studio.glyphsPlugin` | **Window > Variable Studio** | jendela 6 tab: Titik, Axis & Master, Style, Italic, Master Baru, Pratinjau |
+| `Variable Studio.glyphsPlugin` | **Window > Variable Studio** | jendela 7 tab: Titik, Axis & Master, Style, Italic, Master Baru, Pratinjau, Tebal / Tipis |
 | `Variable Studio.glyphsReporter` | **View > Show Variable Studio** | gambar di Edit View: ID titik `kontur:indeks`, bayangan semua master, jalur titik antar master, bentuk hasil interpolasi (bisa dianimasikan) |
 
 ## Pasang
@@ -37,14 +37,23 @@ Dua plugin yang dipakai bersama:
 
 **Pratinjau** – mengatur reporter: pratinjau interpolasi, ID titik (opsional termasuk off-curve), bayangan master, jalur titik, brace layer. Pilih axis, geser slider, atau *Putar* untuk animasi bolak-balik Dari → ke dengan durasi siklus yang bisa diatur; tombol `[` `]` untuk melangkah. Interpolasi memakai model variasi OpenType (sama dengan fontTools, sudah dites berdampingan), jadi hasilnya sama dengan font variabel yang diekspor.
 
+**Tebal / Tipis** – menebalkan atau menipiskan kontur **tanpa mengubah jumlah, urutan, atau arah titik**, jadi hasilnya langsung kompatibel untuk interpolasi.
+- Isi tambahan tebal *stem tegak* dan *stem datar* (unit; negatif = lebih tipis). Contoh: stem Light 40 → Bold 160 = isi 120 (datar sekitar 90).
+- Titik digeser tegak lurus terhadap garis (miter di sudut); handle kurva diskalakan mengikuti, sehingga lengkung tetap bulat. Kontur luar melebar, counter menyempit, termasuk bila arah path belum dirapikan atau kontur masih bertumpuk.
+- *Pertahankan sidebearing*: LSB/RSB tetap, lebar glyph bertambah. *Pertahankan baseline, x-height, cap height*: bagian yang menempel di garis itu (termasuk overshoot) tetap di tempatnya, ketebalan masuk ke dalam.
+- **Glyph yang sedang dibuka**: tombol −10 / −2 / +2 / +10 atau nilai isian, bisa di-Undo. Centang *Hanya titik terpilih* untuk menebalkan satu stem saja.
+- **Satu master sekaligus**: sumber (mis. Light) → *Master baru* (nama + nilai axis, otomatis = nilai sumber + tambahan) atau ke master yang sudah ada (mis. Bold yang masih salinan Light). Glyph komposit ikut menyesuaikan lebar dan posisi aksen; kerning disalin.
+- Hasilnya titik awal yang baik; sudut tajam, sambungan stem, dan counter kecil tetap perlu dirapikan.
+
 ## Alur Thin → Black + Italic
 
 1. Siapkan master (minimal dua, mis. Light dan Bold) dengan axis Weight.
 2. *Titik* → *Cek seluruh font* → *Perbaiki semua hasil*; sisanya perbaiki manual.
-3. Bila perlu master ekstrem: *Master Baru* → A = Light, B = Bold, nilai di luar rentang.
-4. *Italic* → *Buat master italic*, lalu rapikan bentuk.
-5. *Style* → preset Thin–Black, centang Tegak + Italic → *Pratinjau rencana* → *Buat instance*.
-6. *Pratinjau* → *Putar* untuk memeriksa interpolasi.
+3. Bila master Bold belum digambar: *Tebal / Tipis* → sumber Light, hasil ke Bold (atau master baru), isi tambahan stem → *Buat / isi master*, lalu rapikan.
+4. Bila perlu master ekstrem: *Master Baru* → A = Light, B = Bold, nilai di luar rentang (atau *Tebal / Tipis* dengan nilai besar/negatif).
+5. *Italic* → *Buat master italic*, lalu rapikan bentuk.
+6. *Style* → preset Thin–Black, centang Tegak + Italic → *Pratinjau rencana* → *Buat instance*.
+7. *Pratinjau* → *Putar* untuk memeriksa interpolasi.
 
 ## Untuk pengembang
 
@@ -61,4 +70,5 @@ python3 tests/test_variable_studio.py    # tes dengan Glyphs tiruan
 
 - Urutan kontur yang berbeda antar master hanya dilaporkan, tidak diubah otomatis.
 - Komponen yang diskalakan/diputar di master italic dilaporkan untuk dicek manual.
+- Tebal / Tipis: nilai negatif yang lebih besar dari tebal stem akan membalik kontur (terdeteksi oleh *Cek seluruh font*).
 - *Instance → master* memakai `instance.interpolatedFont` dari Glyphs, jadi hasilnya tergantung pengaturan instance (mis. dekomposisi).

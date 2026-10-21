@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.0.0"
+VS_VERSION = "1.1.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -595,6 +595,168 @@ def slant_transform(angle_deg, origin_y=0.0, compensate=False, center_x=0.0):
 
 def apply_affine(m, x, y):
 	return (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5])
+
+
+# ---------------------------------------------------------------------------
+# Tebal / tipis yang tetap kompatibel (jumlah & urutan titik tidak berubah)
+
+def _unit(vx, vy):
+	l = math.hypot(vx, vy)
+	return (vx / l, vy / l) if l > 1e-9 else None
+
+
+def _neighbor_dir(pts, i, step, closed):
+	"""Arah dari pts[i] ke tetangga pertama yang tidak berimpit."""
+	n = len(pts)
+	for k in range(1, n):
+		j = i + step * k
+		if closed:
+			j %= n
+		elif j < 0 or j >= n:
+			return None
+		u = _unit(pts[j][0] - pts[i][0], pts[j][1] - pts[i][1])
+		if u:
+			return u
+	return None
+
+
+def point_in_polygon(pt, poly):
+	x, y = pt
+	inside = False
+	n = len(poly)
+	for i in range(n):
+		x1, y1 = poly[i]
+		x2, y2 = poly[(i + 1) % n]
+		if (y1 > y) != (y2 > y):
+			xc = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+			if xc > x:
+				inside = not inside
+	return inside
+
+
+def _corner_vector(pts, i, closed, clamp):
+	"""Vektor geser (panjang 1 di sisi lurus) ke kanan arah jalan path;
+	di sudut dipakai miter agar kedua sisi bergeser sama jauh."""
+	normals = []
+	tin = _neighbor_dir(pts, i, -1, closed)
+	tout = _neighbor_dir(pts, i, 1, closed)
+	if tin:
+		normals.append((-tin[1], tin[0]))  # kanan dari (-tin)
+	if tout:
+		normals.append((tout[1], -tout[0]))
+	if not normals:
+		return (0.0, 0.0)
+	if len(normals) == 1:
+		return normals[0]
+	(ax, ay), (bx, by) = normals
+	dot = ax * bx + ay * by
+	if dot < -0.999:
+		return (ax, ay)
+	mx, my = (ax + bx) / (1 + dot), (ay + by) / (1 + dot)
+	l = math.hypot(mx, my)
+	if l > clamp:
+		mx, my = mx * clamp / l, my * clamp / l
+	return (mx, my)
+
+
+def offset_paths(paths, dx, dy, selected=None, clamp=3.0):
+	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
+	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
+	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
+	paths: [(closed, types, pts)]. selected: set (indeks path, indeks node)
+	untuk hanya menggeser titik terpilih. Hasil: list pts baru per path."""
+	polys = [list(pts) for _, _, pts in paths]
+	out = []
+	for pi, (closed, types, pts) in enumerate(paths):
+		pts = [(float(x), float(y)) for x, y in pts]
+		n = len(pts)
+		on = [i for i in range(n) if types[i] != "offcurve"]
+		if n < 2 or not closed or not on:
+			out.append(pts)
+			continue
+		# counter = kontur yang SELURUH titiknya di dalam kontur lain; kontur yang
+		# hanya bertumpuk (belum Remove Overlap) tetap dianggap kontur luar
+		depth = sum(1 for qi, q in enumerate(polys) if qi != pi and len(q) > 2
+			and all(point_in_polygon(pt, q) for pt in pts))
+		s = 1.0 if (signed_area(pts) > 0) == (depth % 2 == 0) else -1.0
+		vec = {}
+		for i in on:
+			if selected is not None and (pi, i) not in selected:
+				vec[i] = (0.0, 0.0)
+				continue
+			mx, my = _corner_vector(pts, i, closed, clamp)
+			vec[i] = (mx * dx * s, my * dy * s)
+		new = list(pts)
+		for i in on:
+			new[i] = (pts[i][0] + vec[i][0], pts[i][1] + vec[i][1])
+		for k, a in enumerate(on):
+			b = on[(k + 1) % len(on)]
+			offs = []
+			j = (a + 1) % n
+			while j != b:
+				offs.append(j)
+				j = (j + 1) % n
+			if not offs:
+				continue
+			ca = math.hypot(pts[b][0] - pts[a][0], pts[b][1] - pts[a][1])
+			cb = math.hypot(new[b][0] - new[a][0], new[b][1] - new[a][1])
+			kf = cb / ca if ca > 1e-6 else 1.0
+			for m, j in enumerate(offs):
+				base = a if m < len(offs) / 2.0 else b
+				if selected is not None:
+					new[j] = (pts[j][0] + vec[base][0], pts[j][1] + vec[base][1])
+				else:
+					new[j] = (new[base][0] + (pts[j][0] - pts[base][0]) * kf,
+						new[base][1] + (pts[j][1] - pts[base][1]) * kf)
+		out.append(new)
+	return out
+
+
+def _bbox(path_pts):
+	xs = [p[0] for pts in path_pts for p in pts]
+	ys = [p[1] for pts in path_pts for p in pts]
+	if not xs:
+		return None
+	return min(xs), min(ys), max(xs), max(ys)
+
+
+def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
+		selected=None, tolerance=25.0):
+	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
+	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
+	...) yang tetap dipegang bila bagian atas/bawah glyph menempel padanya.
+	Hasil dict: pts (per path), width, anchor(x, y) -> (x, y)."""
+	old = [list(p[2]) for p in paths]
+	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected)
+	ob, nb = _bbox(old), _bbox(new)
+	ident = {"pts": new, "width": width, "anchor": lambda x, y: (x, y)}
+	if selected is not None or ob is None or nb is None:
+		return ident
+	ox0, oy0, ox1, oy1 = ob
+	nx0, ny0, nx1, ny1 = nb
+	ow, nw = ox1 - ox0, nx1 - nx0
+	tx = (ox0 - nx0) if keep_sidebearings else 0.0
+	new_width = width + (nw - ow) if keep_sidebearings else width
+
+	ymap = lambda y: y
+	if zones:
+		bottom = any(abs(oy0 - z) <= tolerance for z in zones)
+		top = any(abs(oy1 - z) <= tolerance for z in zones)
+		oh, nh = oy1 - oy0, ny1 - ny0
+		if bottom and top and nh > 1e-6:
+			ymap = lambda y: oy0 + (y - ny0) * oh / nh
+		elif bottom:
+			ymap = lambda y: y + (oy0 - ny0)
+		elif top:
+			ymap = lambda y: y + (oy1 - ny1)
+	pts = [[(x + tx, ymap(y)) for x, y in p] for p in new]
+	x0 = ox0 if keep_sidebearings else nx0
+
+	def anchor(x, y):
+		if ow > 1e-6:
+			return (x0 + (x - ox0) * nw / ow, y)
+		return (x + tx, y)
+	return {"pts": pts, "width": new_width, "anchor": anchor}
 # ======================================================================
 # vs_glyphs.py
 # Variable Studio - operasi pada font Glyphs 3 (axis, master, instance,
@@ -1430,6 +1592,109 @@ def instance_to_master(font, instance, kerning=True):
 	if kerning:
 		_set_kerning(font, nm.id, _kerning_of(f2, m2.id))
 	return nm, missing
+
+
+# ---------------------------------------------------------------------------
+# Tebal / tipis
+
+def master_zones(master):
+	zones = [0.0]
+	for attr in ("xHeight", "capHeight", "ascender", "descender"):
+		try:
+			zones.append(float(getattr(master, attr)))
+		except Exception:
+			pass
+	return zones
+
+
+def _selected_nodes(layer):
+	"""set (indeks path, indeks node) dari on-curve terpilih."""
+	sel = set()
+	for pi, p in enumerate(layer.paths):
+		for ni, n in enumerate(p.nodes):
+			if node_type(n) != "offcurve" and getattr(n, "selected", False):
+				sel.add((pi, ni))
+	return sel
+
+
+def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False):
+	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
+	jumlah atau urutan titik. Hasil: jumlah titik yang digeser."""
+	paths = [(bool(getattr(p, "closed", True)), [node_type(n) for n in p.nodes], [_xy(n) for n in p.nodes])
+		for p in layer.paths]
+	if not paths:
+		return 0
+	selected = None
+	if selected_only:
+		selected = _selected_nodes(layer)
+		if not selected:
+			return 0
+	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
+		keep_sidebearings, zones, selected)
+	moved = 0
+	for p, pts in zip(layer.paths, res["pts"]):
+		for n, (x, y) in zip(p.nodes, pts):
+			if _xy(n) != (x, y):
+				n.position = NSPoint(x, y)
+				moved += 1
+	if selected is None:
+		for a in layer.anchors:
+			x, y = res["anchor"](a.position.x, a.position.y)
+			a.position = NSPoint(x, y)
+		layer.width = res["width"]
+	return moved
+
+
+def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=None,
+		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True):
+	"""Isi master target (atau master baru `name`) dengan salinan master
+	sumber yang ditebalkan/ditipiskan. target == src berarti diubah di tempat.
+	Hasil: (master, jumlah glyph diubah)."""
+	if target is None:
+		target = _new_master_from(font, src, name or "%s %+d" % (src.name, int(add_x)))
+		vals = axis_values(src, font)
+		if axis_idx is not None and axis_value is not None:
+			vals[axis_idx] = float(axis_value)
+		set_axis_values(target, font, vals)
+		_set_metrics(target, _metrics(src))
+		if kerning:
+			_set_kerning(font, target.id, _kerning_of(font, src.id))
+		glyphs = None  # master baru: semua glyph harus terisi
+	zones = master_zones(src) if keep_heights else None
+	todo = glyphs if glyphs is not None else list(font.glyphs)
+	old_width = {}
+	for g in font.glyphs:
+		s = g.layers[src.id]
+		if s is not None:
+			old_width[g.name] = float(s.width)
+	done = 0
+	composites = []
+	for g in todo:
+		s = g.layers[src.id]
+		if s is None:
+			continue
+		layer = s if target is src else _put_layer(g, target.id, s)
+		if not layer.paths and layer.components:
+			composites.append(layer)
+		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones):
+			done += 1
+	# Glyph yang hanya berisi komponen: lebar ikut glyph dasarnya, komponen
+	# berikutnya (aksen) digeser setengahnya agar tetap di tengah.
+	if keep_sidebearings:
+		for layer in composites:
+			base = layer.components[0].componentName
+			bg = font.glyphs[base]
+			bl = bg.layers[target.id] if bg is not None else None
+			if bl is None or base not in old_width:
+				continue
+			delta = float(bl.width) - old_width[base]
+			if abs(delta) < 1e-9:
+				continue
+			layer.width = float(layer.width) + delta
+			for c in list(layer.components)[1:]:
+				c.position = NSPoint(c.position.x + delta / 2.0, c.position.y)
+			done += 1
+	return target, done
 # ======================================================================
 # vs_reporter.py
 # Variable Studio Preview - reporter (View > Show Variable Studio):
