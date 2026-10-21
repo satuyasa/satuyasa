@@ -6,7 +6,7 @@
 from __future__ import division, print_function, unicode_literals
 import math
 
-VS_VERSION = "1.4.0"
+VS_VERSION = "1.5.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -631,6 +631,65 @@ def point_in_polygon(pt, poly):
 	return inside
 
 
+def terminal_caps(paths, max_len=40.0, taper_deg=12.0):
+	"""Ujung runcing: segmen pendek (<= max_len) di antara dua titik sudut
+	yang kedua sisinya menyempit ke arah segmen itu (sudut antar sisi >
+	taper_deg). Ujung slab serif (sisi sejajar) dan dasar stem (panjang)
+	tidak termasuk. Hasil: [(path, a, b, sumbu goresan ke arah ujung)]."""
+	polys = [list(p[2]) for p in paths]
+	out = []
+	cos_t = math.cos(math.radians(taper_deg))
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		on = [k for k in range(n) if types[k] != "offcurve"]
+		if not closed or len(on) < 3:
+			continue
+		side = path_side(polys, pi)
+		for j, a in enumerate(on):
+			b = on[(j + 1) % len(on)]
+			if math.hypot(pts[b][0] - pts[a][0], pts[b][1] - pts[a][1]) > max_len:
+				continue
+			corner = True
+			for k in (a, b):
+				tin = _neighbor_dir(pts, k, -1, True)
+				tout = _neighbor_dir(pts, k, 1, True)
+				if not tin or not tout or tin[0] * tout[0] + tin[1] * tout[1] < -0.97:
+					corner = False
+			if not corner:
+				continue
+			# arah sisi menjauh dari ujung
+			sa = _neighbor_dir(pts, a, -1, True)
+			sb = _neighbor_dir(pts, b, 1, True)
+			if sa[0] * sb[0] + sa[1] * sb[1] > cos_t:
+				continue  # sisi sejajar: bukan ujung runcing
+			# sumbu goresan menuju ujung: kebalikan rata-rata arah kedua sisi
+			axis = _unit(-(sa[0] + sb[0]), -(sa[1] + sb[1]))
+			if axis is None:
+				continue
+			out.append((pi, a, b, axis))
+	return out
+
+
+def stabilize_terminals(paths, vecs, pins, max_len=40.0):
+	"""Ujung runcing digeser utuh: panjang & sudutnya tetap (tidak tumpul).
+	Searah sumbu goresan diambil geseran terjauh (ekor tidak memendek),
+	melintang dirata-rata; titik zona yang dipegang tetap di zonanya."""
+	for pi, a, b, nrm in terminal_caps(paths, max_len):
+		ka, kb = (pi, a), (pi, b)
+		if ka not in vecs or kb not in vecs:
+			continue
+		va, vb = vecs[ka], vecs[kb]
+		tng = (-nrm[1], nrm[0])
+		along = max(va[0] * nrm[0] + va[1] * nrm[1], vb[0] * nrm[0] + vb[1] * nrm[1])
+		across = ((va[0] + vb[0]) * tng[0] + (va[1] + vb[1]) * tng[1]) / 2.0
+		v = (nrm[0] * along + tng[0] * across, nrm[1] * along + tng[1] * across)
+		if ka in pins or kb in pins:
+			# ujung menempel di zona: tidak bergeser vertikal
+			v = (v[0], 0.0)
+		vecs[ka] = v
+		vecs[kb] = v
+
+
 def _redistribute_tangential(paths, vecs):
 	"""Titik halus ikut bergeser sepanjang garis singgungnya, sebanding dengan
 	posisinya di antara dua titik on-curve tetangga. Saat counter menyempit
@@ -828,6 +887,36 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 				if -grow > limit:
 					ex = -grow - limit
 					vecs[key] = (vx + out[0] * ex, vy + out[1] * ex)
+	# sisi lurus: bila satu ujung dibatasi, ujung lainnya ikut dibatasi
+	# searah normal sisi itu (sinar dari sudut kadang menyusur tepi lain
+	# dan tidak menemukan celah, membuat sisi miring)
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		if not closed:
+			continue
+		side = path_side(polys, pi)
+		for b in range(n):
+			a = (b - 1) % n
+			if types[b] != "line" or types[a] == "offcurve":
+				continue
+			ka, kb = (pi, a), (pi, b)
+			if ka not in vecs or kb not in vecs:
+				continue
+			u = _unit(pts[b][0] - pts[a][0], pts[b][1] - pts[a][1])
+			if u is None:
+				continue
+			nrm = (u[1] * side, -u[0] * side)
+			limited = [k for k in (ka, kb) if any(o[0] * nrm[0] + o[1] * nrm[1] > 0.98 for o, _ in deficit.get(k, []))]
+			if not limited:
+				continue
+			ga = vecs[ka][0] * nrm[0] + vecs[ka][1] * nrm[1]
+			gb = vecs[kb][0] * nrm[0] + vecs[kb][1] * nrm[1]
+			low = min(ga, gb)
+			for k, g in ((ka, ga), (kb, gb)):
+				if g > low + 1e-6:
+					cut = g - low
+					vecs[k] = (vecs[k][0] - nrm[0] * cut, vecs[k][1] - nrm[1] * cut)
+					deficit.setdefault(k, []).append((nrm, cut))
 	if not deficit:
 		return
 
@@ -881,6 +970,31 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 				if g > low:
 					cut = g - low
 					add[key] = (cur[0] - nrm[0] * cut, cur[1] - nrm[1] * cut)
+	# ekor / taji yang tumbuh dari sisi yang menerima pindahan ikut bergeser
+	# (titik berurutan di kontur yang menghadap ke arah yang sama), supaya
+	# tonjolannya tidak termakan stem yang menebal
+	for pi, (closed, types, pts) in enumerate(paths):
+		on = [k for k in range(len(pts)) if types[k] != "offcurve"]
+		if not closed or len(on) < 3:
+			continue
+		for step in (1, -1):
+			for j0, i0 in enumerate(on):
+				src = add.get((pi, i0))
+				if not src or math.hypot(*src) < 1e-6:
+					continue
+				u = _unit(*src)
+				j = j0
+				while True:
+					j = (j + step) % len(on)
+					key = (pi, on[j])
+					if key == (pi, i0) or key not in rays:
+						break
+					if not any(o[0] * u[0] + o[1] * u[1] > 0.2 for o, _, _ in rays[key]):
+						break
+					have = add.get(key, (0.0, 0.0))
+					if have[0] * u[0] + have[1] * u[1] >= math.hypot(*src) - 1e-6:
+						break  # sudah menerima pindahan yang sama atau lebih
+					add[key] = (src[0], 0.0 if key in pins else src[1])
 	for key, (tx, ty) in add.items():
 		vx, vy = vecs[key]
 		vecs[key] = (vx + tx, vy + ty)
@@ -965,7 +1079,7 @@ def path_side(polys, pi):
 
 
 def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=None, protect=None,
-		notch_clamp=1.0):
+		notch_clamp=1.0, terminals=None):
 	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
 	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
 	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
@@ -1013,6 +1127,8 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 			vecs[key] = (vecs[key][0], vecs[key][1] + ey)
 	if protect and selected is None:
 		protect_space(paths, vecs, pins or {}, clamp, **protect)
+	if terminals and selected is None:
+		stabilize_terminals(paths, vecs, pins or {}, terminals)
 	if selected is None:
 		_redistribute_tangential(paths, vecs)
 	out = []
@@ -1143,10 +1259,12 @@ def zone_limits(paths, pins):
 
 
 DEFAULT_PROTECT = {"gap_ratio": 0.2, "min_gap": 8.0, "min_stroke": 4.0}
+DEFAULT_TERMINAL = 40.0
 
 
 def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
-		selected=None, tolerance=25.0, weights=None, measure=None, protect=DEFAULT_PROTECT):
+		selected=None, tolerance=25.0, weights=None, measure=None, protect=DEFAULT_PROTECT,
+		terminals=DEFAULT_TERMINAL):
 	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
 	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
 	...); titik yang menempel padanya tidak bergeser vertikal dan goresannya
@@ -1154,7 +1272,8 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 	anchor(x, y) -> (x, y)."""
 	old = [list(p[2]) for p in paths]
 	pins = zone_pins(paths, zones, tolerance, measure) if (zones and selected is None) else None
-	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights, pins=pins, protect=protect)
+	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights, pins=pins, protect=protect,
+		terminals=terminals)
 	if pins:
 		for limit, top in zone_limits(paths, pins):
 			for pi, pts in enumerate(new):

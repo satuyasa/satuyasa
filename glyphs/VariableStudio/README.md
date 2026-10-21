@@ -50,6 +50,7 @@ Dua plugin yang dipakai bersama:
   - Sisi lurus (stem) tetap lurus dan sejajar.
   - Ujung lekuk lancip (sambungan bahu n/m/h ke stem) bergeser paling jauh setengah kedalaman lekuk, jadi lekuknya mengecil tapi tetap ada.
   - Titik halus ikut bergeser sepanjang garis singgungnya sebanding posisinya, jadi puncak counter yang menyempit ikut ke tengah dan lengkung tidak terlipat.
+- **Ujung stabil ≤ N unit** (bawaan aktif, 40): ujung goresan yang pendek dan meruncing (ekor, taji, ujung lengkung; dua sisinya menyempit ke arah ujung) digeser utuh, jadi ujungnya tetap runcing dan tidak membengkak jadi bola. Searah sumbu goresan diambil geseran terjauh, jadi ekor tidak memendek; ekor juga ikut bergeser bila stem tempatnya tumbuh menerima pindahan dari sisi counter. Ujung slab serif (sisi sejajar) dan dasar stem tidak termasuk.
 - **Scan ketebalan**: mengukur tebal garis di setiap segmen semua glyph di master sumber (sinar tegak lurus ke dalam tinta, diambil lebar melintangnya, jadi ujung stem terukur selebar stem). Hasil: garis tertipis & tertebal (beserta glyph-nya), daftar per glyph (tertipis, tertebal, kontras, tegak/datar), dan batas otomatis dari huruf a–z, A–Z, 0–9. Klik dua kali untuk membuka glyph. Kontur bertumpuk (belum Remove Overlap) diukur sebagai gabungan tinta.
 - **Mode**:
   - *Rata*: semua garis bertambah sama.

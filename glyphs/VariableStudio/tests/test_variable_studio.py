@@ -649,6 +649,35 @@ def test_extreme_weights():
 	assert r1["width"] > r0["width"]  # sisa tebal dipindah ke luar: huruf melebar
 
 
+def test_terminals():
+	"""Ujung runcing (ekor di baseline) tetap runcing & tonjolannya terjaga,
+	juga saat stem menerima pindahan dari sisi counter; ujung slab serif
+	(sisi sejajar) tetap menebal biasa."""
+	T = ["line", "line", "line", "offcurve", "offcurve", "curve", "line", "offcurve", "offcurve", "curve",
+		"offcurve", "offcurve", "curve", "offcurve", "offcurve", "curve", "line"]
+	Pt = [(298, 440), (298, 390), (296, 185), (296, 110), (296, 0), (395, 0), (512, 0), (512, 13), (510, 18),
+		(493, 14), (464, 21), (437, 32), (420, 58), (392, 102), (393, 188), (393, 240), (393, 440)]
+	tail = (True, T, Pt)
+	assert [(a, b) for _, a, b, _ in P.terminal_caps([tail])] == [(6, 9)]
+	left = (True, ["line"] * 4, [(100, 0), (200, 0), (200, 440), (100, 440)])
+	for paths, idx in (([tail], 0), ([left, tail], 1)):
+		for add in (40, 90, 160):
+			r = P.embolden(paths, 650, add, add * 0.6, True, [0, 500, 700])
+			q = r["pts"][idx]
+			assert abs((q[9][1] - q[6][1]) - 14) < 1e-6, (add, "ujung tumpul")
+			assert q[6][0] - q[15][0] >= 119 - 1e-6, (add, "ekor memendek", q[6][0] - q[15][0])
+			assert abs(q[6][1]) < 1e-6  # ujung tetap di baseline
+	# sisi lurus tetangga tidak miring walau sinar sudutnya menyusur tepi
+	r = P.embolden([left, tail], 650, 160, 96, True, [0, 500, 700])
+	assert abs(r["pts"][0][1][0] - r["pts"][0][2][0]) < 1e-6
+	# tanpa ujung stabil: ujung membengkak (opsi memang berpengaruh)
+	r0 = P.embolden([tail], 650, 160, 96, True, [0, 500, 700], terminals=None)
+	assert r0["pts"][0][9][1] - r0["pts"][0][6][1] > 50
+	# slab serif: ujung 30 tinggi dengan sisi sejajar -> bukan ujung runcing
+	slab = (True, ["line"] * 8, [(0, 0), (300, 0), (300, 30), (190, 30), (190, 400), (110, 400), (110, 30), (0, 30)])
+	assert P.terminal_caps([slab]) == []
+
+
 if __name__ == "__main__":
 	n = 0
 	for name, fn in sorted(globals().items()):

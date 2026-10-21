@@ -756,6 +756,9 @@ class VariableStudioWindow(object):
 		t.gapPct = EditText((250, 94, 45, 22), "20")
 		t.gapLabel = TextBox((300, 97, 120, 17), "%  ·  tebal min")
 		t.minStroke = EditText((420, 94, 45, 22), "4")
+		t.terminal = CheckBox((480, 96, 125, 20), "Ujung stabil ≤", value=True)
+		t.termLen = EditText((605, 94, 45, 22), "40")
+		t.termLabel = TextBox((655, 97, -10, 17), "unit")
 		t.modeLabel = TextBox((10, 126, 60, 17), "Mode")
 		t.mode = PopUpButton((70, 124, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
 		t.loLabel = TextBox((10, 156, 110, 17), "Garis tipis ≤")
@@ -801,6 +804,10 @@ class VariableStudioWindow(object):
 			return None
 		return {"gap_ratio": max(0.0, _num(t.gapPct.get(), 20)) / 100.0, "min_gap": 8.0,
 			"min_stroke": max(0.0, _num(t.minStroke.get(), 4))}
+
+	def _weight_terminals(self):
+		t = self.w.tabs[6]
+		return max(0.0, _num(t.termLen.get(), 40)) if t.terminal.get() else None
 
 	def _weight_mode(self):
 		return CONTRAST_MODES[self.w.tabs[6].mode.get()][0]
@@ -899,7 +906,7 @@ class VariableStudioWindow(object):
 		try:
 			lo, hi = self._weight_limits()
 			moved = embolden_layer(layer, add_x, add_y, bool(t.keepSB.get()), self._layer_zones(layer),
-				bool(t.selOnly.get()), self._weight_mode(), lo, hi, self._weight_protect())
+				bool(t.selOnly.get()), self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals())
 		finally:
 			glyph.endUndo()
 		if not moved and t.selOnly.get():
@@ -937,7 +944,7 @@ class VariableStudioWindow(object):
 		with _Batch(font):
 			m, done = embolden_master(font, src, add_x, add_y, target, name, axis_idx, axis_value,
 				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()),
-				self._weight_mode(), lo, hi, self._weight_protect())
+				self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals())
 		t.status.set("Master %s: %d glyph diubah. Cek di tab Titik > Cek seluruh font." % (m.name, done))
 		self._changed()
 
