@@ -610,7 +610,9 @@ class VariableStudioWindow(object):
 		t.idsOff = CheckBox((220, 34, -10, 20), "termasuk off-curve", value=pref_bool("idsOffcurve", False), callback=self.on_pref)
 		t.ghosts = CheckBox((10, 58, 200, 20), "Bayangan semua master", value=pref_bool("showGhosts", True), callback=self.on_pref)
 		t.trails = CheckBox((220, 58, -10, 20), "Jalur titik antar master", value=pref_bool("showTrails", True), callback=self.on_pref)
-		t.brace = CheckBox((10, 82, -10, 20), "Ikutkan brace layer {…}", value=pref_bool("showBrace", True), callback=self.on_pref)
+		t.brace = CheckBox((10, 82, 200, 20), "Ikutkan brace layer {…}", value=pref_bool("showBrace", True), callback=self.on_pref)
+		t.thick = CheckBox((220, 82, -10, 20), "Ukuran tebal garis (biru tipis, merah tebal)",
+			value=pref_bool("showThickness", False), callback=self.on_pref)
 		t.line = HorizontalLine((10, 110, -10, 1))
 		t.axLabel = TextBox((10, 122, 60, 17), "Axis")
 		t.axis = PopUpButton((70, 120, 200, 22), [], callback=lambda s: self.refresh_preview_axis())
@@ -638,6 +640,7 @@ class VariableStudioWindow(object):
 		pref_set("showGhosts", int(bool(t.ghosts.get())))
 		pref_set("showTrails", int(bool(t.trails.get())))
 		pref_set("showBrace", int(bool(t.brace.get())))
+		pref_set("showThickness", int(bool(t.thick.get())))
 		Glyphs.redraw()
 
 	def refresh_preview_axis(self):
@@ -723,45 +726,111 @@ class VariableStudioWindow(object):
 	# ------------------------------------------------------- tab Tebal / Tipis
 
 	def _build_weight(self, t):
-		t.info = TextBox((10, 10, -10, 34),
-			"Menebalkan / menipiskan kontur tanpa mengubah jumlah, urutan, atau arah titik, jadi master "
-			"hasilnya langsung kompatibel untuk interpolasi. Nilai = tambahan tebal stem (negatif = tipis).",
+		t.info = TextBox((10, 8, -10, 30),
+			"Menebalkan / menipiskan tanpa mengubah jumlah, urutan, atau arah titik (tetap kompatibel). "
+			"Nilai = tambahan tebal garis; negatif = lebih tipis.", sizeStyle="small")
+		t.xLabel = TextBox((10, 44, 170, 17), "Stem tegak (horizontal)")
+		t.addX = EditText((180, 42, 70, 22), "40", callback=lambda s: self.on_weight_target())
+		t.yLabel = TextBox((270, 44, 150, 17), "Stem datar (vertikal)")
+		t.addY = EditText((420, 42, 70, 22), "30")
+		t.keepSB = CheckBox((10, 70, 230, 20), "Pertahankan sidebearing", value=True)
+		t.keepH = CheckBox((240, 70, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
+		t.modeLabel = TextBox((10, 100, 60, 17), "Mode")
+		t.mode = PopUpButton((70, 98, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
+		t.loLabel = TextBox((10, 130, 110, 17), "Garis tipis ≤")
+		t.lo = EditText((120, 128, 60, 22), "", placeholder="auto")
+		t.hiLabel = TextBox((190, 130, 110, 17), "Garis tebal ≥")
+		t.hi = EditText((300, 128, 60, 22), "", placeholder="auto")
+		t.scan = Button((-200, 127, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
+		t.summary = TextBox((10, 156, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
 			sizeStyle="small")
-		t.xLabel = TextBox((10, 54, 170, 17), "Stem tegak (horizontal)")
-		t.addX = EditText((180, 52, 70, 22), "40")
-		t.yLabel = TextBox((270, 54, 150, 17), "Stem datar (vertikal)")
-		t.addY = EditText((420, 52, 70, 22), "30")
-		t.keepSB = CheckBox((10, 82, 260, 20), "Pertahankan sidebearing", value=True)
-		t.keepH = CheckBox((270, 82, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
-		t.line = HorizontalLine((10, 112, -10, 1))
-		t.lLabel = TextBox((10, 124, -10, 17), "Glyph yang sedang dibuka (bisa di-Undo):")
-		t.selOnly = CheckBox((10, 146, -10, 20), "Hanya titik terpilih (mis. satu stem saja)")
-		t.m10 = Button((10, 172, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
-		t.m2 = Button((76, 172, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
-		t.p2 = Button((132, 172, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
-		t.p10 = Button((188, 172, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
-		t.apply = Button((260, 172, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
-		t.line2 = HorizontalLine((10, 206, -10, 1))
-		t.mLabel = TextBox((10, 218, -10, 17), "Satu master sekaligus (mis. Bold dari Light):")
-		t.sLabel = TextBox((10, 244, 80, 17), "Sumber")
-		t.src = PopUpButton((90, 242, 200, 22), [], callback=lambda s: self.on_weight_target())
-		t.tLabel = TextBox((310, 244, 60, 17), "Hasil ke")
-		t.target = PopUpButton((370, 242, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
-		t.nLabel = TextBox((10, 276, 80, 17), "Nama")
-		t.name = EditText((90, 274, 200, 22), "Bold")
-		t.aLabel = TextBox((310, 276, 60, 17), "Axis")
-		t.axis = PopUpButton((370, 274, 150, 22), [])
-		t.value = EditText((530, 274, -10, 22), "", placeholder="nilai")
-		t.glyphSel = CheckBox((10, 304, -10, 20), "Hanya glyph terpilih (untuk master yang sudah ada)")
-		t.kern = CheckBox((10, 326, -10, 20), "Salin kerning ke master baru", value=True)
-		t.make = Button((10, 356, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
-		t.tip = TextBox((10, 392, -10, 120),
-			"Tips: ukur stem master sumber (alat ukur, L), lalu isi tambahan yang diinginkan. Misalnya stem "
-			"Light 40 dan Bold ingin 160: stem tegak 120, stem datar sekitar 90. Nilai axis disarankan = tebal "
-			"stem baru. Hasilnya titik awal yang kompatibel; sudut tajam, sambungan stem, dan counter kecil "
-			"tetap perlu dirapikan. Untuk Thin/Black ekstrem pakai nilai negatif dari Light atau tab Master Baru.",
-			sizeStyle="small")
+		t.line = HorizontalLine((10, 194, -10, 1))
+		t.lLabel = TextBox((10, 202, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
+		t.selOnly = CheckBox((310, 200, -10, 20), "Hanya titik terpilih")
+		t.m10 = Button((10, 224, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
+		t.m2 = Button((76, 224, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
+		t.p2 = Button((132, 224, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
+		t.p10 = Button((188, 224, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
+		t.apply = Button((260, 224, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
+		t.line2 = HorizontalLine((10, 256, -10, 1))
+		t.sLabel = TextBox((10, 266, 80, 17), "Sumber")
+		t.src = PopUpButton((90, 264, 200, 22), [], callback=lambda s: self.on_weight_target())
+		t.tLabel = TextBox((310, 266, 60, 17), "Hasil ke")
+		t.target = PopUpButton((370, 264, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
+		t.nLabel = TextBox((10, 296, 80, 17), "Nama")
+		t.name = EditText((90, 294, 200, 22), "Bold")
+		t.aLabel = TextBox((310, 296, 60, 17), "Axis")
+		t.axis = PopUpButton((370, 294, 150, 22), [], callback=lambda s: self.on_weight_target())
+		t.value = EditText((530, 294, -10, 22), "", placeholder="nilai")
+		t.glyphSel = CheckBox((10, 322, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
+		t.kern = CheckBox((340, 322, -10, 20), "Salin kerning ke master baru", value=True)
+		t.make = Button((10, 348, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
+		t.results = List((10, 380, -10, -34), [], columnDescriptions=[
+			{"title": "Glyph", "key": "name", "width": 130}, {"title": "Tertipis", "key": "thin", "width": 70},
+			{"title": "Tertebal", "key": "thick", "width": 70}, {"title": "Kontras", "key": "ratio", "width": 70},
+			{"title": "Tegak (min-max)", "key": "v"}, {"title": "Datar (min-max)", "key": "h"}],
+			doubleClickCallback=lambda s: self._guard(self.open_weight_result))
 		t.status = TextBox((10, -26, -10, 17), "", sizeStyle="small")
+		t.lo.enable(False)
+		t.hi.enable(False)
+
+	def _weight_mode(self):
+		return CONTRAST_MODES[self.w.tabs[6].mode.get()][0]
+
+	def on_weight_mode(self):
+		t = self.w.tabs[6]
+		on = self._weight_mode() != "uniform"
+		for k in ("lo", "hi"):
+			getattr(t, k).enable(on)
+		if on and not (t.lo.get() and t.hi.get()):
+			self._guard(self.scan_weight)
+
+	def _weight_limits(self):
+		if self._weight_mode() == "uniform":
+			return None, None
+		t = self.w.tabs[6]
+		if not (t.lo.get() and t.hi.get()):
+			self.scan_weight()
+		lo, hi = _num(t.lo.get()), _num(t.hi.get())
+		if hi <= lo:
+			raise ValueError("Batas tebal harus lebih besar dari batas tipis.")
+		return lo, hi
+
+	def scan_weight(self):
+		t = self.w.tabs[6]
+		font = self.font
+		if font is None or not len(font.masters):
+			raise ValueError("Buka font dulu.")
+		src = font.masters[t.src.get()]
+		glyphs = [l.parent for l in font.selectedLayers] if t.glyphSel.get() else None
+		t0 = time.time()
+		rows, sm = scan_thickness(font, src, glyphs)
+		rows.sort(key=lambda r: r["thin"])
+		items = []
+		for r in rows:
+			items.append({"name": r["name"], "thin": fmt_num(round(r["thin"])), "thick": fmt_num(round(r["thick"])),
+				"ratio": "%.1f×" % (r["thick"] / r["thin"]) if r["thin"] else "-",
+				"v": "%s-%s" % tuple(fmt_num(round(x)) if x is not None else "-" for x in r["v"]),
+				"h": "%s-%s" % tuple(fmt_num(round(x)) if x is not None else "-" for x in r["h"])})
+		t.results.set(items)
+		if not rows:
+			t.summary.set("Tidak ada kontur yang bisa diukur.")
+			return
+		if sm["lo"] is not None:
+			t.lo.set(fmt_num(sm["lo"]))
+			t.hi.set(fmt_num(sm["hi"]))
+		a, b = sm["thinnest"], sm["thickest"]
+		t.summary.set("Master %s: garis tertipis %s (/%s), tertebal %s (/%s). Batas otomatis: tipis ≤ %s, tebal ≥ %s. "
+			"Garis di antaranya berubah bertahap." % (src.name, fmt_num(round(a["thin"])), a["name"],
+			fmt_num(round(b["thick"])), b["name"], fmt_num(sm["lo"]), fmt_num(sm["hi"])))
+		t.status.set("%d glyph diukur (%.1f dtk). Klik dua kali untuk membuka glyph." % (len(rows), time.time() - t0))
+
+	def open_weight_result(self):
+		t = self.w.tabs[6]
+		items = t.results.get()
+		names = [items[i]["name"] for i in t.results.getSelection()] or [i["name"] for i in items[:1]]
+		if names:
+			self.font.newTab("/" + "/".join(names))
 
 	def _weight_amounts(self):
 		t = self.w.tabs[6]
@@ -800,8 +869,9 @@ class VariableStudioWindow(object):
 		glyph = layer.parent
 		glyph.beginUndo()
 		try:
+			lo, hi = self._weight_limits()
 			moved = embolden_layer(layer, add_x, add_y, bool(t.keepSB.get()), self._layer_zones(layer),
-				bool(t.selOnly.get()))
+				bool(t.selOnly.get()), self._weight_mode(), lo, hi)
 		finally:
 			glyph.endUndo()
 		if not moved and t.selOnly.get():
@@ -835,9 +905,11 @@ class VariableStudioWindow(object):
 			raise ValueError("Isi nama master baru.")
 		axis_idx = t.axis.get() if len(font.axes) else None
 		axis_value = _num(t.value.get()) if (target is None and axis_idx is not None and t.value.get()) else None
+		lo, hi = self._weight_limits()
 		with _Batch(font):
 			m, done = embolden_master(font, src, add_x, add_y, target, name, axis_idx, axis_value,
-				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()))
+				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()),
+				self._weight_mode(), lo, hi)
 		t.status.set("Master %s: %d glyph diubah. Cek di tab Titik > Cek seluruh font." % (m.name, done))
 		self._changed()
 

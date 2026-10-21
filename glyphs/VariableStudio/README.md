@@ -43,6 +43,13 @@ Dua plugin yang dipakai bersama:
 - *Pertahankan sidebearing*: LSB/RSB tetap, lebar glyph bertambah. *Pertahankan baseline, x-height, cap height*: bagian yang menempel di garis itu (termasuk overshoot) tetap di tempatnya, ketebalan masuk ke dalam.
 - **Glyph yang sedang dibuka**: tombol −10 / −2 / +2 / +10 atau nilai isian, bisa di-Undo. Centang *Hanya titik terpilih* untuk menebalkan satu stem saja.
 - **Satu master sekaligus**: sumber (mis. Light) → *Master baru* (nama + nilai axis, otomatis = nilai sumber + tambahan) atau ke master yang sudah ada (mis. Bold yang masih salinan Light). Glyph komposit ikut menyesuaikan lebar dan posisi aksen; kerning disalin.
+- **Scan ketebalan**: mengukur tebal garis di setiap segmen semua glyph di master sumber (sinar tegak lurus ke dalam tinta, diambil lebar melintangnya, jadi ujung stem terukur selebar stem). Hasil: garis tertipis & tertebal (beserta glyph-nya), daftar per glyph (tertipis, tertebal, kontras, tegak/datar), dan batas otomatis dari huruf a–z, A–Z, 0–9. Klik dua kali untuk membuka glyph. Kontur bertumpuk (belum Remove Overlap) diukur sebagai gabungan tinta.
+- **Mode**:
+  - *Rata*: semua garis bertambah sama.
+  - *Pertahankan garis tipis, tebalkan yang tebal*: garis ≤ batas tipis tidak bergeser, garis ≥ batas tebal bertambah penuh, di antaranya bertahap (cocok untuk huruf kontras/Didone: hairline tetap, stem makin berat).
+  - *Pertahankan garis tebal, ubah yang tipis*: kebalikannya (menurunkan/menaikkan kontras).
+  - Ujung garis yang tersembunyi di dalam kontur lain (mis. ujung palang H di dalam stem) tidak digeser memanjang agar tidak menembus keluar.
+- Reporter: centang *Ukuran tebal garis* di tab Pratinjau untuk melihat garis ukur di Edit View (biru = tipis, merah = tebal, angka di tertipis & tertebal).
 - Hasilnya titik awal yang baik; sudut tajam, sambungan stem, dan counter kecil tetap perlu dirapikan.
 
 ## Alur Thin → Black + Italic

@@ -130,6 +130,32 @@ class VariableStudioReporter(ReporterPlugin):
 				bp.stroke()
 
 	@objc.python_method
+	def _draw_thickness(self, layer, scale):
+		"""Garis ukur tebal di tiap segmen: biru = tipis, merah = tebal; angka
+		di garis tertipis dan tertebal."""
+		try:
+			m = measure_paths(layer_paths(layer))
+		except Exception:
+			return
+		smp = m["samples"]
+		if not smp:
+			return
+		lo = min(x["th"] for x in smp)
+		hi = max(x["th"] for x in smp)
+		for x in smp:
+			f = 0.0 if hi <= lo else (x["th"] - lo) / (hi - lo)
+			_color((0.15 + 0.8 * f, 0.35, 0.95 - 0.8 * f), 0.7).set()
+			bp = NSBezierPath.bezierPath()
+			bp.moveToPoint_(NSPoint(*x["pt"]))
+			bp.lineToPoint_(NSPoint(*x["end"]))
+			bp.setLineWidth_(1.0 / scale)
+			bp.stroke()
+		for x, rgb in ((min(smp, key=lambda q: q["th"]), (0.15, 0.35, 0.95)), (max(smp, key=lambda q: q["th"]), (0.95, 0.35, 0.15))):
+			mx = (x["pt"][0] + x["end"][0]) / 2.0
+			my = (x["pt"][1] + x["end"][1]) / 2.0
+			self.drawTextAtPoint(fmt_num(round(x["th"])), NSPoint(mx, my), fontSize=11.0, fontColor=_color(rgb), align="center")
+
+	@objc.python_method
 	def foreground(self, layer):
 		scale = self.getScale() or 1.0
 		data = self._interpolated(layer)
@@ -152,6 +178,8 @@ class VariableStudioReporter(ReporterPlugin):
 						_color((0.95, 0.60, 0.25)).set()
 						rr = r
 					NSBezierPath.bezierPathWithOvalInRect_(NSRect((p[0] - rr, p[1] - rr), (2 * rr, 2 * rr))).fill()
+		if pref_bool("showThickness", False):
+			self._draw_thickness(layer, scale)
 		if pref_bool("showIDs", True):
 			color = NSColor.colorWithCalibratedRed_green_blue_alpha_(0.10, 0.65, 0.80, 1.0)
 			off = 4.0 / scale

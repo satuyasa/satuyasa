@@ -404,6 +404,112 @@ def test_window_weight():
 	w.w.binds["close"](None)
 
 
+def contrast_o(f, master):
+	"""o kontras tinggi: sisi 120, atas/bawah 20."""
+	g = f.glyphs["o"]
+	l = g.layers[master.id]
+	l.paths = [oval(300, 250, 280, 260), oval(300, 250, 160, 240)]
+	l.paths[1].reverse()
+	l.width = 600
+	return l
+
+
+def test_measure_and_contrast():
+	f = make_font()
+	light = f.masters[0]
+	o = contrast_o(f, light)
+	m = P.measure_layer(o)
+	sm = P.thickness_summary(m)
+	assert abs(sm["all"][0] - 20) < 1 and abs(sm["all"][1] - 120) < 2, sm
+	assert abs(sm["v"][1] - 120) < 2 and abs(sm["h"][0] - 20) < 1
+	# H bertumpuk (palang menimpa stem) tetap terukur benar
+	h = f.glyphs["H"].layers[light.id]
+	h.paths = [rect(50, 0, 150, 700), rect(420, 0, 520, 700), rect(50, 335, 520, 355)]
+	sh = P.thickness_summary(P.measure_layer(h))
+	assert abs(sh["all"][0] - 20) < 1e-6 and abs(sh["all"][1] - 100) < 1e-6, sh
+	assert P.contrast_factor(10, 24, 100, "keepthin") == 0 and P.contrast_factor(150, 24, 100, "keepthin") == 1
+	assert P.contrast_factor(10, 24, 100, "keepthick") == 1 and P.contrast_factor(62, 24, 100, "uniform") == 1
+	assert 0 < P.contrast_factor(62, 24, 100, "keepthin") < 1
+	# pertahankan yang tipis: atas/bawah o tetap 20, sisi bertambah 80
+	top_before = (o.paths[0].nodes[2].position.y, o.paths[1].nodes[3].position.y)
+	P.embolden_layer(o, 80, 80, True, [0, 500], False, "keepthin", 24, 100)
+	sm2 = P.thickness_summary(P.measure_layer(o))
+	assert abs(sm2["all"][0] - 20) < 1, sm2
+	assert abs(sm2["v"][1] - 200) < 3, sm2
+	assert abs(o.paths[0].nodes[2].position.y - top_before[0]) < 1e-6
+	assert abs(o.width - 680) < 1e-6
+	# palang H tetap, stem menebal
+	P.embolden_layer(h, 40, 40, True, [0, 700], False, "keepthin", 24, 80)
+	sh2 = P.thickness_summary(P.measure_layer(h))
+	assert abs(sh2["all"][0] - 20) < 1.5 and abs(sh2["all"][1] - 140) < 1e-6, sh2
+	# ujung palang yang tersembunyi di dalam stem tidak menembus keluar
+	f2 = make_font()
+	h2 = f2.glyphs["H"].layers[f2.masters[0].id]
+	h2.paths = [rect(40, 0, 130, 700), rect(400, 0, 490, 700), rect(40, 340, 490, 358)]
+	P.embolden_layer(h2, 20, 20, True, [0, 700], False, "keepthick", 24, 80)
+	bar = [P._xy(n) for n in h2.paths[2].nodes]
+	assert min(x for x, _ in bar) >= 40 and max(x for x, _ in bar) <= 490, bar
+	assert abs((max(y for _, y in bar) - min(y for _, y in bar)) - 38) < 1e-6, bar
+	# pertahankan yang tebal: hanya hairline yang berubah
+	f = make_font()
+	o = contrast_o(f, f.masters[0])
+	P.embolden_layer(o, 20, 20, True, None, False, "keepthick", 24, 100)
+	sm3 = P.thickness_summary(P.measure_layer(o))
+	assert abs(sm3["all"][0] - 40) < 1.5 and abs(sm3["v"][1] - 120) < 2, sm3
+	try:
+		P.embolden_layer(o, 20, 20, mode="keepthin")
+		raise AssertionError("harus gagal tanpa batas")
+	except ValueError:
+		pass
+	# master: scan + mode kontras, tetap kompatibel
+	f = make_font()
+	contrast_o(f, f.masters[0])
+	contrast_o(f, f.masters[1])
+	rows, sm = P.scan_thickness(f, f.masters[0])
+	assert sm["thinnest"]["name"] == "H" and abs(sm["thinnest"]["thin"] - 10) < 1e-6 and sm["lo"] < sm["hi"], sm
+	assert sm["thickest"]["name"] == "o" and abs(sm["thickest"]["thick"] - 120) < 2
+	assert {r["name"] for r in rows} == {"o", "H", "oacute", "acutecomb"}
+	nm, done = P.embolden_master(f, f.masters[0], 60, 40, None, "Heavy", 0, 100,
+		mode="keepthin", thin_limit=24, thick_limit=100)
+	assert done == 3 and P.scan_font(f) == []  # H: semua garisnya di bawah batas tipis, tidak berubah
+
+
+def test_window_contrast():
+	f = make_font()
+	contrast_o(f, f.masters[0])
+	f.selectedLayers = [f.glyphs["o"].layers[f.masters[0].id]]
+	w = P.VariableStudioWindow()
+	t = w.w.tabs[6]
+	t.mode.value = 1
+	w.on_weight_mode()
+	assert t.lo.value and t.hi.value and "tertipis" in t.summary.value, t.summary.value
+	assert t.results.items and t.results.items[0]["name"]
+	t.results.selection = [0]
+	w.open_weight_result()
+	assert f.tabs
+	o = f.glyphs["o"].layers[f.masters[0].id]
+	top = o.paths[0].nodes[2].position.y
+	t.p10.press()
+	assert o.paths[0].nodes[2].position.y == top and not GlyphsApp.MESSAGES, GlyphsApp.MESSAGES
+	t.lo.value, t.hi.value = "50", "40"
+	t.p2.press()
+	assert GlyphsApp.MESSAGES and "lebih besar" in GlyphsApp.MESSAGES[-1][1]
+	del GlyphsApp.MESSAGES[:]
+	t.lo.value, t.hi.value = "", ""
+	t.name.value = "Black"
+	t.make.press()
+	assert f.masters[-1].name == "Black" and not GlyphsApp.MESSAGES, GlyphsApp.MESSAGES
+	# overlay reporter
+	R.pref_set("showThickness", 1)
+	R.ReporterPlugin.texts[:] = []
+	rep = R.VariableStudioReporter()
+	rep.foreground(o)
+	labels = [x for x, _ in R.ReporterPlugin.texts]
+	assert "20" in labels and "130" in labels, labels  # +10 tadi: sisi 120 -> 130, hairline tetap
+	R.pref_set("showThickness", 0)
+	w.w.binds["close"](None)
+
+
 if __name__ == "__main__":
 	n = 0
 	for name, fn in sorted(globals().items()):

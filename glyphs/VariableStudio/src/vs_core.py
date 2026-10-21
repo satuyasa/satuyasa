@@ -6,7 +6,7 @@
 from __future__ import division, print_function, unicode_literals
 import math
 
-VS_VERSION = "1.1.0"
+VS_VERSION = "1.2.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -656,12 +656,24 @@ def _corner_vector(pts, i, closed, clamp):
 	return (mx, my)
 
 
-def offset_paths(paths, dx, dy, selected=None, clamp=3.0):
+def path_side(polys, pi):
+	"""+1 bila sisi kanan arah jalan path pi = luar tinta, -1 sebaliknya.
+	Counter = kontur yang SELURUH titiknya di dalam kontur lain; kontur yang
+	hanya bertumpuk (belum Remove Overlap) tetap dianggap kontur luar."""
+	pts = polys[pi]
+	depth = sum(1 for qi, q in enumerate(polys) if qi != pi and len(q) > 2
+		and all(point_in_polygon(pt, q) for pt in pts))
+	return 1.0 if (signed_area(pts) > 0) == (depth % 2 == 0) else -1.0
+
+
+def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None):
 	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
 	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
 	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
 	paths: [(closed, types, pts)]. selected: set (indeks path, indeks node)
-	untuk hanya menggeser titik terpilih. Hasil: list pts baru per path."""
+	untuk hanya menggeser titik terpilih. weights: {(path, node): (wx, wy)}
+	pengali geser per titik (0 = titik diam), dari contrast_weights().
+	Hasil: list pts baru per path."""
 	polys = [list(pts) for _, _, pts in paths]
 	out = []
 	for pi, (closed, types, pts) in enumerate(paths):
@@ -671,18 +683,15 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0):
 		if n < 2 or not closed or not on:
 			out.append(pts)
 			continue
-		# counter = kontur yang SELURUH titiknya di dalam kontur lain; kontur yang
-		# hanya bertumpuk (belum Remove Overlap) tetap dianggap kontur luar
-		depth = sum(1 for qi, q in enumerate(polys) if qi != pi and len(q) > 2
-			and all(point_in_polygon(pt, q) for pt in pts))
-		s = 1.0 if (signed_area(pts) > 0) == (depth % 2 == 0) else -1.0
+		s = path_side(polys, pi)
 		vec = {}
 		for i in on:
 			if selected is not None and (pi, i) not in selected:
 				vec[i] = (0.0, 0.0)
 				continue
 			mx, my = _corner_vector(pts, i, closed, clamp)
-			vec[i] = (mx * dx * s, my * dy * s)
+			wx, wy = weights.get((pi, i), (1.0, 1.0)) if weights else (1.0, 1.0)
+			vec[i] = (mx * dx * s * wx, my * dy * s * wy)
 		new = list(pts)
 		for i in on:
 			new[i] = (pts[i][0] + vec[i][0], pts[i][1] + vec[i][1])
@@ -718,13 +727,13 @@ def _bbox(path_pts):
 
 
 def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
-		selected=None, tolerance=25.0):
+		selected=None, tolerance=25.0, weights=None):
 	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
 	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
 	...) yang tetap dipegang bila bagian atas/bawah glyph menempel padanya.
 	Hasil dict: pts (per path), width, anchor(x, y) -> (x, y)."""
 	old = [list(p[2]) for p in paths]
-	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected)
+	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights)
 	ob, nb = _bbox(old), _bbox(new)
 	ident = {"pts": new, "width": width, "anchor": lambda x, y: (x, y)}
 	if selected is not None or ob is None or nb is None:
@@ -754,3 +763,279 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 			return (x0 + (x - ox0) * nw / ow, y)
 		return (x + tx, y)
 	return {"pts": pts, "width": new_width, "anchor": anchor}
+
+
+# ---------------------------------------------------------------------------
+# Ukur ketebalan garis (stroke) & bobot kontras
+
+CONTRAST_MODES = [
+	("uniform", "Rata: semua garis bertambah sama"),
+	("keepthin", "Pertahankan garis tipis, tebalkan yang tebal"),
+	("keepthick", "Pertahankan garis tebal, ubah yang tipis"),
+]
+
+
+def _bez(ctrl, t):
+	pts = list(ctrl)
+	while len(pts) > 1:
+		pts = [(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) for a, b in zip(pts, pts[1:])]
+	return pts[0]
+
+
+def _bez_tangent(ctrl, t):
+	h = 1e-4
+	a = _bez(ctrl, max(0.0, t - h))
+	b = _bez(ctrl, min(1.0, t + h))
+	u = _unit(b[0] - a[0], b[1] - a[1])
+	if u is None:
+		u = _unit(ctrl[-1][0] - ctrl[0][0], ctrl[-1][1] - ctrl[0][1])
+	return u
+
+
+def path_curves(paths):
+	"""[(indeks path, node awal, node akhir, titik kontrol)] untuk tiap segmen
+	path tertutup."""
+	out = []
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		on = [i for i in range(n) if types[i] != "offcurve"]
+		if not closed or len(on) < 2:
+			continue
+		for k, a in enumerate(on):
+			b = on[(k + 1) % len(on)]
+			ctrl = [pts[a]]
+			j = (a + 1) % n
+			while j != b:
+				ctrl.append(pts[j])
+				j = (j + 1) % n
+			ctrl.append(pts[b])
+			out.append((pi, a, b, ctrl))
+	return out
+
+
+def _ray_hit(p, d, lines, eps=1.0):
+	best = None
+	px, py = p
+	dx, dy = d
+	for x1, y1, x2, y2 in lines:
+		ex, ey = x2 - x1, y2 - y1
+		den = dx * ey - dy * ex
+		if abs(den) < 1e-12:
+			continue
+		t = ((x1 - px) * ey - (y1 - py) * ex) / den
+		if t <= eps or (best is not None and t >= best):
+			continue
+		u = ((x1 - px) * dy - (y1 - py) * dx) / den
+		if -1e-9 <= u <= 1 + 1e-9:
+			best = t
+	return best
+
+
+def _dist_to_lines(p, lines):
+	px, py = p
+	best = None
+	for x1, y1, x2, y2 in lines:
+		ex, ey = x2 - x1, y2 - y1
+		ll = ex * ex + ey * ey
+		u = 0.0 if ll < 1e-12 else max(0.0, min(1.0, ((px - x1) * ex + (py - y1) * ey) / ll))
+		d = math.hypot(px - (x1 + ex * u), py - (y1 + ey * u))
+		if best is None or d < best:
+			best = d
+	return best
+
+
+def _contour_roles(polys):
+	"""+1 untuk kontur luar, -1 untuk counter (dari tumpukan, bukan arah)."""
+	roles = []
+	for pi, pts in enumerate(polys):
+		depth = sum(1 for qi, q in enumerate(polys) if qi != pi and len(q) > 2 and len(pts) > 2
+			and all(point_in_polygon(pt, q) for pt in pts))
+		roles.append(1 if depth % 2 == 0 else -1)
+	return roles
+
+
+def _has_overlap(polys, roles):
+	boxes = []
+	for pts in polys:
+		xs = [p[0] for p in pts]
+		ys = [p[1] for p in pts]
+		boxes.append((min(xs), min(ys), max(xs), max(ys)) if pts else None)
+	for i in range(len(polys)):
+		for j in range(i + 1, len(polys)):
+			a, b = boxes[i], boxes[j]
+			if a is None or b is None or a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1]:
+				continue
+			inside = (all(point_in_polygon(p, polys[j]) for p in polys[i])
+				or all(point_in_polygon(p, polys[i]) for p in polys[j]))
+			if not inside:
+				return True
+	return False
+
+
+def measure_paths(paths, max_piece=20.0, max_thickness=3000.0):
+	"""Ukur ketebalan garis. Dari titik di tepi, sinar ditembakkan tegak lurus
+	ke dalam tinta sampai keluar; ketebalan = diameter lingkaran terbesar di
+	tengah sinar itu, diambil yang lebih kecil dari panjang sinar dan lebar
+	melintang di tengahnya (jadi ujung stem terukur selebar stem, bukan
+	sepanjang stem). Kontur yang bertumpuk (belum Remove Overlap) diperhitungkan: hanya
+	tepi luar gabungan tinta yang dipakai. Hasil dict:
+	  samples: [{pt, end, normal, th, dir}]  dir 'v' = garis tegak (tebal
+	           diukur mendatar), 'h' = garis datar
+	  nodes:   {(path, node): (tebal untuk geser-x, tebal untuk geser-y)}"""
+	closed_idx = [pi for pi, p in enumerate(paths) if p[0] and len(p[2]) > 2]
+	curves = path_curves(paths)
+	# kontur dipecah jadi potongan garis pendek
+	pieces = dict((pi, []) for pi in closed_idx)
+	for pi, a, b, ctrl in curves:
+		if pi not in pieces:
+			continue
+		length = sum(math.hypot(q[0] - p[0], q[1] - p[1]) for p, q in zip(ctrl, ctrl[1:]))
+		k = max(1 if len(ctrl) == 2 else 8, int(math.ceil(length / max_piece)))
+		prev = ctrl[0]
+		for j in range(1, k + 1):
+			q = _bez(ctrl, j / float(k))
+			pieces[pi].append((prev[0], prev[1], q[0], q[1]))
+			prev = q
+	polys = [[(l[0], l[1]) for l in pieces[pi]] for pi in closed_idx]
+	roles = _contour_roles(polys)
+	role_of = dict(zip(closed_idx, roles))
+	side_of = dict((pi, path_side([list(paths[q][2]) for q in closed_idx], k))
+		for k, pi in enumerate(closed_idx))
+	overlap = _has_overlap(polys, roles)
+
+	def ink(pt):
+		return sum(r for r, poly in zip(roles, polys) if point_in_polygon(pt, poly)) > 0
+
+	lines = []
+	for pi in closed_idx:
+		for l in pieces[pi]:
+			if overlap:
+				u = _unit(l[2] - l[0], l[3] - l[1])
+				if u is None:
+					continue
+				s = side_of[pi]
+				mx, my = (l[0] + l[2]) / 2.0, (l[1] + l[3]) / 2.0
+				# tepi gabungan = di satu sisi tinta, di sisi lain kosong
+				out_pt = (mx + u[1] * s * 0.5, my - u[0] * s * 0.5)
+				in_pt = (mx - u[1] * s * 0.5, my + u[0] * s * 0.5)
+				if ink(out_pt) or not ink(in_pt):
+					continue
+			lines.append(l)
+
+	def sample(pi, ctrl, t):
+		tan = _bez_tangent(ctrl, t)
+		if tan is None or pi not in side_of:
+			return None
+		s = side_of[pi]
+		inward = (-tan[1] * s, tan[0] * s)
+		p = _bez(ctrl, t)
+		if overlap and (ink((p[0] - inward[0], p[1] - inward[1])) or not ink((p[0] + inward[0], p[1] + inward[1]))):
+			return None  # titik ini tertutup kontur lain, bukan tepi tinta
+		hit = _ray_hit(p, inward, lines)
+		if hit is None or hit > max_thickness:
+			return None
+		# lebar melintang di sepanjang sinar: di ujung stem sinar berjalan
+		# sepanjang stem, tapi lebar melintangnya tetap = tebal stem
+		th = hit
+		for f in (0.25, 0.5, 0.75):
+			q = (p[0] + inward[0] * hit * f, p[1] + inward[1] * hit * f)
+			a1 = _ray_hit(q, (-inward[1], inward[0]), lines, eps=0.0)
+			a2 = _ray_hit(q, (inward[1], -inward[0]), lines, eps=0.0)
+			if a1 is not None and a2 is not None:
+				th = min(th, a1 + a2)
+		return {"pt": p, "end": (p[0] + inward[0] * hit, p[1] + inward[1] * hit), "normal": inward,
+			"th": th, "dir": "v" if abs(inward[0]) >= abs(inward[1]) else "h",
+			# ujung garis: sinar berjalan sepanjang garis, jauh lebih panjang dari tebalnya
+			"terminal": hit > 2.5 * th}
+
+	samples = []
+	near, mids = {}, {}
+	for pi, a, b, ctrl in curves:
+		for t in (0.04, 0.5, 0.96):
+			sm = sample(pi, ctrl, t)
+			if sm is None:
+				continue
+			samples.append(sm)
+			if t == 0.04:
+				near.setdefault((pi, a), []).append(sm)
+			elif t == 0.96:
+				near.setdefault((pi, b), []).append(sm)
+			else:
+				mids.setdefault((pi, a), []).append(sm)
+				mids.setdefault((pi, b), []).append(sm)
+	nodes, hold = {}, {}
+	for key in set(near) | set(mids):
+		# titik yang tertutup kontur lain memakai ukuran tengah segmennya
+		sms = (near.get(key, []) if not overlap or len(near.get(key, [])) == 2 else []) or mids.get(key, [])
+		if not sms:
+			continue
+		sx = max(sms, key=lambda m: abs(m["normal"][0]))
+		sy = max(sms, key=lambda m: abs(m["normal"][1]))
+		nodes[key] = (sx["th"], sy["th"])
+		if overlap:
+			# ujung garis yang tersembunyi di dalam kontur lain (mis. ujung palang
+			# H di dalam stem) tidak boleh bergeser memanjang, nanti menembus keluar
+			pi, ni = key
+			px, py = paths[pi][2][ni]
+			nx = sum(m["normal"][0] for m in sms)
+			ny = sum(m["normal"][1] for m in sms)
+			u = _unit(nx, ny)
+			if u is not None:
+				q = (px + u[0], py + u[1])
+				hidden = any(point_in_polygon(q, poly) for k, poly in zip(closed_idx, polys) if k != pi)
+				if hidden:
+					hold[key] = (sx.get("terminal", False), sy.get("terminal", False))
+	return {"samples": samples, "nodes": nodes, "hold": hold}
+
+
+def thickness_summary(measure):
+	"""Tertipis/tertebal (keseluruhan, garis tegak, garis datar)."""
+	out = {}
+	for key, flt in (("all", None), ("v", "v"), ("h", "h")):
+		ths = [m["th"] for m in measure["samples"] if flt is None or m["dir"] == flt]
+		out[key] = (min(ths), max(ths)) if ths else (None, None)
+	return out
+
+
+def _median(vals):
+	vals = sorted(vals)
+	if not vals:
+		return None
+	n = len(vals)
+	return vals[n // 2] if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2.0
+
+
+def auto_thresholds(per_glyph):
+	"""per_glyph: [(tertipis, tertebal)] -> (batas tipis, batas tebal).
+	Hairline tipikal = median tertipis, stem tipikal = median tertebal; garis
+	sampai 1,2x hairline tidak diubah, mulai 0,8x stem ditebalkan penuh."""
+	thin = _median([a for a, b in per_glyph if a is not None])
+	thick = _median([b for a, b in per_glyph if b is not None])
+	if thin is None or thick is None:
+		return None, None
+	lo = thin * 1.2
+	hi = max(thick * 0.8, lo + 1.0)
+	return round(lo, 1), round(hi, 1)
+
+
+def contrast_factor(th, lo, hi, mode):
+	"""0..1: seberapa besar garis setebal th ikut ditebalkan."""
+	if mode == "uniform" or th is None:
+		return 1.0
+	if hi <= lo:
+		f = 1.0 if th >= hi else 0.0
+	else:
+		t = max(0.0, min(1.0, (th - lo) / float(hi - lo)))
+		f = t * t * (3 - 2 * t)  # smoothstep: peralihan halus
+	return 1.0 - f if mode == "keepthick" else f
+
+
+def contrast_weights(measure, lo, hi, mode):
+	if mode == "uniform":
+		return None
+	out = {}
+	hold = measure.get("hold", {})
+	for key, (tx, ty) in measure["nodes"].items():
+		hx, hy = hold.get(key, (False, False))
+		out[key] = (0.0 if hx else contrast_factor(tx, lo, hi, mode), 0.0 if hy else contrast_factor(ty, lo, hi, mode))
+	return out

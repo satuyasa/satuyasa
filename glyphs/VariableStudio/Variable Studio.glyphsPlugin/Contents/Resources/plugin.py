@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.1.0"
+VS_VERSION = "1.2.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -659,12 +659,24 @@ def _corner_vector(pts, i, closed, clamp):
 	return (mx, my)
 
 
-def offset_paths(paths, dx, dy, selected=None, clamp=3.0):
+def path_side(polys, pi):
+	"""+1 bila sisi kanan arah jalan path pi = luar tinta, -1 sebaliknya.
+	Counter = kontur yang SELURUH titiknya di dalam kontur lain; kontur yang
+	hanya bertumpuk (belum Remove Overlap) tetap dianggap kontur luar."""
+	pts = polys[pi]
+	depth = sum(1 for qi, q in enumerate(polys) if qi != pi and len(q) > 2
+		and all(point_in_polygon(pt, q) for pt in pts))
+	return 1.0 if (signed_area(pts) > 0) == (depth % 2 == 0) else -1.0
+
+
+def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None):
 	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
 	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
 	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
 	paths: [(closed, types, pts)]. selected: set (indeks path, indeks node)
-	untuk hanya menggeser titik terpilih. Hasil: list pts baru per path."""
+	untuk hanya menggeser titik terpilih. weights: {(path, node): (wx, wy)}
+	pengali geser per titik (0 = titik diam), dari contrast_weights().
+	Hasil: list pts baru per path."""
 	polys = [list(pts) for _, _, pts in paths]
 	out = []
 	for pi, (closed, types, pts) in enumerate(paths):
@@ -674,18 +686,15 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0):
 		if n < 2 or not closed or not on:
 			out.append(pts)
 			continue
-		# counter = kontur yang SELURUH titiknya di dalam kontur lain; kontur yang
-		# hanya bertumpuk (belum Remove Overlap) tetap dianggap kontur luar
-		depth = sum(1 for qi, q in enumerate(polys) if qi != pi and len(q) > 2
-			and all(point_in_polygon(pt, q) for pt in pts))
-		s = 1.0 if (signed_area(pts) > 0) == (depth % 2 == 0) else -1.0
+		s = path_side(polys, pi)
 		vec = {}
 		for i in on:
 			if selected is not None and (pi, i) not in selected:
 				vec[i] = (0.0, 0.0)
 				continue
 			mx, my = _corner_vector(pts, i, closed, clamp)
-			vec[i] = (mx * dx * s, my * dy * s)
+			wx, wy = weights.get((pi, i), (1.0, 1.0)) if weights else (1.0, 1.0)
+			vec[i] = (mx * dx * s * wx, my * dy * s * wy)
 		new = list(pts)
 		for i in on:
 			new[i] = (pts[i][0] + vec[i][0], pts[i][1] + vec[i][1])
@@ -721,13 +730,13 @@ def _bbox(path_pts):
 
 
 def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
-		selected=None, tolerance=25.0):
+		selected=None, tolerance=25.0, weights=None):
 	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
 	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
 	...) yang tetap dipegang bila bagian atas/bawah glyph menempel padanya.
 	Hasil dict: pts (per path), width, anchor(x, y) -> (x, y)."""
 	old = [list(p[2]) for p in paths]
-	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected)
+	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights)
 	ob, nb = _bbox(old), _bbox(new)
 	ident = {"pts": new, "width": width, "anchor": lambda x, y: (x, y)}
 	if selected is not None or ob is None or nb is None:
@@ -757,6 +766,282 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 			return (x0 + (x - ox0) * nw / ow, y)
 		return (x + tx, y)
 	return {"pts": pts, "width": new_width, "anchor": anchor}
+
+
+# ---------------------------------------------------------------------------
+# Ukur ketebalan garis (stroke) & bobot kontras
+
+CONTRAST_MODES = [
+	("uniform", "Rata: semua garis bertambah sama"),
+	("keepthin", "Pertahankan garis tipis, tebalkan yang tebal"),
+	("keepthick", "Pertahankan garis tebal, ubah yang tipis"),
+]
+
+
+def _bez(ctrl, t):
+	pts = list(ctrl)
+	while len(pts) > 1:
+		pts = [(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) for a, b in zip(pts, pts[1:])]
+	return pts[0]
+
+
+def _bez_tangent(ctrl, t):
+	h = 1e-4
+	a = _bez(ctrl, max(0.0, t - h))
+	b = _bez(ctrl, min(1.0, t + h))
+	u = _unit(b[0] - a[0], b[1] - a[1])
+	if u is None:
+		u = _unit(ctrl[-1][0] - ctrl[0][0], ctrl[-1][1] - ctrl[0][1])
+	return u
+
+
+def path_curves(paths):
+	"""[(indeks path, node awal, node akhir, titik kontrol)] untuk tiap segmen
+	path tertutup."""
+	out = []
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		on = [i for i in range(n) if types[i] != "offcurve"]
+		if not closed or len(on) < 2:
+			continue
+		for k, a in enumerate(on):
+			b = on[(k + 1) % len(on)]
+			ctrl = [pts[a]]
+			j = (a + 1) % n
+			while j != b:
+				ctrl.append(pts[j])
+				j = (j + 1) % n
+			ctrl.append(pts[b])
+			out.append((pi, a, b, ctrl))
+	return out
+
+
+def _ray_hit(p, d, lines, eps=1.0):
+	best = None
+	px, py = p
+	dx, dy = d
+	for x1, y1, x2, y2 in lines:
+		ex, ey = x2 - x1, y2 - y1
+		den = dx * ey - dy * ex
+		if abs(den) < 1e-12:
+			continue
+		t = ((x1 - px) * ey - (y1 - py) * ex) / den
+		if t <= eps or (best is not None and t >= best):
+			continue
+		u = ((x1 - px) * dy - (y1 - py) * dx) / den
+		if -1e-9 <= u <= 1 + 1e-9:
+			best = t
+	return best
+
+
+def _dist_to_lines(p, lines):
+	px, py = p
+	best = None
+	for x1, y1, x2, y2 in lines:
+		ex, ey = x2 - x1, y2 - y1
+		ll = ex * ex + ey * ey
+		u = 0.0 if ll < 1e-12 else max(0.0, min(1.0, ((px - x1) * ex + (py - y1) * ey) / ll))
+		d = math.hypot(px - (x1 + ex * u), py - (y1 + ey * u))
+		if best is None or d < best:
+			best = d
+	return best
+
+
+def _contour_roles(polys):
+	"""+1 untuk kontur luar, -1 untuk counter (dari tumpukan, bukan arah)."""
+	roles = []
+	for pi, pts in enumerate(polys):
+		depth = sum(1 for qi, q in enumerate(polys) if qi != pi and len(q) > 2 and len(pts) > 2
+			and all(point_in_polygon(pt, q) for pt in pts))
+		roles.append(1 if depth % 2 == 0 else -1)
+	return roles
+
+
+def _has_overlap(polys, roles):
+	boxes = []
+	for pts in polys:
+		xs = [p[0] for p in pts]
+		ys = [p[1] for p in pts]
+		boxes.append((min(xs), min(ys), max(xs), max(ys)) if pts else None)
+	for i in range(len(polys)):
+		for j in range(i + 1, len(polys)):
+			a, b = boxes[i], boxes[j]
+			if a is None or b is None or a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1]:
+				continue
+			inside = (all(point_in_polygon(p, polys[j]) for p in polys[i])
+				or all(point_in_polygon(p, polys[i]) for p in polys[j]))
+			if not inside:
+				return True
+	return False
+
+
+def measure_paths(paths, max_piece=20.0, max_thickness=3000.0):
+	"""Ukur ketebalan garis. Dari titik di tepi, sinar ditembakkan tegak lurus
+	ke dalam tinta sampai keluar; ketebalan = diameter lingkaran terbesar di
+	tengah sinar itu, diambil yang lebih kecil dari panjang sinar dan lebar
+	melintang di tengahnya (jadi ujung stem terukur selebar stem, bukan
+	sepanjang stem). Kontur yang bertumpuk (belum Remove Overlap) diperhitungkan: hanya
+	tepi luar gabungan tinta yang dipakai. Hasil dict:
+	  samples: [{pt, end, normal, th, dir}]  dir 'v' = garis tegak (tebal
+	           diukur mendatar), 'h' = garis datar
+	  nodes:   {(path, node): (tebal untuk geser-x, tebal untuk geser-y)}"""
+	closed_idx = [pi for pi, p in enumerate(paths) if p[0] and len(p[2]) > 2]
+	curves = path_curves(paths)
+	# kontur dipecah jadi potongan garis pendek
+	pieces = dict((pi, []) for pi in closed_idx)
+	for pi, a, b, ctrl in curves:
+		if pi not in pieces:
+			continue
+		length = sum(math.hypot(q[0] - p[0], q[1] - p[1]) for p, q in zip(ctrl, ctrl[1:]))
+		k = max(1 if len(ctrl) == 2 else 8, int(math.ceil(length / max_piece)))
+		prev = ctrl[0]
+		for j in range(1, k + 1):
+			q = _bez(ctrl, j / float(k))
+			pieces[pi].append((prev[0], prev[1], q[0], q[1]))
+			prev = q
+	polys = [[(l[0], l[1]) for l in pieces[pi]] for pi in closed_idx]
+	roles = _contour_roles(polys)
+	role_of = dict(zip(closed_idx, roles))
+	side_of = dict((pi, path_side([list(paths[q][2]) for q in closed_idx], k))
+		for k, pi in enumerate(closed_idx))
+	overlap = _has_overlap(polys, roles)
+
+	def ink(pt):
+		return sum(r for r, poly in zip(roles, polys) if point_in_polygon(pt, poly)) > 0
+
+	lines = []
+	for pi in closed_idx:
+		for l in pieces[pi]:
+			if overlap:
+				u = _unit(l[2] - l[0], l[3] - l[1])
+				if u is None:
+					continue
+				s = side_of[pi]
+				mx, my = (l[0] + l[2]) / 2.0, (l[1] + l[3]) / 2.0
+				# tepi gabungan = di satu sisi tinta, di sisi lain kosong
+				out_pt = (mx + u[1] * s * 0.5, my - u[0] * s * 0.5)
+				in_pt = (mx - u[1] * s * 0.5, my + u[0] * s * 0.5)
+				if ink(out_pt) or not ink(in_pt):
+					continue
+			lines.append(l)
+
+	def sample(pi, ctrl, t):
+		tan = _bez_tangent(ctrl, t)
+		if tan is None or pi not in side_of:
+			return None
+		s = side_of[pi]
+		inward = (-tan[1] * s, tan[0] * s)
+		p = _bez(ctrl, t)
+		if overlap and (ink((p[0] - inward[0], p[1] - inward[1])) or not ink((p[0] + inward[0], p[1] + inward[1]))):
+			return None  # titik ini tertutup kontur lain, bukan tepi tinta
+		hit = _ray_hit(p, inward, lines)
+		if hit is None or hit > max_thickness:
+			return None
+		# lebar melintang di sepanjang sinar: di ujung stem sinar berjalan
+		# sepanjang stem, tapi lebar melintangnya tetap = tebal stem
+		th = hit
+		for f in (0.25, 0.5, 0.75):
+			q = (p[0] + inward[0] * hit * f, p[1] + inward[1] * hit * f)
+			a1 = _ray_hit(q, (-inward[1], inward[0]), lines, eps=0.0)
+			a2 = _ray_hit(q, (inward[1], -inward[0]), lines, eps=0.0)
+			if a1 is not None and a2 is not None:
+				th = min(th, a1 + a2)
+		return {"pt": p, "end": (p[0] + inward[0] * hit, p[1] + inward[1] * hit), "normal": inward,
+			"th": th, "dir": "v" if abs(inward[0]) >= abs(inward[1]) else "h",
+			# ujung garis: sinar berjalan sepanjang garis, jauh lebih panjang dari tebalnya
+			"terminal": hit > 2.5 * th}
+
+	samples = []
+	near, mids = {}, {}
+	for pi, a, b, ctrl in curves:
+		for t in (0.04, 0.5, 0.96):
+			sm = sample(pi, ctrl, t)
+			if sm is None:
+				continue
+			samples.append(sm)
+			if t == 0.04:
+				near.setdefault((pi, a), []).append(sm)
+			elif t == 0.96:
+				near.setdefault((pi, b), []).append(sm)
+			else:
+				mids.setdefault((pi, a), []).append(sm)
+				mids.setdefault((pi, b), []).append(sm)
+	nodes, hold = {}, {}
+	for key in set(near) | set(mids):
+		# titik yang tertutup kontur lain memakai ukuran tengah segmennya
+		sms = (near.get(key, []) if not overlap or len(near.get(key, [])) == 2 else []) or mids.get(key, [])
+		if not sms:
+			continue
+		sx = max(sms, key=lambda m: abs(m["normal"][0]))
+		sy = max(sms, key=lambda m: abs(m["normal"][1]))
+		nodes[key] = (sx["th"], sy["th"])
+		if overlap:
+			# ujung garis yang tersembunyi di dalam kontur lain (mis. ujung palang
+			# H di dalam stem) tidak boleh bergeser memanjang, nanti menembus keluar
+			pi, ni = key
+			px, py = paths[pi][2][ni]
+			nx = sum(m["normal"][0] for m in sms)
+			ny = sum(m["normal"][1] for m in sms)
+			u = _unit(nx, ny)
+			if u is not None:
+				q = (px + u[0], py + u[1])
+				hidden = any(point_in_polygon(q, poly) for k, poly in zip(closed_idx, polys) if k != pi)
+				if hidden:
+					hold[key] = (sx.get("terminal", False), sy.get("terminal", False))
+	return {"samples": samples, "nodes": nodes, "hold": hold}
+
+
+def thickness_summary(measure):
+	"""Tertipis/tertebal (keseluruhan, garis tegak, garis datar)."""
+	out = {}
+	for key, flt in (("all", None), ("v", "v"), ("h", "h")):
+		ths = [m["th"] for m in measure["samples"] if flt is None or m["dir"] == flt]
+		out[key] = (min(ths), max(ths)) if ths else (None, None)
+	return out
+
+
+def _median(vals):
+	vals = sorted(vals)
+	if not vals:
+		return None
+	n = len(vals)
+	return vals[n // 2] if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2.0
+
+
+def auto_thresholds(per_glyph):
+	"""per_glyph: [(tertipis, tertebal)] -> (batas tipis, batas tebal).
+	Hairline tipikal = median tertipis, stem tipikal = median tertebal; garis
+	sampai 1,2x hairline tidak diubah, mulai 0,8x stem ditebalkan penuh."""
+	thin = _median([a for a, b in per_glyph if a is not None])
+	thick = _median([b for a, b in per_glyph if b is not None])
+	if thin is None or thick is None:
+		return None, None
+	lo = thin * 1.2
+	hi = max(thick * 0.8, lo + 1.0)
+	return round(lo, 1), round(hi, 1)
+
+
+def contrast_factor(th, lo, hi, mode):
+	"""0..1: seberapa besar garis setebal th ikut ditebalkan."""
+	if mode == "uniform" or th is None:
+		return 1.0
+	if hi <= lo:
+		f = 1.0 if th >= hi else 0.0
+	else:
+		t = max(0.0, min(1.0, (th - lo) / float(hi - lo)))
+		f = t * t * (3 - 2 * t)  # smoothstep: peralihan halus
+	return 1.0 - f if mode == "keepthick" else f
+
+
+def contrast_weights(measure, lo, hi, mode):
+	if mode == "uniform":
+		return None
+	out = {}
+	hold = measure.get("hold", {})
+	for key, (tx, ty) in measure["nodes"].items():
+		hx, hy = hold.get(key, (False, False))
+		out[key] = (0.0 if hx else contrast_factor(tx, lo, hi, mode), 0.0 if hy else contrast_factor(ty, lo, hi, mode))
+	return out
 # ======================================================================
 # vs_glyphs.py
 # Variable Studio - operasi pada font Glyphs 3 (axis, master, instance,
@@ -1617,20 +1902,37 @@ def _selected_nodes(layer):
 	return sel
 
 
-def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False):
-	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
-	jumlah atau urutan titik. Hasil: jumlah titik yang digeser."""
-	paths = [(bool(getattr(p, "closed", True)), [node_type(n) for n in p.nodes], [_xy(n) for n in p.nodes])
+def layer_paths(layer):
+	return [(bool(getattr(p, "closed", True)), [node_type(n) for n in p.nodes], [_xy(n) for n in p.nodes])
 		for p in layer.paths]
+
+
+def measure_layer(layer, decompose=True):
+	"""Ukur ketebalan garis layer (komponen ikut diukur bila decompose)."""
+	return measure_paths(layer_paths(_decomposed(layer) if decompose else layer))
+
+
+def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False,
+		mode="uniform", thin_limit=None, thick_limit=None):
+	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
+	jumlah atau urutan titik. mode 'keepthin': garis setipis thin_limit
+	tidak berubah, garis setebal thick_limit ke atas bertambah penuh
+	('keepthick' kebalikannya). Hasil: jumlah titik yang digeser."""
+	paths = layer_paths(layer)
 	if not paths:
 		return 0
+	weights = None
+	if mode != "uniform":
+		if thin_limit is None or thick_limit is None:
+			raise ValueError("Isi batas tipis dan batas tebal (atau klik Scan ketebalan).")
+		weights = contrast_weights(measure_paths(paths), float(thin_limit), float(thick_limit), mode)
 	selected = None
 	if selected_only:
 		selected = _selected_nodes(layer)
 		if not selected:
 			return 0
 	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
-		keep_sidebearings, zones, selected)
+		keep_sidebearings, zones, selected, weights=weights)
 	moved = 0
 	for p, pts in zip(layer.paths, res["pts"]):
 		for n, (x, y) in zip(p.nodes, pts):
@@ -1646,7 +1948,8 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 
 
 def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=None,
-		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True):
+		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True,
+		mode="uniform", thin_limit=None, thick_limit=None):
 	"""Isi master target (atau master baru `name`) dengan salinan master
 	sumber yang ditebalkan/ditipiskan. target == src berarti diubah di tempat.
 	Hasil: (master, jumlah glyph diubah)."""
@@ -1676,7 +1979,7 @@ def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=No
 		layer = s if target is src else _put_layer(g, target.id, s)
 		if not layer.paths and layer.components:
 			composites.append(layer)
-		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones):
+		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones, False, mode, thin_limit, thick_limit):
 			done += 1
 	# Glyph yang hanya berisi komponen: lebar ikut glyph dasarnya, komponen
 	# berikutnya (aksen) digeser setengahnya agar tetap di tengah.
@@ -1695,6 +1998,34 @@ def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=No
 				c.position = NSPoint(c.position.x + delta / 2.0, c.position.y)
 			done += 1
 	return target, done
+
+
+SCAN_SAMPLE_NAMES = set(list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") + [
+	"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"])
+
+
+def scan_thickness(font, master, glyphs=None):
+	"""Ukur tertipis/tertebal tiap glyph di satu master. Hasil:
+	(baris per glyph, ringkasan). Batas otomatis dihitung dari huruf dasar
+	(a-z, A-Z, 0-9) bila ada, supaya simbol aneh tidak mengacaukan."""
+	rows = []
+	for g in (glyphs if glyphs is not None else font.glyphs):
+		layer = g.layers[master.id]
+		if layer is None or (not layer.paths and not layer.components):
+			continue
+		m = measure_layer(layer)
+		sm = thickness_summary(m)
+		if sm["all"][0] is None:
+			continue
+		rows.append({"name": g.name, "thin": sm["all"][0], "thick": sm["all"][1],
+			"v": sm["v"], "h": sm["h"]})
+	basis = [r for r in rows if r["name"] in SCAN_SAMPLE_NAMES] or rows
+	lo, hi = auto_thresholds([(r["thin"], r["thick"]) for r in basis])
+	summary = {"lo": lo, "hi": hi}
+	if rows:
+		summary["thinnest"] = min(rows, key=lambda r: r["thin"])
+		summary["thickest"] = max(rows, key=lambda r: r["thick"])
+	return rows, summary
 # ======================================================================
 # vs_window.py
 # Variable Studio - jendela utama (Window > Variable Studio).
@@ -2304,7 +2635,9 @@ class VariableStudioWindow(object):
 		t.idsOff = CheckBox((220, 34, -10, 20), "termasuk off-curve", value=pref_bool("idsOffcurve", False), callback=self.on_pref)
 		t.ghosts = CheckBox((10, 58, 200, 20), "Bayangan semua master", value=pref_bool("showGhosts", True), callback=self.on_pref)
 		t.trails = CheckBox((220, 58, -10, 20), "Jalur titik antar master", value=pref_bool("showTrails", True), callback=self.on_pref)
-		t.brace = CheckBox((10, 82, -10, 20), "Ikutkan brace layer {…}", value=pref_bool("showBrace", True), callback=self.on_pref)
+		t.brace = CheckBox((10, 82, 200, 20), "Ikutkan brace layer {…}", value=pref_bool("showBrace", True), callback=self.on_pref)
+		t.thick = CheckBox((220, 82, -10, 20), "Ukuran tebal garis (biru tipis, merah tebal)",
+			value=pref_bool("showThickness", False), callback=self.on_pref)
 		t.line = HorizontalLine((10, 110, -10, 1))
 		t.axLabel = TextBox((10, 122, 60, 17), "Axis")
 		t.axis = PopUpButton((70, 120, 200, 22), [], callback=lambda s: self.refresh_preview_axis())
@@ -2332,6 +2665,7 @@ class VariableStudioWindow(object):
 		pref_set("showGhosts", int(bool(t.ghosts.get())))
 		pref_set("showTrails", int(bool(t.trails.get())))
 		pref_set("showBrace", int(bool(t.brace.get())))
+		pref_set("showThickness", int(bool(t.thick.get())))
 		Glyphs.redraw()
 
 	def refresh_preview_axis(self):
@@ -2417,45 +2751,111 @@ class VariableStudioWindow(object):
 	# ------------------------------------------------------- tab Tebal / Tipis
 
 	def _build_weight(self, t):
-		t.info = TextBox((10, 10, -10, 34),
-			"Menebalkan / menipiskan kontur tanpa mengubah jumlah, urutan, atau arah titik, jadi master "
-			"hasilnya langsung kompatibel untuk interpolasi. Nilai = tambahan tebal stem (negatif = tipis).",
+		t.info = TextBox((10, 8, -10, 30),
+			"Menebalkan / menipiskan tanpa mengubah jumlah, urutan, atau arah titik (tetap kompatibel). "
+			"Nilai = tambahan tebal garis; negatif = lebih tipis.", sizeStyle="small")
+		t.xLabel = TextBox((10, 44, 170, 17), "Stem tegak (horizontal)")
+		t.addX = EditText((180, 42, 70, 22), "40", callback=lambda s: self.on_weight_target())
+		t.yLabel = TextBox((270, 44, 150, 17), "Stem datar (vertikal)")
+		t.addY = EditText((420, 42, 70, 22), "30")
+		t.keepSB = CheckBox((10, 70, 230, 20), "Pertahankan sidebearing", value=True)
+		t.keepH = CheckBox((240, 70, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
+		t.modeLabel = TextBox((10, 100, 60, 17), "Mode")
+		t.mode = PopUpButton((70, 98, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
+		t.loLabel = TextBox((10, 130, 110, 17), "Garis tipis ≤")
+		t.lo = EditText((120, 128, 60, 22), "", placeholder="auto")
+		t.hiLabel = TextBox((190, 130, 110, 17), "Garis tebal ≥")
+		t.hi = EditText((300, 128, 60, 22), "", placeholder="auto")
+		t.scan = Button((-200, 127, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
+		t.summary = TextBox((10, 156, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
 			sizeStyle="small")
-		t.xLabel = TextBox((10, 54, 170, 17), "Stem tegak (horizontal)")
-		t.addX = EditText((180, 52, 70, 22), "40")
-		t.yLabel = TextBox((270, 54, 150, 17), "Stem datar (vertikal)")
-		t.addY = EditText((420, 52, 70, 22), "30")
-		t.keepSB = CheckBox((10, 82, 260, 20), "Pertahankan sidebearing", value=True)
-		t.keepH = CheckBox((270, 82, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
-		t.line = HorizontalLine((10, 112, -10, 1))
-		t.lLabel = TextBox((10, 124, -10, 17), "Glyph yang sedang dibuka (bisa di-Undo):")
-		t.selOnly = CheckBox((10, 146, -10, 20), "Hanya titik terpilih (mis. satu stem saja)")
-		t.m10 = Button((10, 172, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
-		t.m2 = Button((76, 172, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
-		t.p2 = Button((132, 172, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
-		t.p10 = Button((188, 172, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
-		t.apply = Button((260, 172, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
-		t.line2 = HorizontalLine((10, 206, -10, 1))
-		t.mLabel = TextBox((10, 218, -10, 17), "Satu master sekaligus (mis. Bold dari Light):")
-		t.sLabel = TextBox((10, 244, 80, 17), "Sumber")
-		t.src = PopUpButton((90, 242, 200, 22), [], callback=lambda s: self.on_weight_target())
-		t.tLabel = TextBox((310, 244, 60, 17), "Hasil ke")
-		t.target = PopUpButton((370, 242, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
-		t.nLabel = TextBox((10, 276, 80, 17), "Nama")
-		t.name = EditText((90, 274, 200, 22), "Bold")
-		t.aLabel = TextBox((310, 276, 60, 17), "Axis")
-		t.axis = PopUpButton((370, 274, 150, 22), [])
-		t.value = EditText((530, 274, -10, 22), "", placeholder="nilai")
-		t.glyphSel = CheckBox((10, 304, -10, 20), "Hanya glyph terpilih (untuk master yang sudah ada)")
-		t.kern = CheckBox((10, 326, -10, 20), "Salin kerning ke master baru", value=True)
-		t.make = Button((10, 356, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
-		t.tip = TextBox((10, 392, -10, 120),
-			"Tips: ukur stem master sumber (alat ukur, L), lalu isi tambahan yang diinginkan. Misalnya stem "
-			"Light 40 dan Bold ingin 160: stem tegak 120, stem datar sekitar 90. Nilai axis disarankan = tebal "
-			"stem baru. Hasilnya titik awal yang kompatibel; sudut tajam, sambungan stem, dan counter kecil "
-			"tetap perlu dirapikan. Untuk Thin/Black ekstrem pakai nilai negatif dari Light atau tab Master Baru.",
-			sizeStyle="small")
+		t.line = HorizontalLine((10, 194, -10, 1))
+		t.lLabel = TextBox((10, 202, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
+		t.selOnly = CheckBox((310, 200, -10, 20), "Hanya titik terpilih")
+		t.m10 = Button((10, 224, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
+		t.m2 = Button((76, 224, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
+		t.p2 = Button((132, 224, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
+		t.p10 = Button((188, 224, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
+		t.apply = Button((260, 224, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
+		t.line2 = HorizontalLine((10, 256, -10, 1))
+		t.sLabel = TextBox((10, 266, 80, 17), "Sumber")
+		t.src = PopUpButton((90, 264, 200, 22), [], callback=lambda s: self.on_weight_target())
+		t.tLabel = TextBox((310, 266, 60, 17), "Hasil ke")
+		t.target = PopUpButton((370, 264, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
+		t.nLabel = TextBox((10, 296, 80, 17), "Nama")
+		t.name = EditText((90, 294, 200, 22), "Bold")
+		t.aLabel = TextBox((310, 296, 60, 17), "Axis")
+		t.axis = PopUpButton((370, 294, 150, 22), [], callback=lambda s: self.on_weight_target())
+		t.value = EditText((530, 294, -10, 22), "", placeholder="nilai")
+		t.glyphSel = CheckBox((10, 322, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
+		t.kern = CheckBox((340, 322, -10, 20), "Salin kerning ke master baru", value=True)
+		t.make = Button((10, 348, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
+		t.results = List((10, 380, -10, -34), [], columnDescriptions=[
+			{"title": "Glyph", "key": "name", "width": 130}, {"title": "Tertipis", "key": "thin", "width": 70},
+			{"title": "Tertebal", "key": "thick", "width": 70}, {"title": "Kontras", "key": "ratio", "width": 70},
+			{"title": "Tegak (min-max)", "key": "v"}, {"title": "Datar (min-max)", "key": "h"}],
+			doubleClickCallback=lambda s: self._guard(self.open_weight_result))
 		t.status = TextBox((10, -26, -10, 17), "", sizeStyle="small")
+		t.lo.enable(False)
+		t.hi.enable(False)
+
+	def _weight_mode(self):
+		return CONTRAST_MODES[self.w.tabs[6].mode.get()][0]
+
+	def on_weight_mode(self):
+		t = self.w.tabs[6]
+		on = self._weight_mode() != "uniform"
+		for k in ("lo", "hi"):
+			getattr(t, k).enable(on)
+		if on and not (t.lo.get() and t.hi.get()):
+			self._guard(self.scan_weight)
+
+	def _weight_limits(self):
+		if self._weight_mode() == "uniform":
+			return None, None
+		t = self.w.tabs[6]
+		if not (t.lo.get() and t.hi.get()):
+			self.scan_weight()
+		lo, hi = _num(t.lo.get()), _num(t.hi.get())
+		if hi <= lo:
+			raise ValueError("Batas tebal harus lebih besar dari batas tipis.")
+		return lo, hi
+
+	def scan_weight(self):
+		t = self.w.tabs[6]
+		font = self.font
+		if font is None or not len(font.masters):
+			raise ValueError("Buka font dulu.")
+		src = font.masters[t.src.get()]
+		glyphs = [l.parent for l in font.selectedLayers] if t.glyphSel.get() else None
+		t0 = time.time()
+		rows, sm = scan_thickness(font, src, glyphs)
+		rows.sort(key=lambda r: r["thin"])
+		items = []
+		for r in rows:
+			items.append({"name": r["name"], "thin": fmt_num(round(r["thin"])), "thick": fmt_num(round(r["thick"])),
+				"ratio": "%.1f×" % (r["thick"] / r["thin"]) if r["thin"] else "-",
+				"v": "%s-%s" % tuple(fmt_num(round(x)) if x is not None else "-" for x in r["v"]),
+				"h": "%s-%s" % tuple(fmt_num(round(x)) if x is not None else "-" for x in r["h"])})
+		t.results.set(items)
+		if not rows:
+			t.summary.set("Tidak ada kontur yang bisa diukur.")
+			return
+		if sm["lo"] is not None:
+			t.lo.set(fmt_num(sm["lo"]))
+			t.hi.set(fmt_num(sm["hi"]))
+		a, b = sm["thinnest"], sm["thickest"]
+		t.summary.set("Master %s: garis tertipis %s (/%s), tertebal %s (/%s). Batas otomatis: tipis ≤ %s, tebal ≥ %s. "
+			"Garis di antaranya berubah bertahap." % (src.name, fmt_num(round(a["thin"])), a["name"],
+			fmt_num(round(b["thick"])), b["name"], fmt_num(sm["lo"]), fmt_num(sm["hi"])))
+		t.status.set("%d glyph diukur (%.1f dtk). Klik dua kali untuk membuka glyph." % (len(rows), time.time() - t0))
+
+	def open_weight_result(self):
+		t = self.w.tabs[6]
+		items = t.results.get()
+		names = [items[i]["name"] for i in t.results.getSelection()] or [i["name"] for i in items[:1]]
+		if names:
+			self.font.newTab("/" + "/".join(names))
 
 	def _weight_amounts(self):
 		t = self.w.tabs[6]
@@ -2494,8 +2894,9 @@ class VariableStudioWindow(object):
 		glyph = layer.parent
 		glyph.beginUndo()
 		try:
+			lo, hi = self._weight_limits()
 			moved = embolden_layer(layer, add_x, add_y, bool(t.keepSB.get()), self._layer_zones(layer),
-				bool(t.selOnly.get()))
+				bool(t.selOnly.get()), self._weight_mode(), lo, hi)
 		finally:
 			glyph.endUndo()
 		if not moved and t.selOnly.get():
@@ -2529,9 +2930,11 @@ class VariableStudioWindow(object):
 			raise ValueError("Isi nama master baru.")
 		axis_idx = t.axis.get() if len(font.axes) else None
 		axis_value = _num(t.value.get()) if (target is None and axis_idx is not None and t.value.get()) else None
+		lo, hi = self._weight_limits()
 		with _Batch(font):
 			m, done = embolden_master(font, src, add_x, add_y, target, name, axis_idx, axis_value,
-				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()))
+				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()),
+				self._weight_mode(), lo, hi)
 		t.status.set("Master %s: %d glyph diubah. Cek di tab Titik > Cek seluruh font." % (m.name, done))
 		self._changed()
 

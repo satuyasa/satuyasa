@@ -860,20 +860,37 @@ def _selected_nodes(layer):
 	return sel
 
 
-def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False):
-	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
-	jumlah atau urutan titik. Hasil: jumlah titik yang digeser."""
-	paths = [(bool(getattr(p, "closed", True)), [node_type(n) for n in p.nodes], [_xy(n) for n in p.nodes])
+def layer_paths(layer):
+	return [(bool(getattr(p, "closed", True)), [node_type(n) for n in p.nodes], [_xy(n) for n in p.nodes])
 		for p in layer.paths]
+
+
+def measure_layer(layer, decompose=True):
+	"""Ukur ketebalan garis layer (komponen ikut diukur bila decompose)."""
+	return measure_paths(layer_paths(_decomposed(layer) if decompose else layer))
+
+
+def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False,
+		mode="uniform", thin_limit=None, thick_limit=None):
+	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
+	jumlah atau urutan titik. mode 'keepthin': garis setipis thin_limit
+	tidak berubah, garis setebal thick_limit ke atas bertambah penuh
+	('keepthick' kebalikannya). Hasil: jumlah titik yang digeser."""
+	paths = layer_paths(layer)
 	if not paths:
 		return 0
+	weights = None
+	if mode != "uniform":
+		if thin_limit is None or thick_limit is None:
+			raise ValueError("Isi batas tipis dan batas tebal (atau klik Scan ketebalan).")
+		weights = contrast_weights(measure_paths(paths), float(thin_limit), float(thick_limit), mode)
 	selected = None
 	if selected_only:
 		selected = _selected_nodes(layer)
 		if not selected:
 			return 0
 	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
-		keep_sidebearings, zones, selected)
+		keep_sidebearings, zones, selected, weights=weights)
 	moved = 0
 	for p, pts in zip(layer.paths, res["pts"]):
 		for n, (x, y) in zip(p.nodes, pts):
@@ -889,7 +906,8 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 
 
 def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=None,
-		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True):
+		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True,
+		mode="uniform", thin_limit=None, thick_limit=None):
 	"""Isi master target (atau master baru `name`) dengan salinan master
 	sumber yang ditebalkan/ditipiskan. target == src berarti diubah di tempat.
 	Hasil: (master, jumlah glyph diubah)."""
@@ -919,7 +937,7 @@ def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=No
 		layer = s if target is src else _put_layer(g, target.id, s)
 		if not layer.paths and layer.components:
 			composites.append(layer)
-		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones):
+		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones, False, mode, thin_limit, thick_limit):
 			done += 1
 	# Glyph yang hanya berisi komponen: lebar ikut glyph dasarnya, komponen
 	# berikutnya (aksen) digeser setengahnya agar tetap di tengah.
@@ -938,3 +956,31 @@ def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=No
 				c.position = NSPoint(c.position.x + delta / 2.0, c.position.y)
 			done += 1
 	return target, done
+
+
+SCAN_SAMPLE_NAMES = set(list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") + [
+	"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"])
+
+
+def scan_thickness(font, master, glyphs=None):
+	"""Ukur tertipis/tertebal tiap glyph di satu master. Hasil:
+	(baris per glyph, ringkasan). Batas otomatis dihitung dari huruf dasar
+	(a-z, A-Z, 0-9) bila ada, supaya simbol aneh tidak mengacaukan."""
+	rows = []
+	for g in (glyphs if glyphs is not None else font.glyphs):
+		layer = g.layers[master.id]
+		if layer is None or (not layer.paths and not layer.components):
+			continue
+		m = measure_layer(layer)
+		sm = thickness_summary(m)
+		if sm["all"][0] is None:
+			continue
+		rows.append({"name": g.name, "thin": sm["all"][0], "thick": sm["all"][1],
+			"v": sm["v"], "h": sm["h"]})
+	basis = [r for r in rows if r["name"] in SCAN_SAMPLE_NAMES] or rows
+	lo, hi = auto_thresholds([(r["thin"], r["thick"]) for r in basis])
+	summary = {"lo": lo, "hi": hi}
+	if rows:
+		summary["thinnest"] = min(rows, key=lambda r: r["thin"])
+		summary["thickest"] = max(rows, key=lambda r: r["thick"])
+	return rows, summary
