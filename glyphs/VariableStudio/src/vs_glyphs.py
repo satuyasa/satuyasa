@@ -871,7 +871,7 @@ def measure_layer(layer, decompose=True):
 
 
 def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False,
-		mode="uniform", thin_limit=None, thick_limit=None):
+		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT):
 	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
 	jumlah atau urutan titik. mode 'keepthin': garis setipis thin_limit
 	tidak berubah, garis setebal thick_limit ke atas bertambah penuh
@@ -891,7 +891,7 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 		if not selected:
 			return 0
 	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
-		keep_sidebearings, zones, selected, weights=weights, measure=measure)
+		keep_sidebearings, zones, selected, weights=weights, measure=measure, protect=protect)
 	moved = 0
 	for p, pts in zip(layer.paths, res["pts"]):
 		for n, (x, y) in zip(p.nodes, pts):
@@ -908,7 +908,7 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 
 def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=None,
 		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True,
-		mode="uniform", thin_limit=None, thick_limit=None):
+		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT):
 	"""Isi master target (atau master baru `name`) dengan salinan master
 	sumber yang ditebalkan/ditipiskan. target == src berarti diubah di tempat.
 	Hasil: (master, jumlah glyph diubah)."""
@@ -938,7 +938,7 @@ def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=No
 		layer = s if target is src else _put_layer(g, target.id, s)
 		if not layer.paths and layer.components:
 			composites.append(layer)
-		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones, False, mode, thin_limit, thick_limit):
+		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones, False, mode, thin_limit, thick_limit, protect):
 			done += 1
 	# Glyph yang hanya berisi komponen: lebar ikut glyph dasarnya, komponen
 	# berikutnya (aksen) digeser setengahnya agar tetap di tengah.

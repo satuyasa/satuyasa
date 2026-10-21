@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.3.1"
+VS_VERSION = "1.4.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -634,9 +634,78 @@ def point_in_polygon(pt, poly):
 	return inside
 
 
-def _corner_vector(pts, i, closed, clamp):
+def _redistribute_tangential(paths, vecs):
+	"""Titik halus ikut bergeser sepanjang garis singgungnya, sebanding dengan
+	posisinya di antara dua titik on-curve tetangga. Saat counter menyempit
+	(mis. counter n di bobot Black), puncaknya ikut ke tengah dan lengkung
+	tidak terlipat; pada bentuk simetris (o) hasilnya tidak berubah."""
+	base = dict(vecs)
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		on = [k for k in range(n) if types[k] != "offcurve"]
+		if not closed or len(on) < 3:
+			continue
+		for j, i in enumerate(on):
+			if (pi, i) not in base:
+				continue
+			tin = _neighbor_dir(pts, i, -1, True)
+			tout = _neighbor_dir(pts, i, 1, True)
+			if not tin or not tout or tin[0] * tout[0] + tin[1] * tout[1] > -0.99:
+				continue  # bukan titik halus
+			a, b = on[j - 1], on[(j + 1) % len(on)]
+			if (pi, a) not in base or (pi, b) not in base:
+				continue
+			A, B, P = pts[a], pts[b], pts[i]
+			ab = (B[0] - A[0], B[1] - A[1])
+			ll = ab[0] * ab[0] + ab[1] * ab[1]
+			if ll < 1e-9:
+				continue
+			rel = max(0.0, min(1.0, ((P[0] - A[0]) * ab[0] + (P[1] - A[1]) * ab[1]) / ll))
+			T = tout
+			da = base[(pi, a)][0] * T[0] + base[(pi, a)][1] * T[1]
+			db = base[(pi, b)][0] * T[0] + base[(pi, b)][1] * T[1]
+			v = vecs[(pi, i)]
+			cur = v[0] * T[0] + v[1] * T[1]
+			want = da * (1 - rel) + db * rel
+			vecs[(pi, i)] = (v[0] + (want - cur) * T[0], v[1] + (want - cur) * T[1])
+
+
+def _notch_depth(pts, types, i, side, grow):
+	"""Kedalaman lekuk bila titik i ujung baji putih yang lancip (sudut
+	cekung < 90 derajat saat menebal, cembung saat menipis): jarak dari titik
+	ke garis mulut baji (antara titik on-curve tetangga), diukur sepanjang
+	garis-bagi. None bila bukan lekuk lancip."""
+	n = len(pts)
+	tin = _neighbor_dir(pts, i, -1, True)
+	tout = _neighbor_dir(pts, i, 1, True)
+	if not tin or not tout:
+		return None
+	t1 = (-tin[0], -tin[1])
+	turn = t1[0] * tout[1] - t1[1] * tout[0]
+	concave = turn * side < -1e-9
+	if concave != (grow > 0):
+		return None
+	# sudut antara kedua sisi (dari titik ke tetangga) lebih lancip dari 90 derajat
+	if tin[0] * tout[0] + tin[1] * tout[1] <= 1e-6:
+		return None
+	on = [k for k in range(n) if types[k] != "offcurve"]
+	if len(on) < 3:
+		return None
+	j = on.index(i)
+	a, b = pts[on[j - 1]], pts[on[(j + 1) % len(on)]]
+	bis = _unit(tin[0] + tout[0], tin[1] + tout[1])
+	if bis is None:
+		return None
+	hit = _ray_hit(pts[i], bis, [(a[0], a[1], b[0], b[1])], eps=0.0)
+	return hit
+
+
+def _corner_vector(pts, i, closed, clamp, notch_clamp=None, side=1.0, grow=1.0):
 	"""Vektor geser (panjang 1 di sisi lurus) ke kanan arah jalan path;
-	di sudut dipakai miter agar kedua sisi bergeser sama jauh."""
+	di sudut dipakai miter agar kedua sisi bergeser sama jauh. Sudut yang
+	akan masuk ke ruang putih (sudut cekung saat menebal, cembung saat
+	menipis, mis. lekuk sambungan bahu n) dibatasi notch_clamp supaya
+	lekuknya tetap ada dan titiknya tidak terlempar."""
 	normals = []
 	tin = _neighbor_dir(pts, i, -1, closed)
 	tout = _neighbor_dir(pts, i, 1, closed)
@@ -654,9 +723,170 @@ def _corner_vector(pts, i, closed, clamp):
 		return (ax, ay)
 	mx, my = (ax + bx) / (1 + dot), (ay + by) / (1 + dot)
 	l = math.hypot(mx, my)
-	if l > clamp:
-		mx, my = mx * clamp / l, my * clamp / l
+	limit = clamp
+	if notch_clamp is not None and tin and tout:
+		t1 = (-tin[0], -tin[1])
+		turn = t1[0] * tout[1] - t1[1] * tout[0]
+		# side > 0: kanan arah jalan = luar tinta; sudut cekung = belok kanan
+		concave = turn * side < -1e-9
+		if concave == (grow > 0):
+			# sudut siku (miter sqrt 2) tetap utuh; hanya sudut yang lebih
+			# lancip yang dibatasi
+			limit = min(clamp, max(notch_clamp, 1.4143))
+	if l > limit:
+		mx, my = mx * limit / l, my * limit / l
 	return (mx, my)
+
+
+def _flat_lines(paths, max_piece=20.0, meta=None):
+	"""Potongan garis semua kontur. meta (list) diisi (path, node a, node b,
+	t awal, t akhir) per potongan bila diberikan."""
+	lines = []
+	for pi, a, b, ctrl in path_curves(paths):
+		length = sum(math.hypot(q[0] - p[0], q[1] - p[1]) for p, q in zip(ctrl, ctrl[1:]))
+		k = 1 if len(ctrl) == 2 else max(8, int(math.ceil(length / max_piece)))
+		prev = ctrl[0]
+		for j in range(1, k + 1):
+			q = _bez(ctrl, j / float(k))
+			lines.append((prev[0], prev[1], q[0], q[1]))
+			if meta is not None:
+				meta.append((pi, a, b, (j - 1) / float(k), j / float(k)))
+			prev = q
+	return lines
+
+
+def _ray_hit_info(p, d, lines, eps=1.0):
+	"""Seperti _ray_hit, tapi juga mengembalikan indeks potongan & posisi u."""
+	best = None
+	px, py = p
+	dx, dy = d
+	for idx, (x1, y1, x2, y2) in enumerate(lines):
+		ex, ey = x2 - x1, y2 - y1
+		den = dx * ey - dy * ex
+		if abs(den) < 1e-12:
+			continue
+		t = ((x1 - px) * ey - (y1 - py) * ex) / den
+		if t <= eps or (best is not None and t >= best[0]):
+			continue
+		u = ((x1 - px) * dy - (y1 - py) * dx) / den
+		if -1e-9 <= u <= 1 + 1e-9:
+			best = (t, idx, u)
+	return best
+
+
+def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_stroke=4.0):
+	"""Batasi geseran supaya bentuk tidak rusak di bobot ekstrem (ubah vecs).
+	- Menebal: sisi yang menghadap ruang putih tertutup (counter, mata e,
+	  celah antar stem, aperture) hanya boleh memakan celah sampai tersisa
+	  gap_ratio (min. min_gap unit); celah dibagi dua sisi. Kekurangannya
+	  diambil alih sisi seberang goresan (biasanya sisi luar): tiap titik di
+	  sana melihat titik yang ditembus sinarnya di sisi counter dan mengambil
+	  kekurangan di situ (diinterpolasi sepanjang segmen), jadi sisi stem
+	  tetap sejajar dan tebal yang diminta tercapai; huruf melebar.
+	- Menipis: goresan tidak boleh lebih tipis dari min_stroke."""
+	polys = [list(p[2]) for p in paths]
+	meta = []
+	lines = _flat_lines(paths, meta=meta)
+	if not lines:
+		return
+	ons = [((pi, i), pts[i]) for pi, (closed, types, pts) in enumerate(paths) if closed
+		for i in range(len(pts)) if types[i] != "offcurve"]
+	rays = {}
+	for (pi, i), p in ons:
+		closed, types, pts = paths[pi]
+		if (pi, i) not in vecs:
+			continue
+		side = path_side(polys, pi)
+		dirs = []
+		tin = _neighbor_dir(pts, i, -1, closed)
+		tout = _neighbor_dir(pts, i, 1, closed)
+		if tin:
+			dirs.append((-tin[1] * side, tin[0] * side))
+		if tout:
+			dirs.append((tout[1] * side, -tout[0] * side))
+		if len(dirs) == 2 and dirs[0][0] * dirs[1][0] + dirs[0][1] * dirs[1][1] > 0.98:
+			dirs = [dirs[0]]
+		out_rays = []
+		for out in dirs:
+			start = (p[0] + out[0] * 0.5, p[1] + out[1] * 0.5)
+			gap = _ray_hit(start, out, lines, eps=0.5)
+			back = _ray_hit_info(p, (-out[0], -out[1]), lines, eps=0.5)
+			out_rays.append((out, gap, back))
+		rays[(pi, i)] = out_rays
+
+	# 1) batasi tiap titik; catat kekurangan (deficit) per arah
+	deficit = {}
+	for key, out_rays in rays.items():
+		for out, gap, back in out_rays:
+			vx, vy = vecs[key]
+			grow = vx * out[0] + vy * out[1]  # + = menebal ke arah luar tinta
+			if grow > 0 and gap is not None:
+				limit = max(0.0, (gap - max(min_gap, gap_ratio * gap)) / 2.0)
+				if grow > limit:
+					ex = grow - limit
+					vecs[key] = (vx - out[0] * ex, vy - out[1] * ex)
+					deficit.setdefault(key, []).append((out, ex))
+			elif grow < 0 and back is not None:
+				limit = max(0.0, (back[0] - min_stroke) / 2.0)
+				if -grow > limit:
+					ex = -grow - limit
+					vecs[key] = (vx + out[0] * ex, vy + out[1] * ex)
+	if not deficit:
+		return
+
+	def deficit_at(key, direction):
+		"""kekurangan titik key yang arahnya berlawanan dengan direction"""
+		best = 0.0
+		for out, ex in deficit.get(key, []):
+			if out[0] * direction[0] + out[1] * direction[1] < -0.5:
+				best = max(best, ex)
+		return best
+
+	# 2) sisi seberang mengambil alih kekurangan di titik yang ditembusnya
+	add = {}
+	for key, out_rays in rays.items():
+		for out, gap, back in out_rays:
+			if back is None:
+				continue
+			dist, idx, u = back
+			pi, a, b, t0, t1 = meta[idx]
+			t = t0 + (t1 - t0) * u
+			ex = deficit_at((pi, a), out) * (1 - t) + deficit_at((pi, b), out) * t
+			if ex <= 1e-9:
+				continue
+			tx, ty = out[0] * ex, (0.0 if key in pins else out[1] * ex)
+			ox, oy = add.get(key, (0.0, 0.0))
+			add[key] = (tx if abs(tx) > abs(ox) else ox, ty if abs(ty) > abs(oy) else oy)
+	# sisi lurus tetap lurus: dua ujung segmen garis menerima pindahan yang
+	# sama searah normal segmen itu (ambil yang terkecil)
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		if not closed:
+			continue
+		side = path_side(polys, pi)
+		for b in range(n):
+			a = (b - 1) % n
+			if types[b] != "line" or types[a] == "offcurve":
+				continue
+			u = _unit(pts[b][0] - pts[a][0], pts[b][1] - pts[a][1])
+			if u is None:
+				continue
+			nrm = (u[1] * side, -u[0] * side)
+			ka, kb = (pi, a), (pi, b)
+			pa = add.get(ka, (0.0, 0.0))
+			pb = add.get(kb, (0.0, 0.0))
+			ga = pa[0] * nrm[0] + pa[1] * nrm[1]
+			gb = pb[0] * nrm[0] + pb[1] * nrm[1]
+			if abs(ga - gb) < 1e-6:
+				continue
+			low = min(ga, gb)
+			for key, g, cur in ((ka, ga, pa), (kb, gb, pb)):
+				if g > low:
+					cut = g - low
+					add[key] = (cur[0] - nrm[0] * cut, cur[1] - nrm[1] * cut)
+	for key, (tx, ty) in add.items():
+		vx, vy = vecs[key]
+		vecs[key] = (vx + tx, vy + ty)
 
 
 def _fit_cubic_offset(ctrl, na, nb, s):
@@ -737,7 +967,8 @@ def path_side(polys, pi):
 	return 1.0 if (signed_area(pts) > 0) == (depth % 2 == 0) else -1.0
 
 
-def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=None):
+def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=None, protect=None,
+		notch_clamp=1.0):
 	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
 	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
 	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
@@ -747,6 +978,7 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 	pins: {(path, node): titik seberang atau None} dari zone_pins(): titik
 	ini tidak bergeser vertikal, geser vertikalnya dipindahkan ke titik
 	seberang goresan (jadi goresan tetap bertambah penuh, tumbuh ke dalam).
+	protect: dict(gap_ratio, min_gap, min_stroke) -> lihat protect_space().
 	Hasil: list pts baru per path."""
 	polys = [list(pts) for _, _, pts in paths]
 	vecs = {}
@@ -760,9 +992,17 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 			if selected is not None and (pi, i) not in selected:
 				vecs[(pi, i)] = (0.0, 0.0)
 				continue
-			mx, my = _corner_vector(pts, i, closed, clamp)
+			mx, my = _corner_vector(pts, i, closed, clamp, notch_clamp, s, dx + dy)
 			wx, wy = weights.get((pi, i), (1.0, 1.0)) if weights else (1.0, 1.0)
-			vecs[(pi, i)] = (mx * dx * s * wx, my * dy * s * wy)
+			vx, vy = mx * dx * s * wx, my * dy * s * wy
+			depth = _notch_depth(pts, types, i, s, dx + dy)
+			if depth is not None:
+				# ujung lekuk lancip (sambungan bahu n/m/h ke stem): geser paling
+				# jauh setengah kedalaman lekuk, jadi lekuknya mengecil tapi tetap ada
+				l = math.hypot(vx, vy)
+				if l > 0.5 * depth:
+					vx, vy = vx * 0.5 * depth / l, vy * 0.5 * depth / l
+			vecs[(pi, i)] = (vx, vy)
 	if pins:
 		extra = {}
 		for key, target in pins.items():
@@ -774,6 +1014,10 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 				extra[target] = -vy
 		for key, ey in extra.items():
 			vecs[key] = (vecs[key][0], vecs[key][1] + ey)
+	if protect and selected is None:
+		protect_space(paths, vecs, pins or {}, clamp, **protect)
+	if selected is None:
+		_redistribute_tangential(paths, vecs)
 	out = []
 	for pi, (closed, types, pts) in enumerate(paths):
 		pts = [(float(x), float(y)) for x, y in pts]
@@ -901,8 +1145,11 @@ def zone_limits(paths, pins):
 	return out
 
 
+DEFAULT_PROTECT = {"gap_ratio": 0.2, "min_gap": 8.0, "min_stroke": 4.0}
+
+
 def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
-		selected=None, tolerance=25.0, weights=None, measure=None):
+		selected=None, tolerance=25.0, weights=None, measure=None, protect=DEFAULT_PROTECT):
 	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
 	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
 	...); titik yang menempel padanya tidak bergeser vertikal dan goresannya
@@ -910,7 +1157,7 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 	anchor(x, y) -> (x, y)."""
 	old = [list(p[2]) for p in paths]
 	pins = zone_pins(paths, zones, tolerance, measure) if (zones and selected is None) else None
-	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights, pins=pins)
+	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights, pins=pins, protect=protect)
 	if pins:
 		for limit, top in zone_limits(paths, pins):
 			for pi, pts in enumerate(new):
@@ -2179,7 +2426,7 @@ def measure_layer(layer, decompose=True):
 
 
 def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False,
-		mode="uniform", thin_limit=None, thick_limit=None):
+		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT):
 	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
 	jumlah atau urutan titik. mode 'keepthin': garis setipis thin_limit
 	tidak berubah, garis setebal thick_limit ke atas bertambah penuh
@@ -2199,7 +2446,7 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 		if not selected:
 			return 0
 	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
-		keep_sidebearings, zones, selected, weights=weights, measure=measure)
+		keep_sidebearings, zones, selected, weights=weights, measure=measure, protect=protect)
 	moved = 0
 	for p, pts in zip(layer.paths, res["pts"]):
 		for n, (x, y) in zip(p.nodes, pts):
@@ -2216,7 +2463,7 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 
 def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=None,
 		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True,
-		mode="uniform", thin_limit=None, thick_limit=None):
+		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT):
 	"""Isi master target (atau master baru `name`) dengan salinan master
 	sumber yang ditebalkan/ditipiskan. target == src berarti diubah di tempat.
 	Hasil: (master, jumlah glyph diubah)."""
@@ -2246,7 +2493,7 @@ def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=No
 		layer = s if target is src else _put_layer(g, target.id, s)
 		if not layer.paths and layer.components:
 			composites.append(layer)
-		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones, False, mode, thin_limit, thick_limit):
+		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones, False, mode, thin_limit, thick_limit, protect):
 			done += 1
 	# Glyph yang hanya berisi komponen: lebar ikut glyph dasarnya, komponen
 	# berikutnya (aksen) digeser setengahnya agar tetap di tengah.
@@ -2357,7 +2604,7 @@ class VariableStudioWindow(object):
 		self.point_columns = None
 		self.plan = []
 
-		self.w = Window((720, 640), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
+		self.w = Window((720, 680), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
 		self.w.tabs = Tabs((10, 10, -10, -10), ["Titik", "Axis & Master", "Style", "Italic", "Master Baru", "Pratinjau", "Tebal / Tipis"])
 		self._build_points(self.w.tabs[0])
 		self._build_axes(self.w.tabs[1])
@@ -3044,37 +3291,41 @@ class VariableStudioWindow(object):
 		t.addY = EditText((420, 42, 70, 22), "30")
 		t.keepSB = CheckBox((10, 70, 230, 20), "Pertahankan sidebearing", value=True)
 		t.keepH = CheckBox((240, 70, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
-		t.modeLabel = TextBox((10, 100, 60, 17), "Mode")
-		t.mode = PopUpButton((70, 98, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
-		t.loLabel = TextBox((10, 130, 110, 17), "Garis tipis ≤")
-		t.lo = EditText((120, 128, 60, 22), "", placeholder="auto")
-		t.hiLabel = TextBox((190, 130, 110, 17), "Garis tebal ≥")
-		t.hi = EditText((300, 128, 60, 22), "", placeholder="auto")
-		t.scan = Button((-200, 127, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
-		t.summary = TextBox((10, 156, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
+		t.protect = CheckBox((10, 96, 240, 20), "Lindungi counter: sisakan ≥", value=True)
+		t.gapPct = EditText((250, 94, 45, 22), "20")
+		t.gapLabel = TextBox((300, 97, 120, 17), "%  ·  tebal min")
+		t.minStroke = EditText((420, 94, 45, 22), "4")
+		t.modeLabel = TextBox((10, 126, 60, 17), "Mode")
+		t.mode = PopUpButton((70, 124, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
+		t.loLabel = TextBox((10, 156, 110, 17), "Garis tipis ≤")
+		t.lo = EditText((120, 154, 60, 22), "", placeholder="auto")
+		t.hiLabel = TextBox((190, 156, 110, 17), "Garis tebal ≥")
+		t.hi = EditText((300, 154, 60, 22), "", placeholder="auto")
+		t.scan = Button((-200, 153, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
+		t.summary = TextBox((10, 182, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
 			sizeStyle="small")
-		t.line = HorizontalLine((10, 194, -10, 1))
-		t.lLabel = TextBox((10, 202, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
-		t.selOnly = CheckBox((310, 200, -10, 20), "Hanya titik terpilih")
-		t.m10 = Button((10, 224, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
-		t.m2 = Button((76, 224, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
-		t.p2 = Button((132, 224, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
-		t.p10 = Button((188, 224, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
-		t.apply = Button((260, 224, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
-		t.line2 = HorizontalLine((10, 256, -10, 1))
-		t.sLabel = TextBox((10, 266, 80, 17), "Sumber")
-		t.src = PopUpButton((90, 264, 200, 22), [], callback=lambda s: self.on_weight_target())
-		t.tLabel = TextBox((310, 266, 60, 17), "Hasil ke")
-		t.target = PopUpButton((370, 264, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
-		t.nLabel = TextBox((10, 296, 80, 17), "Nama")
-		t.name = EditText((90, 294, 200, 22), "Bold")
-		t.aLabel = TextBox((310, 296, 60, 17), "Axis")
-		t.axis = PopUpButton((370, 294, 150, 22), [], callback=lambda s: self.on_weight_target())
-		t.value = EditText((530, 294, -10, 22), "", placeholder="nilai")
-		t.glyphSel = CheckBox((10, 322, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
-		t.kern = CheckBox((340, 322, -10, 20), "Salin kerning ke master baru", value=True)
-		t.make = Button((10, 348, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
-		t.results = List((10, 380, -10, -34), [], columnDescriptions=[
+		t.line = HorizontalLine((10, 220, -10, 1))
+		t.lLabel = TextBox((10, 228, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
+		t.selOnly = CheckBox((310, 226, -10, 20), "Hanya titik terpilih")
+		t.m10 = Button((10, 250, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
+		t.m2 = Button((76, 250, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
+		t.p2 = Button((132, 250, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
+		t.p10 = Button((188, 250, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
+		t.apply = Button((260, 250, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
+		t.line2 = HorizontalLine((10, 282, -10, 1))
+		t.sLabel = TextBox((10, 292, 80, 17), "Sumber")
+		t.src = PopUpButton((90, 290, 200, 22), [], callback=lambda s: self.on_weight_target())
+		t.tLabel = TextBox((310, 292, 60, 17), "Hasil ke")
+		t.target = PopUpButton((370, 290, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
+		t.nLabel = TextBox((10, 322, 80, 17), "Nama")
+		t.name = EditText((90, 320, 200, 22), "Bold")
+		t.aLabel = TextBox((310, 322, 60, 17), "Axis")
+		t.axis = PopUpButton((370, 320, 150, 22), [], callback=lambda s: self.on_weight_target())
+		t.value = EditText((530, 320, -10, 22), "", placeholder="nilai")
+		t.glyphSel = CheckBox((10, 348, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
+		t.kern = CheckBox((340, 348, -10, 20), "Salin kerning ke master baru", value=True)
+		t.make = Button((10, 374, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
+		t.results = List((10, 406, -10, -34), [], columnDescriptions=[
 			{"title": "Glyph", "key": "name", "width": 130}, {"title": "Tertipis", "key": "thin", "width": 70},
 			{"title": "Tertebal", "key": "thick", "width": 70}, {"title": "Kontras", "key": "ratio", "width": 70},
 			{"title": "Tegak (min-max)", "key": "v"}, {"title": "Datar (min-max)", "key": "h"}],
@@ -3082,6 +3333,13 @@ class VariableStudioWindow(object):
 		t.status = TextBox((10, -26, -10, 17), "", sizeStyle="small")
 		t.lo.enable(False)
 		t.hi.enable(False)
+
+	def _weight_protect(self):
+		t = self.w.tabs[6]
+		if not t.protect.get():
+			return None
+		return {"gap_ratio": max(0.0, _num(t.gapPct.get(), 20)) / 100.0, "min_gap": 8.0,
+			"min_stroke": max(0.0, _num(t.minStroke.get(), 4))}
 
 	def _weight_mode(self):
 		return CONTRAST_MODES[self.w.tabs[6].mode.get()][0]
@@ -3180,7 +3438,7 @@ class VariableStudioWindow(object):
 		try:
 			lo, hi = self._weight_limits()
 			moved = embolden_layer(layer, add_x, add_y, bool(t.keepSB.get()), self._layer_zones(layer),
-				bool(t.selOnly.get()), self._weight_mode(), lo, hi)
+				bool(t.selOnly.get()), self._weight_mode(), lo, hi, self._weight_protect())
 		finally:
 			glyph.endUndo()
 		if not moved and t.selOnly.get():
@@ -3218,7 +3476,7 @@ class VariableStudioWindow(object):
 		with _Batch(font):
 			m, done = embolden_master(font, src, add_x, add_y, target, name, axis_idx, axis_value,
 				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()),
-				self._weight_mode(), lo, hi)
+				self._weight_mode(), lo, hi, self._weight_protect())
 		t.status.set("Master %s: %d glyph diubah. Cek di tab Titik > Cek seluruh font." % (m.name, done))
 		self._changed()
 

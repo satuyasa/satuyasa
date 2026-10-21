@@ -595,6 +595,60 @@ def test_width_view():
 	Glyphs.defaults.clear()
 
 
+def test_extreme_weights():
+	"""Thin -> Black ekstrem: tidak ada goresan/counter terbalik, counter
+	tersisa >= 20%, stem tetap tegak, lekuk bahu tetap ada."""
+	k = 0.5523
+
+	def ovp(cx, cy, rx, ry, cw=False):
+		p = [((cx + rx, cy + ry * k), "offcurve"), ((cx + rx * k, cy + ry), "offcurve"), ((cx, cy + ry), "curve"),
+			((cx - rx * k, cy + ry), "offcurve"), ((cx - rx, cy + ry * k), "offcurve"), ((cx - rx, cy), "curve"),
+			((cx - rx, cy - ry * k), "offcurve"), ((cx - rx * k, cy - ry), "offcurve"), ((cx, cy - ry), "curve"),
+			((cx + rx * k, cy - ry), "offcurve"), ((cx + rx, cy - ry * k), "offcurve"), ((cx + rx, cy), "curve")]
+		t = [a[1] for a in p]
+		q = [a[0] for a in p]
+		if cw:
+			q, t = q[::-1], t[::-1]
+		return (True, t, q)
+	zones = [0, 500, 700]
+	o = [ovp(280, 250, 250, 260), ovp(280, 250, 180, 236, True)]
+	e = [ovp(260, 250, 230, 260), ovp(260, 330, 160, 110, True)]
+	nt = ["line", "line", "line", "offcurve", "offcurve", "curve", "offcurve", "offcurve", "curve", "line", "line",
+		"line", "offcurve", "offcurve", "curve", "offcurve", "offcurve", "curve", "line", "line"]
+	npts = [(40, 0), (110, 0), (110, 390), (130, 440), (185, 462), (235, 462), (285, 462), (300, 430), (300, 400),
+		(300, 0), (370, 0), (370, 410), (370, 480), (330, 510), (265, 510), (185, 510), (135, 480), (110, 450),
+		(110, 500), (40, 500)]
+	n = [(True, nt, npts)]
+	for paths, w in ((o, 560), (e, 520), (n, 420)):
+		for ax, ay in ((-60, -30), (150, 100), (250, 160)):
+			r = P.embolden(paths, w, ax, ay, True, zones)
+			for (c, t, src), new in zip(paths, r["pts"]):
+				assert (P.signed_area(new) > 0) == (P.signed_area(src) > 0), (ax, "kontur terbalik")
+	# o tipis: hairline 24 - 30 tidak boleh terbalik, tersisa >= tebal min
+	r = P.embolden(o, 560, -60, -30, True, zones)
+	sm = P.thickness_summary(P.measure_paths([(c, t, p) for (c, t, _), p in zip(o, r["pts"])]))
+	assert sm["all"][0] >= 4 - 1e-6, sm
+	# n hitam: counter tersisa >= 20% dari 190, stem kiri tegak lurus, lekuk masih ada
+	r = P.embolden(n, 420, 150, 100, True, zones)
+	q = r["pts"][0]
+	polys, roles = P.flatten_contours([(True, nt, q)])
+	gaps = [b - a for a, b, on in P.scanline_runs(polys, roles, 250) if not on]
+	assert gaps and gaps[0] >= 0.2 * 190 - 1e-6, gaps
+	assert abs(q[0][0] - q[19][0]) < 1e-6 and abs(q[1][0] - q[2][0]) < 1e-6  # sisi stem lurus
+	assert q[17][1] < q[18][1] - 1, (q[17], q[18])  # lekuk bahu (titik 17) masih di bawah atas stem
+	# tanpa perlindungan counter n habis -> perlindungan memang bekerja
+	r0 = P.embolden(n, 420, 250, 160, True, zones, protect=None)
+	r1 = P.embolden(n, 420, 250, 160, True, zones)
+	def gap(pts):
+		pl, ro = P.flatten_contours([(True, nt, pts)])
+		g = [b - a for a, b, on in P.scanline_runs(pl, ro, 250) if not on]
+		return g[0] if g else 0
+	# tanpa perlindungan sisi dalam stem kiri (1) melewati sisi dalam stem kanan (9)
+	assert r0["pts"][0][1][0] > r0["pts"][0][9][0]
+	assert r1["pts"][0][9][0] - r1["pts"][0][1][0] >= 0.2 * 190 - 1e-6 and gap(r1["pts"][0]) >= 37
+	assert r1["width"] > r0["width"]  # sisa tebal dipindah ke luar: huruf melebar
+
+
 if __name__ == "__main__":
 	n = 0
 	for name, fn in sorted(globals().items()):

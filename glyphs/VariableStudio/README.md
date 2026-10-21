@@ -44,6 +44,12 @@ Dua plugin yang dipakai bersama:
 - Handle kurva: arah tetap (titik halus tetap halus); panjangnya dihitung ulang supaya titik tengah lengkung jatuh tepat di posisi offset sejatinya (geser tegak lurus, tebal tegak & datar dicampur sesuai kemiringan, termasuk efek bobot kontras dan titik zona yang dipegang). Jadi bagian diagonal busur ikut menebal sebanding, tidak tertinggal.
 - **Glyph yang sedang dibuka**: tombol −10 / −2 / +2 / +10 atau nilai isian, bisa di-Undo. Centang *Hanya titik terpilih* untuk menebalkan satu stem saja.
 - **Satu master sekaligus**: sumber (mis. Light) → *Master baru* (nama + nilai axis, otomatis = nilai sumber + tambahan) atau ke master yang sudah ada (mis. Bold yang masih salinan Light). Glyph komposit ikut menyesuaikan lebar dan posisi aksen; kerning disalin.
+- **Bobot ekstrem (Thin ↔ Black)** – *Lindungi counter* (bawaan aktif):
+  - Sisi yang menghadap ruang putih tertutup (counter, mata e, celah antar stem, aperture) hanya boleh memakan celah sampai tersisa minimal 20% (bisa diubah). Kekurangannya diambil alih sisi seberang goresan, jadi tebal yang diminta tetap tercapai dan huruf melebar seperti Black sungguhan.
+  - Goresan tidak bisa lebih tipis dari *tebal min* (bawaan 4 unit), jadi Thin tidak membalik hairline.
+  - Sisi lurus (stem) tetap lurus dan sejajar.
+  - Ujung lekuk lancip (sambungan bahu n/m/h ke stem) bergeser paling jauh setengah kedalaman lekuk, jadi lekuknya mengecil tapi tetap ada.
+  - Titik halus ikut bergeser sepanjang garis singgungnya sebanding posisinya, jadi puncak counter yang menyempit ikut ke tengah dan lengkung tidak terlipat.
 - **Scan ketebalan**: mengukur tebal garis di setiap segmen semua glyph di master sumber (sinar tegak lurus ke dalam tinta, diambil lebar melintangnya, jadi ujung stem terukur selebar stem). Hasil: garis tertipis & tertebal (beserta glyph-nya), daftar per glyph (tertipis, tertebal, kontras, tegak/datar), dan batas otomatis dari huruf a–z, A–Z, 0–9. Klik dua kali untuk membuka glyph. Kontur bertumpuk (belum Remove Overlap) diukur sebagai gabungan tinta.
 - **Mode**:
   - *Rata*: semua garis bertambah sama.
