@@ -6,7 +6,7 @@
 from __future__ import division, print_function, unicode_literals
 import math
 
-VS_VERSION = "1.5.0"
+VS_VERSION = "1.5.1"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -691,8 +691,8 @@ def stabilize_terminals(paths, vecs, pins, max_len=40.0):
 
 
 def _redistribute_tangential(paths, vecs):
-	"""Titik halus ikut bergeser sepanjang garis singgungnya, sebanding dengan
-	posisinya di antara dua titik on-curve tetangga. Saat counter menyempit
+	"""Titik halus yang akan keluar dari rentang kedua tetangganya digeser
+	sepanjang garis singgungnya, sebanding posisinya di antara mereka. Saat counter menyempit
 	(mis. counter n di bobot Black), puncaknya ikut ke tengah dan lengkung
 	tidak terlipat; pada bentuk simetris (o) hasilnya tidak berubah."""
 	base = dict(vecs)
@@ -722,6 +722,15 @@ def _redistribute_tangential(paths, vecs):
 			db = base[(pi, b)][0] * T[0] + base[(pi, b)][1] * T[1]
 			v = vecs[(pi, i)]
 			cur = v[0] * T[0] + v[1] * T[1]
+			# hanya bila titik akan keluar dari rentang kedua tetangganya
+			# (lengkung terlipat); selain itu bentuk lengkung dibiarkan
+			pa = A[0] * T[0] + A[1] * T[1] + da
+			pb = B[0] * T[0] + B[1] * T[1] + db
+			pp = P[0] * T[0] + P[1] * T[1] + cur
+			lo, hi = min(pa, pb), max(pa, pb)
+			margin = 0.1 * (hi - lo)
+			if lo + margin <= pp <= hi - margin:
+				continue
 			want = da * (1 - rel) + db * rel
 			vecs[(pi, i)] = (v[0] + (want - cur) * T[0], v[1] + (want - cur) * T[1])
 
