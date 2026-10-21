@@ -550,6 +550,44 @@ def test_curve_audit():
 	assert max(y for _, y in r["pts"][0]) <= 510 + 1e-6 and min(y for _, y in r["pts"][0]) >= -1e-6
 
 
+def test_width_view():
+	H = [(True, ["line"] * 4, [(50, 0), (150, 0), (150, 700), (50, 700)]),
+		(True, ["line"] * 4, [(420, 0), (520, 0), (520, 700), (420, 700)]),
+		(True, ["line"] * 4, [(50, 335), (520, 335), (520, 355), (50, 355)])]
+	polys, roles = P.flatten_contours(H)
+	assert P.scanline_runs(polys, roles, 200) == [(50, 150, True), (150, 420, False), (420, 520, True)]
+	assert P.scanline_runs(polys, roles, 345) == [(50, 520, True)]  # kontur bertumpuk digabung
+	assert P.scanline_runs(polys, roles, 285, True) == [(335, 355, True)]
+	assert P.scanline_runs(polys, roles, 900) == []
+	assert P.parse_heights("x/2, H/2, 300, x*0.25", {"x": 500, "H": 700}) == [250, 350, 300, 125]
+	m = P.measure_paths(H)
+	chosen = P.label_positions(m["samples"], 34)
+	assert chosen and all(abs(a[0] - b[0]) + abs(a[1] - b[1]) > 0 for a, b in zip(chosen, chosen[1:]))
+	assert not any(c[2].get("terminal") for c in chosen)
+	blocked = P.label_positions(m["samples"], 34, [(c[0], c[1]) for c in chosen])
+	assert blocked == []  # semua posisi sudah terisi -> tidak ada label bertumpuk
+	# reporter: kotak angka tanpa kursor
+	f = make_font()
+	l = f.glyphs["H"].layers[f.masters[0].id]
+	l.paths = [rect(50, 0, 150, 700), rect(420, 0, 520, 700), rect(50, 335, 520, 355)]
+	l.width = 570
+	Glyphs.defaults.clear()
+	for k in ("showWidthLabels", "showScanH", "showScanV"):
+		R.pref_set(k, 1)
+	R.pref_set("showIDs", 0)
+	R.pref_set("scanHeights", "200")
+	R.ReporterPlugin.texts[:] = []
+	rep = R.VariableStudioReporter()
+	rep.foreground(l)
+	labels = [t for t, _ in R.ReporterPlugin.texts]
+	for want in ("100", "270", "20", "50"):  # stem, counter, palang, sidebearing kiri/kanan
+		assert want in labels, (want, labels)
+	R.ReporterPlugin.texts[:] = []
+	rep.foreground(l)  # dari cache, hasil sama
+	assert sorted(t for t, _ in R.ReporterPlugin.texts) == sorted(labels)
+	Glyphs.defaults.clear()
+
+
 if __name__ == "__main__":
 	n = 0
 	for name, fn in sorted(globals().items()):

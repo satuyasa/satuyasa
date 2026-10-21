@@ -53,6 +53,13 @@ Dua plugin yang dipakai bersama:
 - Reporter: centang *Ukuran tebal garis* di tab Pratinjau untuk melihat garis ukur di Edit View (biru = tipis, merah = tebal, angka di tertipis & tertebal).
 - Hasilnya titik awal yang baik; sudut tajam, sambungan stem, dan counter kecil tetap perlu dirapikan.
 
+**Ukuran lebar tanpa kursor** (tab Pratinjau, digambar reporter dan selalu tampil, ikut berubah saat titik digeser):
+- *Label lebar di setiap goresan*: kotak angka tebal goresan di setiap segmen, dengan garis ukur melintang. Label yang berdekatan tidak ditumpuk.
+- *Garis ukur mendatar di*: garis putus-putus di ketinggian pilihan (bawaan `x/2, H/2`; bisa `x`, `H`, `a`, `d`, angka, `/n`, `*f`, dipisah koma). Setiap goresan yang terpotong diberi angka lebarnya.
+- *Garis ukur tegak di tengah glyph*: tebal goresan datar (atas/bawah o, palang H, dll.).
+- *Jarak putih*: counter dan sidebearing kiri/kanan di garis ukur (kotak biru).
+- Komponen dipecah dulu dan kontur bertumpuk diukur sebagai satu tinta.
+
 ## Alur Thin → Black + Italic
 
 1. Siapkan master (minimal dua, mis. Light dan Bold) dengan axis Weight.

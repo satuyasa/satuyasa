@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.2.1"
+VS_VERSION = "1.3.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -1156,6 +1156,101 @@ def contrast_weights(measure, lo, hi, mode):
 		hx, hy = hold.get(key, (False, False))
 		out[key] = (0.0 if hx else contrast_factor(tx, lo, hi, mode), 0.0 if hy else contrast_factor(ty, lo, hi, mode))
 	return out
+
+
+# ---------------------------------------------------------------------------
+# Garis ukur tetap (lebar goresan di ketinggian / posisi tertentu)
+
+def flatten_contours(paths, max_piece=20.0):
+	"""Poligon per kontur tertutup + perannya (+1 luar, -1 counter)."""
+	pieces = {}
+	for pi, a, b, ctrl in path_curves(paths):
+		length = sum(math.hypot(q[0] - p[0], q[1] - p[1]) for p, q in zip(ctrl, ctrl[1:]))
+		k = 1 if len(ctrl) == 2 else max(8, int(math.ceil(length / max_piece)))
+		poly = pieces.setdefault(pi, [])
+		for j in range(0, k):
+			poly.append(_bez(ctrl, j / float(k)))
+	polys = [pieces[pi] for pi in sorted(pieces)]
+	return polys, _contour_roles(polys)
+
+
+def scanline_runs(polys, roles, value, vertical=False):
+	"""Potong tinta dengan garis y = value (mendatar) atau x = value (tegak).
+	Hasil: [(awal, akhir, tinta?)] berurutan, dari tepi tinta pertama sampai
+	terakhir; tinta=False = celah putih (counter) di antaranya."""
+	cuts = []
+	ax, bx = (0, 1) if vertical else (1, 0)  # ax: koordinat yang dipotong, bx: sepanjang garis
+	for poly in polys:
+		n = len(poly)
+		for i in range(n):
+			p, q = poly[i], poly[(i + 1) % n]
+			if (p[ax] > value) != (q[ax] > value):
+				t = (value - p[ax]) / (q[ax] - p[ax])
+				cuts.append(p[bx] + (q[bx] - p[bx]) * t)
+	cuts = sorted(set(round(c, 6) for c in cuts))
+	if len(cuts) < 2:
+		return []
+
+	def ink(c):
+		pt = (value, c) if vertical else (c, value)
+		return sum(r for r, poly in zip(roles, polys) if point_in_polygon(pt, poly)) > 0
+
+	runs = []
+	for a, b in zip(cuts, cuts[1:]):
+		if b - a < 1e-6:
+			continue
+		on = ink((a + b) / 2.0)
+		if runs and runs[-1][2] == on:
+			runs[-1] = (runs[-1][0], b, on)  # gabung potongan kontur bertumpuk
+		else:
+			runs.append((a, b, on))
+	while runs and not runs[0][2]:
+		runs.pop(0)
+	while runs and not runs[-1][2]:
+		runs.pop()
+	return runs
+
+
+def parse_heights(text, metrics):
+	"""'x/2, H/2, 300' -> [250.0, 350.0, 300.0]. Kata: x (x-height),
+	H (cap height), a (ascender), d (descender), boleh /n atau *f."""
+	out = []
+	for tok in (text or "").replace(";", ",").split(","):
+		tok = tok.strip()
+		if not tok:
+			continue
+		base, op, num = tok, None, None
+		for sym in ("/", "*"):
+			if sym in tok:
+				base, num = tok.split(sym, 1)
+				op = sym
+				break
+		base = base.strip()
+		if base in metrics:
+			v = float(metrics[base])
+		else:
+			v = float(base.replace(",", "."))
+		if op:
+			f = float(num.strip())
+			v = v / f if op == "/" else v * f
+		out.append(v)
+	return out
+
+
+def label_positions(samples, min_gap, occupied=()):
+	"""Pilih sampel ukur yang labelnya tidak bertumpuk (jarak >= min_gap),
+	termasuk terhadap posisi label lain yang sudah dipakai (occupied)."""
+	chosen = []
+	taken = [tuple(p) for p in occupied]
+	for sm in sorted(samples, key=lambda s: s["th"]):
+		if sm.get("terminal"):
+			continue  # ujung garis: sinarnya sepanjang goresan, sisi goresan sudah terlabeli
+		mx = (sm["pt"][0] + sm["end"][0]) / 2.0
+		my = (sm["pt"][1] + sm["end"][1]) / 2.0
+		if all(math.hypot(mx - c[0], my - c[1]) >= min_gap for c in taken):
+			chosen.append((mx, my, sm))
+			taken.append((mx, my))
+	return chosen
 # ======================================================================
 # vs_glyphs.py
 # Variable Studio - operasi pada font Glyphs 3 (axis, master, instance,
@@ -2269,6 +2364,103 @@ class VariableStudioReporter(ReporterPlugin):
 				bp.stroke()
 
 	@objc.python_method
+	def _geometry(self, layer):
+		"""Kontur (komponen dipecah) + hasil ukur, di-cache selama bentuk sama."""
+		paths = layer_paths(_decomposed(layer))
+		key = (id(layer), tuple((c, tuple(t), tuple(p)) for c, t, p in paths))
+		cache = getattr(self, "_geo_cache", None)
+		if cache is None or cache[0] != key:
+			polys, roles = flatten_contours(paths)
+			cache = (key, paths, polys, roles, measure_paths(paths) if paths else {"samples": []})
+			self._geo_cache = cache
+		return cache[1], cache[2], cache[3], cache[4]
+
+	@objc.python_method
+	def _pill(self, text, x, y, scale, ink=True):
+		"""Kotak angka seperti alat ukur Glyphs."""
+		fs = 10.0
+		w = (len(text) * fs * 0.62 + 10.0) / scale
+		h = (fs + 6.0) / scale
+		if ink:
+			NSColor.colorWithCalibratedWhite_alpha_(1.0, 0.92).set()
+			color = NSColor.colorWithCalibratedWhite_alpha_(0.1, 1.0)
+		else:
+			NSColor.colorWithCalibratedRed_green_blue_alpha_(0.20, 0.45, 0.85, 0.85).set()
+			color = NSColor.colorWithCalibratedWhite_alpha_(1.0, 1.0)
+		NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(NSRect((x - w / 2.0, y - h / 2.0), (w, h)), h / 2.0, h / 2.0).fill()
+		self.drawTextAtPoint(text, NSPoint(x, y), fontSize=fs, fontColor=color, align="center")
+
+	@objc.python_method
+	def _metrics_for(self, layer):
+		font = self._font(layer)
+		mid = getattr(layer, "associatedMasterId", None)
+		for m in (font.masters if font is not None else []):
+			if m.id == mid:
+				out = {}
+				for key, attr in (("x", "xHeight"), ("H", "capHeight"), ("a", "ascender"), ("d", "descender")):
+					try:
+						out[key] = float(getattr(m, attr))
+					except Exception:
+						pass
+				return out
+		return {"x": 500.0, "H": 700.0, "a": 800.0, "d": -200.0}
+
+	@objc.python_method
+	def _draw_widths(self, layer, scale):
+		paths, polys, roles, measure = self._geometry(layer)
+		if not polys:
+			return
+		line_color = NSColor.colorWithCalibratedRed_green_blue_alpha_(0.20, 0.45, 0.85, 0.9)
+		gaps = pref_bool("showGaps", True)
+		xs = [p[0] for poly in polys for p in poly]
+		ys = [p[1] for poly in polys for p in poly]
+		width = float(layer.width)
+		lines = []
+		if pref_bool("showScanH", False):
+			try:
+				heights = parse_heights(pref_get("scanHeights", "x/2, H/2"), self._metrics_for(layer))
+			except Exception:
+				heights = []
+			for y in heights:
+				if min(ys) < y < max(ys):
+					lines.append((False, y))
+		if pref_bool("showScanV", False):
+			lines.append((True, (min(xs) + max(xs)) / 2.0))
+		pills = []
+		for vertical, v in lines:
+			runs = scanline_runs(polys, roles, v, vertical)
+			if not runs:
+				continue
+			lo, hi = (min(ys), max(ys)) if vertical else (min(0.0, min(xs)), max(width, max(xs)))
+			line_color.set()
+			bp = NSBezierPath.bezierPath()
+			bp.moveToPoint_(NSPoint(v, lo) if vertical else NSPoint(lo, v))
+			bp.lineToPoint_(NSPoint(v, hi) if vertical else NSPoint(hi, v))
+			bp.setLineWidth_(1.0 / scale)
+			bp.setLineDash_count_phase_([4.0 / scale, 3.0 / scale], 2, 0)
+			bp.stroke()
+			pieces = list(runs)
+			if gaps and not vertical:
+				pieces = [(0.0, runs[0][0], False)] + pieces + [(runs[-1][1], width, False)]
+			for a, b, on in pieces:
+				if (not on and not gaps) or abs(b - a) < 0.5:
+					continue
+				c = (a + b) / 2.0
+				pills.append(((v, c) if vertical else (c, v), fmt_num(round(b - a)), on))
+		if pref_bool("showWidthLabels", False):
+			# label goresan menghindari kotak angka garis ukur
+			for mx, my, sm in label_positions(measure["samples"], 34.0 / scale, [p[0] for p in pills]):
+				line_color.set()
+				bp = NSBezierPath.bezierPath()
+				bp.moveToPoint_(NSPoint(*sm["pt"]))
+				bp.lineToPoint_(NSPoint(*sm["end"]))
+				bp.setLineWidth_(1.0 / scale)
+				bp.stroke()
+				self._pill(fmt_num(round(sm["th"])), mx, my, scale)
+		for (x, y), text, on in pills:
+			self._pill(text, x, y, scale, ink=on)
+
+	@objc.python_method
 	def _draw_thickness(self, layer, scale):
 		"""Garis ukur tebal di tiap segmen: biru = tipis, merah = tebal; angka
 		di garis tertipis dan tertebal."""
@@ -2319,6 +2511,8 @@ class VariableStudioReporter(ReporterPlugin):
 					NSBezierPath.bezierPathWithOvalInRect_(NSRect((p[0] - rr, p[1] - rr), (2 * rr, 2 * rr))).fill()
 		if pref_bool("showThickness", False):
 			self._draw_thickness(layer, scale)
+		if pref_bool("showWidthLabels", False) or pref_bool("showScanH", False) or pref_bool("showScanV", False):
+			self._draw_widths(layer, scale)
 		if pref_bool("showIDs", True):
 			color = NSColor.colorWithCalibratedRed_green_blue_alpha_(0.10, 0.65, 0.80, 1.0)
 			off = 4.0 / scale

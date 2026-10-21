@@ -28,6 +28,10 @@ class NSBezierPath(_Any):
 	def bezierPathWithOvalInRect_(r):
 		return NSBezierPath()
 
+	@staticmethod
+	def bezierPathWithRoundedRect_xRadius_yRadius_(r, a, b):
+		return NSBezierPath()
+
 
 def NSRect(*a):
 	return a

@@ -627,7 +627,19 @@ class VariableStudioWindow(object):
 		t.play = Button((-130, 183, 120, 22), "Putar", callback=self.toggle_play)
 		t.minus = Button((10, 216, 40, 22), "[", callback=lambda s: self.step(-1))
 		t.plus = Button((56, 216, 40, 22), "]", callback=lambda s: self.step(1))
-		t.note = TextBox((10, 250, -10, 80),
+		t.line2 = HorizontalLine((10, 248, -10, 1))
+		t.wTitle = TextBox((10, 256, -10, 17), "Ukuran lebar tanpa kursor (selalu tampil di Edit View):")
+		t.wLabels = CheckBox((10, 278, -10, 20), "Label lebar di setiap goresan",
+			value=pref_bool("showWidthLabels", False), callback=self.on_pref)
+		t.scanH = CheckBox((10, 302, 200, 20), "Garis ukur mendatar di", value=pref_bool("showScanH", False),
+			callback=self.on_pref)
+		t.heights = EditText((210, 300, 180, 22), pref_get("scanHeights", "x/2, H/2"), callback=self.on_pref)
+		t.hHint = TextBox((400, 303, -10, 17), "x, H, a, d, angka; boleh /2", sizeStyle="small")
+		t.scanV = CheckBox((10, 326, 250, 20), "Garis ukur tegak di tengah glyph", value=pref_bool("showScanV", False),
+			callback=self.on_pref)
+		t.gaps = CheckBox((270, 326, -10, 20), "Jarak putih (counter, sidebearing)", value=pref_bool("showGaps", True),
+			callback=self.on_pref)
+		t.note = TextBox((10, 356, -10, 80),
 			"Aktifkan reporter lewat View > Show Variable Studio. Pratinjau memakai model interpolasi "
 			"OpenType (sama seperti fontTools) dari semua master dan brace layer; glyph yang tidak kompatibel "
 			"tidak digambar. Sumbu lain memakai nilai master origin.", sizeStyle="small")
@@ -641,6 +653,11 @@ class VariableStudioWindow(object):
 		pref_set("showTrails", int(bool(t.trails.get())))
 		pref_set("showBrace", int(bool(t.brace.get())))
 		pref_set("showThickness", int(bool(t.thick.get())))
+		pref_set("showWidthLabels", int(bool(t.wLabels.get())))
+		pref_set("showScanH", int(bool(t.scanH.get())))
+		pref_set("showScanV", int(bool(t.scanV.get())))
+		pref_set("showGaps", int(bool(t.gaps.get())))
+		pref_set("scanHeights", t.heights.get() or "")
 		Glyphs.redraw()
 
 	def refresh_preview_axis(self):
