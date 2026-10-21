@@ -880,17 +880,18 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 	if not paths:
 		return 0
 	weights = None
+	measure = measure_paths(paths) if (mode != "uniform" or zones) else None
 	if mode != "uniform":
 		if thin_limit is None or thick_limit is None:
 			raise ValueError("Isi batas tipis dan batas tebal (atau klik Scan ketebalan).")
-		weights = contrast_weights(measure_paths(paths), float(thin_limit), float(thick_limit), mode)
+		weights = contrast_weights(measure, float(thin_limit), float(thick_limit), mode)
 	selected = None
 	if selected_only:
 		selected = _selected_nodes(layer)
 		if not selected:
 			return 0
 	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
-		keep_sidebearings, zones, selected, weights=weights)
+		keep_sidebearings, zones, selected, weights=weights, measure=measure)
 	moved = 0
 	for p, pts in zip(layer.paths, res["pts"]):
 		for n, (x, y) in zip(p.nodes, pts):

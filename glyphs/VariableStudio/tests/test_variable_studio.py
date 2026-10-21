@@ -510,6 +510,46 @@ def test_window_contrast():
 	w.w.binds["close"](None)
 
 
+def test_curve_audit():
+	"""Audit lengkung: elips tetap elips, titik halus tetap halus, puncak
+	mangkuk di x-height tidak lepas walau glyph punya telinga & ekor."""
+	def pts_of(path):
+		return path[2]
+	e = oval(0, 0, 200, 300)
+	ep = [(True, [n.type for n in e.nodes], [P._xy(n) for n in e.nodes])]
+	k = 0.5523
+	r = P.offset_paths(ep, 40, 0)[0]
+	assert abs((r[0][1] - r[11][1]) - 300 * k) < 0.05  # handle tegak tetap
+	assert abs((r[1][0] - r[2][0]) - 240 * k) < 0.05   # handle mendatar ikut lebar baru
+	r = P.offset_paths(ep, 30, 30)[0]
+	assert abs((r[0][1] - r[11][1]) - 330 * k) < 0.1 and abs((r[1][0] - r[2][0]) - 230 * k) < 0.1
+	# titik halus diagonal: kedua handle tetap segaris setelah tebal x != y
+	diag = [(True, ["curve", "offcurve", "offcurve", "curve", "offcurve", "offcurve", "curve", "line"],
+		[(0, 0), (60, 20), (120, 140), (200, 200), (280, 260), (300, 380), (300, 500), (0, 500)])]
+	r = P.offset_paths(diag, 40, 10)[0]
+	(ax, ay), (bx, by), (cx, cy) = r[2], r[3], r[4]
+	assert abs((bx - ax) * (cy - by) - (by - ay) * (cx - bx)) < 1e-6
+	# mangkuk g: puncak di x-height (overshoot 510) tetap, goresan atas +40 ke dalam
+	f = make_font()
+	l = f.glyphs["o"].layers[f.masters[0].id]
+	l.paths = [oval(300, 250, 250, 260), oval(300, 250, 190, 230), rect(480, 480, 560, 700), rect(100, -200, 500, -150)]
+	l.paths[1].reverse()
+	P.embolden_layer(l, 40, 40, True, [0, 500, 700, -200])
+	assert abs(l.paths[0].nodes[2].position.y - 510) < 1e-6 and abs(l.paths[0].nodes[8].position.y + 10) < 1e-6
+	inner_top = max(n.position.y for n in l.paths[1].nodes if n.type != "offcurve")
+	assert abs((510 - inner_top) - 70) < 1e-6, inner_top
+	ear_top = max(n.position.y for n in l.paths[2].nodes)
+	assert abs(ear_top - 700) < 1e-6
+	# bahu n: sambungan stem naik, tapi lengkung tidak boleh menonjol di atas x-height
+	types = ["line", "line", "line", "offcurve", "offcurve", "curve", "offcurve", "offcurve", "curve", "line", "line",
+		"line", "offcurve", "offcurve", "curve", "offcurve", "offcurve", "curve", "line", "line"]
+	pts = [(40, 0), (110, 0), (110, 390), (130, 440), (185, 462), (235, 462), (285, 462), (300, 430), (300, 400),
+		(300, 0), (370, 0), (370, 410), (370, 480), (330, 510), (265, 510), (185, 510), (135, 480), (110, 450),
+		(110, 500), (40, 500)]
+	r = P.embolden([(True, types, pts)], 420, 60, 60, True, [0, 500, 700])
+	assert max(y for _, y in r["pts"][0]) <= 510 + 1e-6 and min(y for _, y in r["pts"][0]) >= -1e-6
+
+
 if __name__ == "__main__":
 	n = 0
 	for name, fn in sorted(globals().items()):

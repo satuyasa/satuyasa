@@ -6,7 +6,7 @@
 from __future__ import division, print_function, unicode_literals
 import math
 
-VS_VERSION = "1.2.0"
+VS_VERSION = "1.2.1"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -656,6 +656,23 @@ def _corner_vector(pts, i, closed, clamp):
 	return (mx, my)
 
 
+def _segment_scale(a, b, na, nb):
+	"""Skala x dan y sebuah segmen dari perubahan titik ujungnya. Bila segmen
+	hampir tegak/mendatar, skala sumbu itu memakai rasio tali busur."""
+	ca = math.hypot(b[0] - a[0], b[1] - a[1])
+	cb = math.hypot(nb[0] - na[0], nb[1] - na[1])
+	kf = cb / ca if ca > 1e-6 else 1.0
+	out = []
+	for k in (0, 1):
+		d0 = b[k] - a[k]
+		d1 = nb[k] - na[k]
+		if abs(d0) > max(1.0, 0.05 * ca):
+			out.append(max(0.1, min(10.0, d1 / d0)))
+		else:
+			out.append(kf)
+	return out[0], out[1]
+
+
 def path_side(polys, pi):
 	"""+1 bila sisi kanan arah jalan path pi = luar tinta, -1 sebaliknya.
 	Counter = kontur yang SELURUH titiknya di dalam kontur lain; kontur yang
@@ -666,15 +683,43 @@ def path_side(polys, pi):
 	return 1.0 if (signed_area(pts) > 0) == (depth % 2 == 0) else -1.0
 
 
-def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None):
+def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=None):
 	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
 	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
 	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
 	paths: [(closed, types, pts)]. selected: set (indeks path, indeks node)
 	untuk hanya menggeser titik terpilih. weights: {(path, node): (wx, wy)}
 	pengali geser per titik (0 = titik diam), dari contrast_weights().
+	pins: {(path, node): titik seberang atau None} dari zone_pins(): titik
+	ini tidak bergeser vertikal, geser vertikalnya dipindahkan ke titik
+	seberang goresan (jadi goresan tetap bertambah penuh, tumbuh ke dalam).
 	Hasil: list pts baru per path."""
 	polys = [list(pts) for _, _, pts in paths]
+	vecs = {}
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		on = [i for i in range(n) if types[i] != "offcurve"]
+		if n < 2 or not closed or not on:
+			continue
+		s = path_side(polys, pi)
+		for i in on:
+			if selected is not None and (pi, i) not in selected:
+				vecs[(pi, i)] = (0.0, 0.0)
+				continue
+			mx, my = _corner_vector(pts, i, closed, clamp)
+			wx, wy = weights.get((pi, i), (1.0, 1.0)) if weights else (1.0, 1.0)
+			vecs[(pi, i)] = (mx * dx * s * wx, my * dy * s * wy)
+	if pins:
+		extra = {}
+		for key, target in pins.items():
+			if key not in vecs:
+				continue
+			vx, vy = vecs[key]
+			vecs[key] = (vx, 0.0)
+			if target is not None and target in vecs and abs(vy) > abs(extra.get(target, 0.0)):
+				extra[target] = -vy
+		for key, ey in extra.items():
+			vecs[key] = (vecs[key][0], vecs[key][1] + ey)
 	out = []
 	for pi, (closed, types, pts) in enumerate(paths):
 		pts = [(float(x), float(y)) for x, y in pts]
@@ -683,15 +728,7 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None):
 		if n < 2 or not closed or not on:
 			out.append(pts)
 			continue
-		s = path_side(polys, pi)
-		vec = {}
-		for i in on:
-			if selected is not None and (pi, i) not in selected:
-				vec[i] = (0.0, 0.0)
-				continue
-			mx, my = _corner_vector(pts, i, closed, clamp)
-			wx, wy = weights.get((pi, i), (1.0, 1.0)) if weights else (1.0, 1.0)
-			vec[i] = (mx * dx * s * wx, my * dy * s * wy)
+		vec = dict((i, vecs.get((pi, i), (0.0, 0.0))) for i in on)
 		new = list(pts)
 		for i in on:
 			new[i] = (pts[i][0] + vec[i][0], pts[i][1] + vec[i][1])
@@ -704,16 +741,19 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None):
 				j = (j + 1) % n
 			if not offs:
 				continue
-			ca = math.hypot(pts[b][0] - pts[a][0], pts[b][1] - pts[a][1])
-			cb = math.hypot(new[b][0] - new[a][0], new[b][1] - new[a][1])
-			kf = cb / ca if ca > 1e-6 else 1.0
+			sx, sy = _segment_scale(pts[a], pts[b], new[a], new[b])
 			for m, j in enumerate(offs):
 				base = a if m < len(offs) / 2.0 else b
 				if selected is not None:
 					new[j] = (pts[j][0] + vec[base][0], pts[j][1] + vec[base][1])
-				else:
-					new[j] = (new[base][0] + (pts[j][0] - pts[base][0]) * kf,
-						new[base][1] + (pts[j][1] - pts[base][1]) * kf)
+					continue
+				hx, hy = pts[j][0] - pts[base][0], pts[j][1] - pts[base][1]
+				u = _unit(hx, hy)
+				# arah handle tetap (titik halus tetap halus), panjangnya ikut
+				# perubahan segmen pada sumbu searah handle: handle tegak ikut
+				# skala-y, handle mendatar ikut skala-x (elips tetap elips)
+				f = math.hypot(u[0] * sx, u[1] * sy) if u else 1.0
+				new[j] = (new[base][0] + hx * f, new[base][1] + hy * f)
 		out.append(new)
 	return out
 
@@ -726,14 +766,100 @@ def _bbox(path_pts):
 	return min(xs), min(ys), max(xs), max(ys)
 
 
+def zone_pins(paths, zones, tolerance=25.0, measure=None):
+	"""Titik ekstrem yang menempel di garis metrik (baseline, x-height, cap,
+	ascender, descender; termasuk overshoot) dan tepinya menghadap ke luar
+	zona itu: puncak di zona atas, dasar di zona bawah. Hasil:
+	{(path, node): titik on-curve di seberang goresan, atau None bila titik
+	ini ujung garis (mis. dasar stem: memanjang, bukan menebal)}."""
+	if not zones:
+		return {}
+	polys = [list(p[2]) for p in paths]
+	cand = {}
+	for pi, (closed, types, pts) in enumerate(paths):
+		n = len(pts)
+		if not closed or n < 3:
+			continue
+		s = path_side(polys, pi)
+		for i in range(n):
+			if types[i] == "offcurve":
+				continue
+			y = pts[i][1]
+			ny = [pts[(i - 1) % n][1], pts[(i + 1) % n][1]]
+			mx, my = _corner_vector(pts, i, closed, 3.0)
+			out_y = my * s
+			for z in zones:
+				if abs(y - z) > tolerance:
+					continue
+				top = z > 0
+				if top and out_y > 0.2 and all(v <= y + 0.5 for v in ny):
+					cand[(pi, i)] = (z, True, y)
+				elif not top and out_y < -0.2 and all(v >= y - 0.5 for v in ny):
+					cand[(pi, i)] = (z, False, y)
+	if not cand:
+		return {}
+	m = measure if measure is not None else measure_paths(paths)
+	ons = [((pi, i), pts[i]) for pi, (closed, types, pts) in enumerate(paths) if closed
+		for i in range(len(pts)) if types[i] != "offcurve"]
+	pins = {}
+	for key in cand:
+		target = None
+		sms = [x for x in m.get("near", {}).get(key, []) if not x.get("terminal")]
+		if sms:
+			sm = max(sms, key=lambda x: abs(x["normal"][1]))
+			if abs(sm["normal"][1]) > 0.5:
+				ex, ey = sm["end"]
+				radius = max(15.0, 0.6 * sm["th"])
+				best = None
+				for k2, p in ons:
+					if k2 == key or k2 in cand:
+						continue
+					d = math.hypot(p[0] - ex, p[1] - ey)
+					if d <= radius and (best is None or d < best[0]):
+						best = (d, k2)
+				target = best[1] if best else None
+		pins[key] = target
+	return pins
+
+
+def zone_limits(paths, pins):
+	"""Batas per zona dari titik yang dipegang: [(batas, atas?)]. Titik yang
+	semula di bawah batas atas tidak boleh naik melewatinya (dan sebaliknya),
+	supaya lengkung di sekitar puncak tidak menonjol keluar zona."""
+	groups = {}
+	for (pi, i) in pins:
+		y = paths[pi][2][i][1]
+		# zona atas bila tepinya menghadap ke atas (lihat zone_pins)
+		pts = paths[pi][2]
+		n = len(pts)
+		top = all(pts[(i + d) % n][1] <= y + 0.5 for d in (-1, 1))
+		key = (top, round(y / 50.0))
+		groups.setdefault(key, []).append(y)
+	out = []
+	for (top, _), ys in groups.items():
+		out.append((max(ys) if top else min(ys), top))
+	return out
+
+
 def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
-		selected=None, tolerance=25.0, weights=None):
+		selected=None, tolerance=25.0, weights=None, measure=None):
 	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
 	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
-	...) yang tetap dipegang bila bagian atas/bawah glyph menempel padanya.
-	Hasil dict: pts (per path), width, anchor(x, y) -> (x, y)."""
+	...); titik yang menempel padanya tidak bergeser vertikal dan goresannya
+	tumbuh ke dalam (lihat zone_pins). Hasil dict: pts (per path), width,
+	anchor(x, y) -> (x, y)."""
 	old = [list(p[2]) for p in paths]
-	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights)
+	pins = zone_pins(paths, zones, tolerance, measure) if (zones and selected is None) else None
+	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights, pins=pins)
+	if pins:
+		for limit, top in zone_limits(paths, pins):
+			for pi, pts in enumerate(new):
+				for j, (x, y) in enumerate(pts):
+					oy = old[pi][j][1]
+					if top and oy <= limit + 0.5 and y > limit:
+						pts[j] = (x, limit)
+					elif not top and oy >= limit - 0.5 and y < limit:
+						pts[j] = (x, limit)
 	ob, nb = _bbox(old), _bbox(new)
 	ident = {"pts": new, "width": width, "anchor": lambda x, y: (x, y)}
 	if selected is not None or ob is None or nb is None:
@@ -743,19 +869,7 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 	ow, nw = ox1 - ox0, nx1 - nx0
 	tx = (ox0 - nx0) if keep_sidebearings else 0.0
 	new_width = width + (nw - ow) if keep_sidebearings else width
-
-	ymap = lambda y: y
-	if zones:
-		bottom = any(abs(oy0 - z) <= tolerance for z in zones)
-		top = any(abs(oy1 - z) <= tolerance for z in zones)
-		oh, nh = oy1 - oy0, ny1 - ny0
-		if bottom and top and nh > 1e-6:
-			ymap = lambda y: oy0 + (y - ny0) * oh / nh
-		elif bottom:
-			ymap = lambda y: y + (oy0 - ny0)
-		elif top:
-			ymap = lambda y: y + (oy1 - ny1)
-	pts = [[(x + tx, ymap(y)) for x, y in p] for p in new]
+	pts = [[(x + tx, y) for x, y in p] for p in new]
 	x0 = ox0 if keep_sidebearings else nx0
 
 	def anchor(x, y):
@@ -985,7 +1099,7 @@ def measure_paths(paths, max_piece=20.0, max_thickness=3000.0):
 				hidden = any(point_in_polygon(q, poly) for k, poly in zip(closed_idx, polys) if k != pi)
 				if hidden:
 					hold[key] = (sx.get("terminal", False), sy.get("terminal", False))
-	return {"samples": samples, "nodes": nodes, "hold": hold}
+	return {"samples": samples, "nodes": nodes, "hold": hold, "near": near}
 
 
 def thickness_summary(measure):
