@@ -141,14 +141,15 @@ class VariableStudioWindow(object):
 		t.csv = Button((-105, 6, 95, 22), "Salin CSV", callback=lambda s: self._guard(self.copy_csv))
 		t.points = List((10, 36, -10, 210), [])
 		t.check = Button((10, 254, 140, 22), "Cek glyph ini", callback=lambda s: self._guard(self.check_current))
-		t.fix = Button((156, 254, 230, 22), "Samakan arah & titik awal", callback=lambda s: self._guard(self.fix_current))
+		t.fix = Button((156, 254, 270, 22), "Samakan urutan, arah & titik awal", callback=lambda s: self._guard(self.fix_current))
+		t.locate = Button((-170, 254, 160, 22), "Tunjukkan titik", callback=lambda s: self._guard(self.locate_issue))
 		t.line = HorizontalLine((10, 286, -10, 1))
 		t.scan = Button((10, 296, 160, 22), "Cek seluruh font", callback=lambda s: self._guard(self.scan))
 		t.scanSel = CheckBox((180, 297, 220, 20), "Hanya glyph terpilih")
 		t.fixAll = Button((-200, 296, 190, 22), "Perbaiki semua hasil", callback=lambda s: self._guard(self.fix_results))
 		t.results = List((10, 326, -10, -66), [],
 			columnDescriptions=[{"title": "Glyph", "key": "glyph", "width": 140}, {"title": "Masalah", "key": "issue"}],
-			doubleClickCallback=lambda s: self._guard(self.open_results, True))
+			doubleClickCallback=lambda s: self._guard(self.locate_issue))
 		t.color = PopUpButton((10, -56, 140, 22), [n for n, _ in GLYPH_COLORS])
 		t.paint = Button((156, -57, 150, 22), "Beri warna (flag)", callback=lambda s: self._guard(self.paint_results))
 		t.openTab = Button((-170, -57, 160, 22), "Buka hasil di tab", callback=lambda s: self._guard(self.open_results, False))
@@ -248,6 +249,48 @@ class VariableStudioWindow(object):
 			for k, issue in enumerate(issues):
 				items.append({"glyph": name if k == 0 else "", "issue": issue, "name": name})
 		self.w.tabs[0].results.set(items)
+
+	def locate_issue(self):
+		"""Buka glyph dari baris terpilih di master yang bermasalah dan pilih
+		titiknya, supaya langsung terlihat di Edit View."""
+		t = self.w.tabs[0]
+		rows = t.results.get()
+		sel = t.results.getSelection()
+		if not sel:
+			raise ValueError("Pilih satu baris masalah di daftar.")
+		row = rows[sel[0]]
+		font = self.font
+		glyph = font.glyphs[row["name"]]
+		if glyph is None:
+			raise ValueError("Glyph %s tidak ada." % row["name"])
+		item = next((it for it in glyph_issue_items(glyph, font) if it["text"] == row["issue"]), None)
+		if item is None:
+			t.status.set("Masalah ini sudah tidak ada (mungkin sudah diperbaiki).")
+			return
+		on_ref = not item["nodes"] and item["ref_nodes"]
+		layer = item["ref_layer"] if on_ref else item["layer"]
+		ids = item["ref_nodes"] if on_ref else item["nodes"]
+		mid = getattr(layer, "associatedMasterId", None)
+		tab = None
+		try:
+			cur = font.currentTab
+			if cur is not None and glyph.name in [l.parent.name for l in cur.layers if l.parent]:
+				tab = cur
+		except Exception:
+			tab = None
+		if tab is None:
+			tab = font.newTab("/" + glyph.name)
+		try:
+			for k, m in enumerate(font.masters):
+				if m.id == mid:
+					tab.masterIndex = k
+		except Exception:
+			pass
+		n = select_nodes(layer, ids)
+		where = ", ".join("%d:%d" % x for x in ids[:6])
+		t.status.set("%s di %s: %s%s" % (glyph.name, item["source"] if not on_ref else "master referensi", where,
+			" (dipilih)" if n else ""))
+		Glyphs.redraw()
 
 	def _result_names(self, selected_only):
 		t = self.w.tabs[0]
@@ -611,35 +654,37 @@ class VariableStudioWindow(object):
 		t.ghosts = CheckBox((10, 58, 200, 20), "Bayangan semua master", value=pref_bool("showGhosts", True), callback=self.on_pref)
 		t.trails = CheckBox((220, 58, -10, 20), "Jalur titik antar master", value=pref_bool("showTrails", True), callback=self.on_pref)
 		t.brace = CheckBox((10, 82, 200, 20), "Ikutkan brace layer {…}", value=pref_bool("showBrace", True), callback=self.on_pref)
+		t.diff = CheckBox((10, 106, 330, 20), "Tandai titik yang tidak sama antar master", value=pref_bool("showDiff", True),
+			callback=self.on_pref)
 		t.thick = CheckBox((220, 82, -10, 20), "Ukuran tebal garis (biru tipis, merah tebal)",
 			value=pref_bool("showThickness", False), callback=self.on_pref)
-		t.line = HorizontalLine((10, 110, -10, 1))
-		t.axLabel = TextBox((10, 122, 60, 17), "Axis")
-		t.axis = PopUpButton((70, 120, 200, 22), [], callback=lambda s: self.refresh_preview_axis())
-		t.value = TextBox((290, 122, -10, 17), "")
-		t.slider = Slider((10, 150, -10, 23), minValue=0, maxValue=1, value=0, callback=self.on_slider, continuous=True)
-		t.fLabel = TextBox((10, 186, 40, 17), "Dari")
-		t.vFrom = EditText((50, 184, 80, 22), "")
-		t.tLabel = TextBox((140, 186, 30, 17), "ke")
-		t.vTo = EditText((170, 184, 80, 22), "")
-		t.cLabel = TextBox((270, 186, 60, 17), "Siklus (s)")
-		t.cycle = EditText((330, 184, 60, 22), "8")
-		t.play = Button((-130, 183, 120, 22), "Putar", callback=self.toggle_play)
-		t.minus = Button((10, 216, 40, 22), "[", callback=lambda s: self.step(-1))
-		t.plus = Button((56, 216, 40, 22), "]", callback=lambda s: self.step(1))
-		t.line2 = HorizontalLine((10, 248, -10, 1))
-		t.wTitle = TextBox((10, 256, -10, 17), "Ukuran lebar tanpa kursor (selalu tampil di Edit View):")
-		t.wLabels = CheckBox((10, 278, -10, 20), "Label lebar di setiap goresan",
+		t.line = HorizontalLine((10, 136, -10, 1))
+		t.axLabel = TextBox((10, 148, 60, 17), "Axis")
+		t.axis = PopUpButton((70, 146, 200, 22), [], callback=lambda s: self.refresh_preview_axis())
+		t.value = TextBox((290, 148, -10, 17), "")
+		t.slider = Slider((10, 176, -10, 23), minValue=0, maxValue=1, value=0, callback=self.on_slider, continuous=True)
+		t.fLabel = TextBox((10, 212, 40, 17), "Dari")
+		t.vFrom = EditText((50, 210, 80, 22), "")
+		t.tLabel = TextBox((140, 212, 30, 17), "ke")
+		t.vTo = EditText((170, 210, 80, 22), "")
+		t.cLabel = TextBox((270, 212, 60, 17), "Siklus (s)")
+		t.cycle = EditText((330, 210, 60, 22), "8")
+		t.play = Button((-130, 209, 120, 22), "Putar", callback=self.toggle_play)
+		t.minus = Button((10, 242, 40, 22), "[", callback=lambda s: self.step(-1))
+		t.plus = Button((56, 242, 40, 22), "]", callback=lambda s: self.step(1))
+		t.line2 = HorizontalLine((10, 274, -10, 1))
+		t.wTitle = TextBox((10, 282, -10, 17), "Ukuran lebar tanpa kursor (selalu tampil di Edit View):")
+		t.wLabels = CheckBox((10, 304, -10, 20), "Label lebar di setiap goresan",
 			value=pref_bool("showWidthLabels", False), callback=self.on_pref)
-		t.scanH = CheckBox((10, 302, 200, 20), "Garis ukur mendatar di", value=pref_bool("showScanH", False),
+		t.scanH = CheckBox((10, 328, 200, 20), "Garis ukur mendatar di", value=pref_bool("showScanH", False),
 			callback=self.on_pref)
-		t.heights = EditText((210, 300, 180, 22), pref_get("scanHeights", "x/2, H/2"), callback=self.on_pref)
-		t.hHint = TextBox((400, 303, -10, 17), "x, H, a, d, angka; boleh /2", sizeStyle="small")
-		t.scanV = CheckBox((10, 326, 250, 20), "Garis ukur tegak di tengah glyph", value=pref_bool("showScanV", False),
+		t.heights = EditText((210, 326, 180, 22), pref_get("scanHeights", "x/2, H/2"), callback=self.on_pref)
+		t.hHint = TextBox((400, 329, -10, 17), "x, H, a, d, angka; boleh /2", sizeStyle="small")
+		t.scanV = CheckBox((10, 352, 250, 20), "Garis ukur tegak di tengah glyph", value=pref_bool("showScanV", False),
 			callback=self.on_pref)
-		t.gaps = CheckBox((270, 326, -10, 20), "Jarak putih (counter, sidebearing)", value=pref_bool("showGaps", True),
+		t.gaps = CheckBox((270, 352, -10, 20), "Jarak putih (counter, sidebearing)", value=pref_bool("showGaps", True),
 			callback=self.on_pref)
-		t.note = TextBox((10, 356, -10, 80),
+		t.note = TextBox((10, 382, -10, 80),
 			"Aktifkan reporter lewat View > Show Variable Studio. Pratinjau memakai model interpolasi "
 			"OpenType (sama seperti fontTools) dari semua master dan brace layer; glyph yang tidak kompatibel "
 			"tidak digambar. Sumbu lain memakai nilai master origin.", sizeStyle="small")
@@ -653,6 +698,7 @@ class VariableStudioWindow(object):
 		pref_set("showTrails", int(bool(t.trails.get())))
 		pref_set("showBrace", int(bool(t.brace.get())))
 		pref_set("showThickness", int(bool(t.thick.get())))
+		pref_set("showDiff", int(bool(t.diff.get())))
 		pref_set("showWidthLabels", int(bool(t.wLabels.get())))
 		pref_set("showScanH", int(bool(t.scanH.get())))
 		pref_set("showScanV", int(bool(t.scanV.get())))

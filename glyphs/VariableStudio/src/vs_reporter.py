@@ -130,6 +130,93 @@ class VariableStudioReporter(ReporterPlugin):
 				bp.stroke()
 
 	@objc.python_method
+	def _diff_items(self, layer):
+		"""Masalah kecocokan untuk glyph ini, di-cache selama bentuk semua
+		master sama."""
+		font = self._font(layer)
+		glyph = layer.parent
+		if font is None or glyph is None:
+			return []
+		srcs = glyph_sources(glyph, font)
+		if len(srcs) < 2:
+			return []
+		key = (glyph.name, tuple((n, tuple((c, tuple(t), tuple(p)) for c, t, p in layer_paths(l))) for n, _, l in srcs))
+		cache = getattr(self, "_diff_cache", None)
+		if cache is None or cache[0] != key:
+			try:
+				items = glyph_issue_items(glyph, font)
+			except Exception:
+				items = []
+			cache = (key, items)
+			self._diff_cache = cache
+		return cache[1]
+
+	@objc.python_method
+	def _mark(self, x, y, scale, rgb, text, dashed=False):
+		r = 9.0 / scale
+		bp = NSBezierPath.bezierPathWithOvalInRect_(NSRect((x - r, y - r), (2 * r, 2 * r)))
+		bp.setLineWidth_(2.0 / scale)
+		if dashed:
+			bp.setLineDash_count_phase_([3.0 / scale, 2.0 / scale], 2, 0)
+		_color(rgb).set()
+		bp.stroke()
+		if text:
+			self.drawTextAtPoint(text, NSPoint(x + r * 1.3, y - r * 1.6), fontSize=9.0, fontColor=_color(rgb), align="topleft")
+
+	@objc.python_method
+	def _draw_diff(self, layer, scale):
+		items = self._diff_items(layer)
+		if not items:
+			return
+		lid = getattr(layer, "layerId", None)
+		RED, ORANGE, BLUE, PURPLE = (0.90, 0.15, 0.15), (0.95, 0.55, 0.10), (0.15, 0.45, 0.95), (0.60, 0.25, 0.85)
+
+		def same(l):
+			return l is layer or (lid is not None and getattr(l, "layerId", None) == lid)
+
+		def pos(l, ci, ni):
+			try:
+				return _xy(l.paths[ci].nodes[ni])
+			except Exception:
+				return None
+		for it in items:
+			kind = it["kind"]
+			here = same(it["layer"])
+			on_ref = same(it["ref_layer"])
+			if not here and not on_ref:
+				continue
+			src = it["source"]
+			if here:
+				for ci, ni in it["nodes"]:
+					p = pos(layer, ci, ni)
+					if p is None:
+						continue
+					if kind == "extra":
+						self._mark(p[0], p[1], scale, RED, "lebih (tidak ada di master ref)")
+					elif kind == "type":
+						self._mark(p[0], p[1], scale, ORANGE, "tipe beda")
+					elif kind == "start":
+						self._mark(p[0], p[1], scale, BLUE, "jadikan titik awal")
+				if kind == "missing":
+					for ci, ni in it["ref_nodes"]:
+						p = pos(it["ref_layer"], ci, ni)
+						if p is not None:
+							self._mark(p[0], p[1], scale, RED, "kurang titik (ref %d:%d)" % (ci, ni), dashed=True)
+				if kind in ("direction", "order", "contour") and it["nodes"]:
+					p = pos(layer, *it["nodes"][0])
+					if p is not None:
+						label = {"direction": "arah terbalik", "order": "urutan kontur beda",
+							"contour": "kontur tanpa pasangan"}[kind]
+						self.drawTextAtPoint(label, NSPoint(p[0], p[1] + 14.0 / scale), fontSize=10.0,
+							fontColor=_color(PURPLE), align="bottomleft")
+			if on_ref and kind in ("missing", "type"):
+				for ci, ni in it["ref_nodes"]:
+					p = pos(layer, ci, ni)
+					if p is not None:
+						self._mark(p[0], p[1], scale, RED if kind == "missing" else ORANGE,
+							("tidak ada di %s" if kind == "missing" else "tipe beda di %s") % src)
+
+	@objc.python_method
 	def _geometry(self, layer):
 		"""Kontur (komponen dipecah) + hasil ukur, di-cache selama bentuk sama."""
 		paths = layer_paths(_decomposed(layer))
@@ -275,6 +362,8 @@ class VariableStudioReporter(ReporterPlugin):
 						_color((0.95, 0.60, 0.25)).set()
 						rr = r
 					NSBezierPath.bezierPathWithOvalInRect_(NSRect((p[0] - rr, p[1] - rr), (2 * rr, 2 * rr))).fill()
+		if pref_bool("showDiff", True):
+			self._draw_diff(layer, scale)
 		if pref_bool("showThickness", False):
 			self._draw_thickness(layer, scale)
 		if pref_bool("showWidthLabels", False) or pref_bool("showScanH", False) or pref_bool("showScanV", False):

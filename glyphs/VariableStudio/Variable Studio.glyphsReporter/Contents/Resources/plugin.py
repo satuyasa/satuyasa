@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.5.1"
+VS_VERSION = "1.6.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -1683,6 +1683,221 @@ def label_positions(samples, min_gap, occupied=()):
 			chosen.append((mx, my, sm))
 			taken.append((mx, my))
 	return chosen
+
+
+# ---------------------------------------------------------------------------
+# Audit kecocokan titik antar master: urutan kontur, arah, titik awal,
+# titik lebih/kurang, tipe beda - dengan lokasi yang tepat
+
+def reverse_path_data(types, pts):
+	"""Balik arah path seperti Glyphs: titik on-curve membawa tipe segmen yang
+	masuk ke dirinya, jadi setelah dibalik tipe itu pindah ke ujung lain."""
+	n = len(types)
+	on = [i for i, t in enumerate(types) if t != "offcurve"]
+	if not on:
+		return list(reversed(types)), list(reversed(pts))
+	new = list(types)
+	for k, i in enumerate(on):
+		new[i] = types[on[(k + 1) % len(on)]]
+	return list(reversed(new)), list(reversed(pts))
+
+
+def _norm_pts(pts, box):
+	x0, y0, x1, y1 = box
+	w = (x1 - x0) or 1.0
+	h = (y1 - y0) or 1.0
+	return [((x - x0) / w, (y - y0) / h) for x, y in pts]
+
+
+def _box(pts):
+	xs = [p[0] for p in pts]
+	ys = [p[1] for p in pts]
+	return (min(xs), min(ys), max(xs), max(ys)) if xs else (0, 0, 1, 1)
+
+
+def match_contours(ref_paths, paths):
+	"""Pasangkan kontur master lain dengan kontur referensi berdasarkan letak
+	(relatif terhadap glyph), ukuran, dan jumlah/tipe titik - bukan nomor
+	urutnya. Hasil: list indeks kontur lain per kontur referensi (None bila
+	tidak ada pasangan)."""
+	gb_ref = _box([p for _, _, pts in ref_paths for p in pts])
+	gb = _box([p for _, _, pts in paths for p in pts])
+
+	def desc(paths_, gbox):
+		out = []
+		for closed, types, pts in paths_:
+			b = _box(_norm_pts(pts, gbox)) if pts else (0, 0, 0, 0)
+			out.append(((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0, b[2] - b[0], b[3] - b[1], len(pts),
+				sum(1 for t in types if t == "offcurve")))
+		return out
+	A, B = desc(ref_paths, gb_ref), desc(paths, gb)
+	costs = []
+	for i, a in enumerate(A):
+		for j, b in enumerate(B):
+			c = (math.hypot(a[0] - b[0], a[1] - b[1]) + abs(a[2] - b[2]) + abs(a[3] - b[3])
+				+ 0.02 * abs(a[4] - b[4]) + 0.02 * abs(a[5] - b[5]))
+			costs.append((c, i, j))
+	costs.sort()
+	out = [None] * len(A)
+	used = set()
+	for c, i, j in costs:
+		if out[i] is None and j not in used:
+			out[i] = j
+			used.add(j)
+	return out
+
+
+def _align_dp(A, B, gap=0.25):
+	"""A, B: [(tipe, (x, y) ternormalisasi)]. Penjajaran urutan (edit
+	distance). Hasil (biaya, [(i atau None, j atau None)])."""
+	n, m = len(A), len(B)
+	INF = float("inf")
+	D = [[INF] * (m + 1) for _ in range(n + 1)]
+	D[0][0] = 0.0
+	for i in range(n + 1):
+		for j in range(m + 1):
+			d = D[i][j]
+			if d == INF:
+				continue
+			if i < n and j < m:
+				(ta, pa), (tb, pb) = A[i], B[j]
+				c = math.hypot(pa[0] - pb[0], pa[1] - pb[1]) + (0.0 if ta == tb else 0.3)
+				if d + c < D[i + 1][j + 1]:
+					D[i + 1][j + 1] = d + c
+			if i < n and d + gap < D[i + 1][j]:
+				D[i + 1][j] = d + gap
+			if j < m and d + gap < D[i][j + 1]:
+				D[i][j + 1] = d + gap
+	pairs = []
+	i, j = n, m
+	while i > 0 or j > 0:
+		if i > 0 and j > 0:
+			(ta, pa), (tb, pb) = A[i - 1], B[j - 1]
+			c = math.hypot(pa[0] - pb[0], pa[1] - pb[1]) + (0.0 if ta == tb else 0.3)
+			if abs(D[i][j] - (D[i - 1][j - 1] + c)) < 1e-9:
+				pairs.append((i - 1, j - 1))
+				i, j = i - 1, j - 1
+				continue
+		if i > 0 and abs(D[i][j] - (D[i - 1][j] + gap)) < 1e-9:
+			pairs.append((i - 1, None))
+			i -= 1
+		else:
+			pairs.append((None, j - 1))
+			j -= 1
+	pairs.reverse()
+	return D[n][m], pairs
+
+
+def align_contour(ref_types, ref_pts, types, pts):
+	"""Bandingkan satu kontur dengan kontur referensi. Hasil dict:
+	reversed (arah terbalik), start (indeks titik di kontur ini yang
+	seharusnya jadi titik awal; None bila sudah sama), pairs [(i_ref, j)]
+	(j = indeks asli di kontur ini), extra [j], missing [i_ref],
+	type_diff [(i_ref, j)], compatible (bisa diperbaiki otomatis)."""
+	n, m = len(ref_types), len(types)
+	A = list(zip(ref_types, _norm_pts(ref_pts, _box(ref_pts))))
+	best = None
+	for rev in (False, True):
+		t2, p2 = (reverse_path_data(types, pts) if rev else (list(types), list(pts)))
+		# indeks asli untuk tiap posisi urutan t2
+		idx = list(range(m))[::-1] if rev else list(range(m))
+		normB = _norm_pts(p2, _box(p2))
+		if n == m:
+			for r in rotation_candidates(ref_types, t2):
+				c = sum(math.hypot(A[i][1][0] - normB[(i + r) % m][0], A[i][1][1] - normB[(i + r) % m][1]) for i in range(n))
+				if best is None or c < best[0] - 1e-9:
+					best = (c, rev, r, [(i, idx[(i + r) % m]) for i in range(n)], True)
+		if best is not None and best[4]:
+			continue
+		# jumlah/tipe beda: coba beberapa titik awal yang paling dekat posisinya
+		starts = sorted(range(m), key=lambda j: math.hypot(normB[j][0] - A[0][1][0], normB[j][1] - A[0][1][1]))[:6]
+		for r in starts:
+			Bseq = [(t2[(j + r) % m], normB[(j + r) % m]) for j in range(m)]
+			c, pairs = _align_dp(A, Bseq)
+			mapped = [(i, None if j is None else idx[(j + r) % m]) for i, j in pairs]
+			if best is None or (not best[4] and c < best[0]):
+				best = (c, rev, r, mapped, False)
+	c, rev, r, pairs, exact = best
+	extra = [j for i, j in pairs if i is None]
+	missing = [i for i, j in pairs if j is None]
+	type_diff = [(i, j) for i, j in pairs if i is not None and j is not None and ref_types[i] != types[j]
+		and not rev]
+	start = None
+	if exact:
+		# titik awal Glyphs = titik on-curve terakhir di daftar; laporkan
+		# titik kontur ini yang sepadan dengan titik awal referensi
+		ref_start = max(i for i in range(n) if ref_types[i] != "offcurve")
+		cur_start = max(j for j in range(m) if types[j] != "offcurve")
+		want = [j for i, j in pairs if i == ref_start][0]
+		if rev or want != cur_start:
+			start = want
+	return {"reversed": rev, "start": start, "pairs": pairs, "extra": sorted(extra),
+		"missing": sorted(missing), "type_diff": type_diff, "compatible": exact}
+
+
+def diff_paths(ref_paths, paths):
+	"""Bandingkan semua kontur satu master dengan referensi. Hasil dict:
+	order (list indeks kontur lain per kontur ref), unmatched_ref,
+	unmatched_other, contours [{ref, other, ...hasil align_contour}]."""
+	order = match_contours(ref_paths, paths)
+	contours = []
+	for i, j in enumerate(order):
+		if j is None:
+			continue
+		rc, rt, rp = ref_paths[i]
+		oc, ot, op = paths[j]
+		d = align_contour(rt, rp, ot, op)
+		d.update({"ref": i, "other": j, "closed_diff": bool(rc) != bool(oc)})
+		contours.append(d)
+	used = set(j for j in order if j is not None)
+	return {"order": order, "unmatched_ref": [i for i, j in enumerate(order) if j is None],
+		"unmatched_other": [j for j in range(len(paths)) if j not in used], "contours": contours}
+
+
+def diff_items(diff, ref_paths, paths, ref_name, name):
+	"""Masalah per item: {text, nodes [(kontur, titik) di master ini],
+	ref_nodes [(kontur, titik) di referensi], kind}."""
+	out = []
+
+	def item(kind, text, nodes=(), ref_nodes=()):
+		out.append({"kind": kind, "text": text, "nodes": list(nodes), "ref_nodes": list(ref_nodes)})
+	if len(ref_paths) != len(paths):
+		item("count", "%s punya %d kontur, %s %d" % (name, len(paths), ref_name, len(ref_paths)))
+	for i in diff["unmatched_ref"]:
+		item("contour", "kontur %d di %s tidak ada pasangannya di %s" % (i, ref_name, name),
+			ref_nodes=[(i, k) for k in range(len(ref_paths[i][2]))])
+	for j in diff["unmatched_other"]:
+		item("contour", "kontur %d di %s tidak ada pasangannya di %s" % (j, name, ref_name),
+			nodes=[(j, k) for k in range(len(paths[j][2]))])
+	for d in diff["contours"]:
+		i, j = d["ref"], d["other"]
+		tag = "%s kontur %d" % (name, j)
+		ot, rt = paths[j][1], ref_paths[i][1]
+		on_j = [k for k in range(len(ot)) if ot[k] != "offcurve"]
+		if i != j:
+			item("order", "%s = kontur %d di %s (urutan kontur beda)" % (tag, i, ref_name), nodes=[(j, k) for k in on_j[:1]])
+		if d["closed_diff"]:
+			item("closed", "%s: terbuka/tertutup beda" % tag)
+		if d["reversed"]:
+			item("direction", "%s: arah titik terbalik" % tag, nodes=[(j, k) for k in on_j])
+		if d["start"] is not None:
+			item("start", "%s: titik awal beda, seharusnya %d:%d" % (tag, j, d["start"]), nodes=[(j, d["start"])])
+		for jj in d["extra"]:
+			x, y = paths[j][2][jj]
+			item("extra", "%s: titik LEBIH %d:%d (%s) di %s, %s" % (tag, j, jj, ot[jj], fmt_num(round(x)), fmt_num(round(y))),
+				nodes=[(j, jj)])
+		for ii in d["missing"]:
+			x, y = ref_paths[i][2][ii]
+			item("missing", "%s: KURANG titik seperti %s %d:%d (%s) di %s, %s" % (tag, ref_name, i, ii, rt[ii],
+				fmt_num(round(x)), fmt_num(round(y))), ref_nodes=[(i, ii)])
+		for ii, jj in d["type_diff"]:
+			item("type", "%s: titik %d:%d %s, di %s %d:%d %s" % (tag, j, jj, ot[jj], ref_name, i, ii, rt[ii]),
+				nodes=[(j, jj)], ref_nodes=[(i, ii)])
+	return out
+
+
+def describe_diff(diff, ref_paths, paths, ref_name, name):
+	return [x["text"] for x in diff_items(diff, ref_paths, paths, ref_name, name)]
 # ======================================================================
 # vs_glyphs.py
 # Variable Studio - operasi pada font Glyphs 3 (axis, master, instance,
@@ -1995,23 +2210,37 @@ def _types_pts(path):
 	return [node_type(n) for n in path.nodes], [_xy(n) for n in path.nodes]
 
 
-def check_glyph(glyph, font):
+def _sig_extras(ref_layer, layer, ref_name, name):
+	"""Masalah komponen & anchor (bagian non-kontur)."""
+	ref, sig = layer_signature(ref_layer), layer_signature(layer)
+	ref["paths"] = sig["paths"] = []
+	return compare_signatures(ref, sig, ref_name, name)
+
+
+def glyph_issue_items(glyph, font):
+	"""Semua masalah kecocokan antar master dengan lokasi titiknya.
+	[{text, kind, source, layer, nodes, ref_nodes}]: nodes = (kontur, titik)
+	di layer `layer` (master `source`), ref_nodes di master referensi."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
 	ref_name, _, ref_layer = srcs[0]
-	ref = layer_signature(ref_layer)
-	issues = []
+	ref_paths = layer_paths(ref_layer)
+	out = []
 	for name, _, layer in srcs[1:]:
-		issues += compare_signatures(ref, layer_signature(layer), ref_name, name)
-		if len(layer.paths) == len(ref_layer.paths):
-			for ci, (rp, p) in enumerate(zip(ref_layer.paths, layer.paths)):
-				if len(rp.nodes) != len(p.nodes):
-					continue
-				rd, d = path_direction(rp), path_direction(p)
-				if rd and d and rd != d:
-					issues.append("path %d: arah beda di %s" % (ci, name))
-	return issues
+		paths = layer_paths(layer)
+		diff = diff_paths(ref_paths, paths)
+		for it in diff_items(diff, ref_paths, paths, ref_name, name):
+			it.update({"source": name, "layer": layer, "ref_layer": ref_layer})
+			out.append(it)
+		for text in _sig_extras(ref_layer, layer, ref_name, name):
+			out.append({"text": text, "kind": "other", "source": name, "layer": layer, "ref_layer": ref_layer,
+				"nodes": [], "ref_nodes": []})
+	return out
+
+
+def check_glyph(glyph, font):
+	return [it["text"] for it in glyph_issue_items(glyph, font)]
 
 
 def scan_font(font, glyphs=None):
@@ -2044,38 +2273,74 @@ def _rotate_path(path, r):
 	return False
 
 
+def _reorder_paths(layer, order):
+	"""order[i] = indeks path sekarang yang harus berada di posisi i. Komponen
+	tetap di tempatnya di daftar shapes."""
+	paths = list(layer.paths)
+	new_paths = [paths[j] for j in order] + [p for k, p in enumerate(paths) if k not in order]
+	shapes = list(layer.shapes)
+	it = iter(new_paths)
+	layer.shapes = [next(it) if hasattr(sh, "nodes") else sh for sh in shapes]
+
+
 def fix_glyph(glyph, font):
-	"""Samakan arah dan titik awal path semua master dengan master pertama."""
+	"""Samakan urutan kontur, arah, dan titik awal semua master dengan master
+	pertama. Titik lebih/kurang tidak bisa ditebak, jadi hanya dilaporkan."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
-	ref_layer = srcs[0][2]
+	ref_name, _, ref_layer = srcs[0]
+	ref_paths = layer_paths(ref_layer)
 	changes = []
 	for name, _, layer in srcs[1:]:
-		if len(layer.paths) != len(ref_layer.paths):
-			changes.append("%s: jumlah path beda, tidak diubah" % name)
-			continue
-		for ci, (rp, p) in enumerate(zip(ref_layer.paths, layer.paths)):
-			if len(rp.nodes) != len(p.nodes) or not getattr(p, "closed", True):
+		diff = diff_paths(ref_paths, layer_paths(layer))
+		order = diff["order"]
+		if None not in order and not diff["unmatched_other"] and order != list(range(len(order))):
+			_reorder_paths(layer, order)
+			changes.append("%s: urutan kontur disamakan" % name)
+			diff = diff_paths(ref_paths, layer_paths(layer))
+		for d in diff["contours"]:
+			ci = d["other"]
+			p = layer.paths[ci]
+			if not d["compatible"]:
+				left = []
+				if d["extra"]:
+					left.append("titik lebih " + ", ".join("%d:%d" % (ci, j) for j in d["extra"]))
+				if d["missing"]:
+					left.append("kurang %d titik" % len(d["missing"]))
+				changes.append("%s kontur %d: perlu diperbaiki manual (%s)" % (name, ci, "; ".join(left) or "tipe titik beda"))
 				continue
-			rd, d = path_direction(rp), path_direction(p)
-			if rd and d and rd != d:
+			if d["reversed"]:
 				p.reverse()
-				changes.append("%s path %d: arah dibalik" % (name, ci))
-			rt, rpts = _types_pts(rp)
+				changes.append("%s kontur %d: arah dibalik" % (name, ci))
+			rt, rpts = ref_paths[d["ref"]][1], ref_paths[d["ref"]][2]
 			t, pts = _types_pts(p)
 			r = best_rotation(rt, rpts, t, pts)
-			if r is None:
-				if t != rt:
-					changes.append("%s path %d: tipe titik tidak bisa dicocokkan" % (name, ci))
-				continue
-			if r == 0:
-				continue
-			if _rotate_path(p, r):
-				changes.append("%s path %d: titik awal digeser %d" % (name, ci, r))
-			else:
-				changes.append("%s path %d: gagal menggeser titik awal" % (name, ci))
+			if r:
+				if _rotate_path(p, r):
+					changes.append("%s kontur %d: titik awal digeser" % (name, ci))
+				else:
+					changes.append("%s kontur %d: gagal menggeser titik awal" % (name, ci))
 	return changes
+
+
+def select_nodes(layer, ids):
+	"""Pilih titik (kontur, titik) di layer supaya mudah ditemukan."""
+	nodes = []
+	for ci, ni in ids:
+		try:
+			nodes.append(layer.paths[ci].nodes[ni])
+		except Exception:
+			pass
+	try:
+		layer.selection = nodes
+	except Exception:
+		for n in nodes:
+			try:
+				n.selected = True
+			except Exception:
+				pass
+	return len(nodes)
 
 
 def set_glyph_color(glyph, color_index):
@@ -2797,6 +3062,93 @@ class VariableStudioReporter(ReporterPlugin):
 				bp.stroke()
 
 	@objc.python_method
+	def _diff_items(self, layer):
+		"""Masalah kecocokan untuk glyph ini, di-cache selama bentuk semua
+		master sama."""
+		font = self._font(layer)
+		glyph = layer.parent
+		if font is None or glyph is None:
+			return []
+		srcs = glyph_sources(glyph, font)
+		if len(srcs) < 2:
+			return []
+		key = (glyph.name, tuple((n, tuple((c, tuple(t), tuple(p)) for c, t, p in layer_paths(l))) for n, _, l in srcs))
+		cache = getattr(self, "_diff_cache", None)
+		if cache is None or cache[0] != key:
+			try:
+				items = glyph_issue_items(glyph, font)
+			except Exception:
+				items = []
+			cache = (key, items)
+			self._diff_cache = cache
+		return cache[1]
+
+	@objc.python_method
+	def _mark(self, x, y, scale, rgb, text, dashed=False):
+		r = 9.0 / scale
+		bp = NSBezierPath.bezierPathWithOvalInRect_(NSRect((x - r, y - r), (2 * r, 2 * r)))
+		bp.setLineWidth_(2.0 / scale)
+		if dashed:
+			bp.setLineDash_count_phase_([3.0 / scale, 2.0 / scale], 2, 0)
+		_color(rgb).set()
+		bp.stroke()
+		if text:
+			self.drawTextAtPoint(text, NSPoint(x + r * 1.3, y - r * 1.6), fontSize=9.0, fontColor=_color(rgb), align="topleft")
+
+	@objc.python_method
+	def _draw_diff(self, layer, scale):
+		items = self._diff_items(layer)
+		if not items:
+			return
+		lid = getattr(layer, "layerId", None)
+		RED, ORANGE, BLUE, PURPLE = (0.90, 0.15, 0.15), (0.95, 0.55, 0.10), (0.15, 0.45, 0.95), (0.60, 0.25, 0.85)
+
+		def same(l):
+			return l is layer or (lid is not None and getattr(l, "layerId", None) == lid)
+
+		def pos(l, ci, ni):
+			try:
+				return _xy(l.paths[ci].nodes[ni])
+			except Exception:
+				return None
+		for it in items:
+			kind = it["kind"]
+			here = same(it["layer"])
+			on_ref = same(it["ref_layer"])
+			if not here and not on_ref:
+				continue
+			src = it["source"]
+			if here:
+				for ci, ni in it["nodes"]:
+					p = pos(layer, ci, ni)
+					if p is None:
+						continue
+					if kind == "extra":
+						self._mark(p[0], p[1], scale, RED, "lebih (tidak ada di master ref)")
+					elif kind == "type":
+						self._mark(p[0], p[1], scale, ORANGE, "tipe beda")
+					elif kind == "start":
+						self._mark(p[0], p[1], scale, BLUE, "jadikan titik awal")
+				if kind == "missing":
+					for ci, ni in it["ref_nodes"]:
+						p = pos(it["ref_layer"], ci, ni)
+						if p is not None:
+							self._mark(p[0], p[1], scale, RED, "kurang titik (ref %d:%d)" % (ci, ni), dashed=True)
+				if kind in ("direction", "order", "contour") and it["nodes"]:
+					p = pos(layer, *it["nodes"][0])
+					if p is not None:
+						label = {"direction": "arah terbalik", "order": "urutan kontur beda",
+							"contour": "kontur tanpa pasangan"}[kind]
+						self.drawTextAtPoint(label, NSPoint(p[0], p[1] + 14.0 / scale), fontSize=10.0,
+							fontColor=_color(PURPLE), align="bottomleft")
+			if on_ref and kind in ("missing", "type"):
+				for ci, ni in it["ref_nodes"]:
+					p = pos(layer, ci, ni)
+					if p is not None:
+						self._mark(p[0], p[1], scale, RED if kind == "missing" else ORANGE,
+							("tidak ada di %s" if kind == "missing" else "tipe beda di %s") % src)
+
+	@objc.python_method
 	def _geometry(self, layer):
 		"""Kontur (komponen dipecah) + hasil ukur, di-cache selama bentuk sama."""
 		paths = layer_paths(_decomposed(layer))
@@ -2942,6 +3294,8 @@ class VariableStudioReporter(ReporterPlugin):
 						_color((0.95, 0.60, 0.25)).set()
 						rr = r
 					NSBezierPath.bezierPathWithOvalInRect_(NSRect((p[0] - rr, p[1] - rr), (2 * rr, 2 * rr))).fill()
+		if pref_bool("showDiff", True):
+			self._draw_diff(layer, scale)
 		if pref_bool("showThickness", False):
 			self._draw_thickness(layer, scale)
 		if pref_bool("showWidthLabels", False) or pref_bool("showScanH", False) or pref_bool("showScanV", False):

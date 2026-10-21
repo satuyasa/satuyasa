@@ -121,7 +121,7 @@ def test_points_and_check():
 	assert lay.paths[0].nodes[-1].position.x > 500  # titik awal kembali di kanan
 	# simetris: H tetap kompatibel; jumlah path beda dilaporkan
 	f.glyphs["H"].layers[f.masters[1].id].paths.pop()
-	assert any("jumlah path" in i for i in P.check_glyph(f.glyphs["H"], f))
+	assert any("punya 2 kontur" in i for i in P.check_glyph(f.glyphs["H"], f))
 
 
 def test_interpolate():
@@ -676,6 +676,69 @@ def test_terminals():
 	# slab serif: ujung 30 tinggi dengan sisi sejajar -> bukan ujung runcing
 	slab = (True, ["line"] * 8, [(0, 0), (300, 0), (300, 30), (190, 30), (190, 400), (110, 400), (110, 30), (0, 30)])
 	assert P.terminal_caps([slab]) == []
+
+
+def test_point_audit():
+	"""Audit kecocokan titik: urutan kontur, arah, titik awal, titik lebih,
+	tipe beda - dengan lokasi; perbaikan otomatis; tunjukkan titik."""
+	f = make_font()
+	light, bold = f.masters
+	g = f.glyphs["o"]
+	lb = g.layers[bold.id]
+	# Bold: tukar urutan kontur, balik arah kontur luar & geser titik awalnya
+	outer, inner = lb.paths
+	lb.paths = [inner, outer]
+	outer.reverse()
+	outer.nodes[5].makeNodeFirst()
+	items = P.glyph_issue_items(g, f)
+	kinds = sorted(set(it["kind"] for it in items))
+	assert kinds == ["direction", "order", "start"], [it["text"] for it in items]
+	assert all(it["source"] == "Bold" for it in items)
+	start = [it for it in items if it["kind"] == "start"][0]
+	assert start["nodes"] and start["text"].endswith("%d:%d" % start["nodes"][0])
+	ch = P.fix_glyph(g, f)
+	assert any("urutan" in c for c in ch) and any("arah" in c for c in ch), ch
+	assert P.check_glyph(g, f) == [], P.check_glyph(g, f)
+	ref = g.layers[light.id]
+	assert [n.type for n in lb.paths[0].nodes] == [n.type for n in ref.paths[0].nodes]
+	# titik lebih: lokasi tepat, tidak diubah otomatis
+	h = f.glyphs["H"].layers[bold.id]
+	h.paths[0].nodes.insert(2, GSNode((100, 350), "line"))
+	h.paths[0].nodes[2].parent = h.paths[0]
+	items = P.glyph_issue_items(f.glyphs["H"], f)
+	extra = [it for it in items if it["kind"] == "extra"]
+	assert len(extra) == 1 and extra[0]["nodes"] == [(0, 2)] and "0:2" in extra[0]["text"], [it["text"] for it in items]
+	ch = P.fix_glyph(f.glyphs["H"], f)
+	assert any("manual" in c and "0:2" in c for c in ch), ch
+	# tipe beda
+	f2 = make_font()
+	l2 = f2.glyphs["H"].layers[f2.masters[1].id]
+	l2.paths[2].nodes[1].type = "curve"
+	items = P.glyph_issue_items(f2.glyphs["H"], f2)
+	assert [it["kind"] for it in items] == ["type"] and items[0]["nodes"] == [(2, 1)]
+	# jendela: Tunjukkan titik memilih titik bermasalah di master Bold
+	Glyphs.font = f
+	f.selectedLayers = [f.glyphs["H"].layers[light.id]]
+	w = P.VariableStudioWindow()
+	t = w.w.tabs[0]
+	f.selectedLayers = [f.glyphs["H"].layers[bold.id]]
+	w.check_current()
+	rows = t.results.get()
+	t.results.selection = [next(k for k, r in enumerate(rows) if "LEBIH" in r["issue"])]
+	w.locate_issue()
+	assert h.selection == [h.paths[0].nodes[2]] and "0:2" in t.status.value, t.status.value
+	w.w.binds["close"](None)
+	# reporter: penanda dengan label
+	Glyphs.defaults.clear()
+	R.pref_set("showIDs", 0)
+	R.ReporterPlugin.texts[:] = []
+	rep = R.VariableStudioReporter()
+	rep.foreground(h)
+	labels = [x for x, _ in R.ReporterPlugin.texts]
+	assert any("lebih" in x for x in labels), labels
+	R.ReporterPlugin.texts[:] = []
+	rep.foreground(f.glyphs["H"].layers[light.id])
+	assert not any("lebih" in x for x in R.ReporterPlugin.texts)
 
 
 if __name__ == "__main__":

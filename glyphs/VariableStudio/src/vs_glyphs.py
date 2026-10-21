@@ -312,23 +312,37 @@ def _types_pts(path):
 	return [node_type(n) for n in path.nodes], [_xy(n) for n in path.nodes]
 
 
-def check_glyph(glyph, font):
+def _sig_extras(ref_layer, layer, ref_name, name):
+	"""Masalah komponen & anchor (bagian non-kontur)."""
+	ref, sig = layer_signature(ref_layer), layer_signature(layer)
+	ref["paths"] = sig["paths"] = []
+	return compare_signatures(ref, sig, ref_name, name)
+
+
+def glyph_issue_items(glyph, font):
+	"""Semua masalah kecocokan antar master dengan lokasi titiknya.
+	[{text, kind, source, layer, nodes, ref_nodes}]: nodes = (kontur, titik)
+	di layer `layer` (master `source`), ref_nodes di master referensi."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
 	ref_name, _, ref_layer = srcs[0]
-	ref = layer_signature(ref_layer)
-	issues = []
+	ref_paths = layer_paths(ref_layer)
+	out = []
 	for name, _, layer in srcs[1:]:
-		issues += compare_signatures(ref, layer_signature(layer), ref_name, name)
-		if len(layer.paths) == len(ref_layer.paths):
-			for ci, (rp, p) in enumerate(zip(ref_layer.paths, layer.paths)):
-				if len(rp.nodes) != len(p.nodes):
-					continue
-				rd, d = path_direction(rp), path_direction(p)
-				if rd and d and rd != d:
-					issues.append("path %d: arah beda di %s" % (ci, name))
-	return issues
+		paths = layer_paths(layer)
+		diff = diff_paths(ref_paths, paths)
+		for it in diff_items(diff, ref_paths, paths, ref_name, name):
+			it.update({"source": name, "layer": layer, "ref_layer": ref_layer})
+			out.append(it)
+		for text in _sig_extras(ref_layer, layer, ref_name, name):
+			out.append({"text": text, "kind": "other", "source": name, "layer": layer, "ref_layer": ref_layer,
+				"nodes": [], "ref_nodes": []})
+	return out
+
+
+def check_glyph(glyph, font):
+	return [it["text"] for it in glyph_issue_items(glyph, font)]
 
 
 def scan_font(font, glyphs=None):
@@ -361,38 +375,74 @@ def _rotate_path(path, r):
 	return False
 
 
+def _reorder_paths(layer, order):
+	"""order[i] = indeks path sekarang yang harus berada di posisi i. Komponen
+	tetap di tempatnya di daftar shapes."""
+	paths = list(layer.paths)
+	new_paths = [paths[j] for j in order] + [p for k, p in enumerate(paths) if k not in order]
+	shapes = list(layer.shapes)
+	it = iter(new_paths)
+	layer.shapes = [next(it) if hasattr(sh, "nodes") else sh for sh in shapes]
+
+
 def fix_glyph(glyph, font):
-	"""Samakan arah dan titik awal path semua master dengan master pertama."""
+	"""Samakan urutan kontur, arah, dan titik awal semua master dengan master
+	pertama. Titik lebih/kurang tidak bisa ditebak, jadi hanya dilaporkan."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
-	ref_layer = srcs[0][2]
+	ref_name, _, ref_layer = srcs[0]
+	ref_paths = layer_paths(ref_layer)
 	changes = []
 	for name, _, layer in srcs[1:]:
-		if len(layer.paths) != len(ref_layer.paths):
-			changes.append("%s: jumlah path beda, tidak diubah" % name)
-			continue
-		for ci, (rp, p) in enumerate(zip(ref_layer.paths, layer.paths)):
-			if len(rp.nodes) != len(p.nodes) or not getattr(p, "closed", True):
+		diff = diff_paths(ref_paths, layer_paths(layer))
+		order = diff["order"]
+		if None not in order and not diff["unmatched_other"] and order != list(range(len(order))):
+			_reorder_paths(layer, order)
+			changes.append("%s: urutan kontur disamakan" % name)
+			diff = diff_paths(ref_paths, layer_paths(layer))
+		for d in diff["contours"]:
+			ci = d["other"]
+			p = layer.paths[ci]
+			if not d["compatible"]:
+				left = []
+				if d["extra"]:
+					left.append("titik lebih " + ", ".join("%d:%d" % (ci, j) for j in d["extra"]))
+				if d["missing"]:
+					left.append("kurang %d titik" % len(d["missing"]))
+				changes.append("%s kontur %d: perlu diperbaiki manual (%s)" % (name, ci, "; ".join(left) or "tipe titik beda"))
 				continue
-			rd, d = path_direction(rp), path_direction(p)
-			if rd and d and rd != d:
+			if d["reversed"]:
 				p.reverse()
-				changes.append("%s path %d: arah dibalik" % (name, ci))
-			rt, rpts = _types_pts(rp)
+				changes.append("%s kontur %d: arah dibalik" % (name, ci))
+			rt, rpts = ref_paths[d["ref"]][1], ref_paths[d["ref"]][2]
 			t, pts = _types_pts(p)
 			r = best_rotation(rt, rpts, t, pts)
-			if r is None:
-				if t != rt:
-					changes.append("%s path %d: tipe titik tidak bisa dicocokkan" % (name, ci))
-				continue
-			if r == 0:
-				continue
-			if _rotate_path(p, r):
-				changes.append("%s path %d: titik awal digeser %d" % (name, ci, r))
-			else:
-				changes.append("%s path %d: gagal menggeser titik awal" % (name, ci))
+			if r:
+				if _rotate_path(p, r):
+					changes.append("%s kontur %d: titik awal digeser" % (name, ci))
+				else:
+					changes.append("%s kontur %d: gagal menggeser titik awal" % (name, ci))
 	return changes
+
+
+def select_nodes(layer, ids):
+	"""Pilih titik (kontur, titik) di layer supaya mudah ditemukan."""
+	nodes = []
+	for ci, ni in ids:
+		try:
+			nodes.append(layer.paths[ci].nodes[ni])
+		except Exception:
+			pass
+	try:
+		layer.selection = nodes
+	except Exception:
+		for n in nodes:
+			try:
+				n.selected = True
+			except Exception:
+				pass
+	return len(nodes)
 
 
 def set_glyph_color(glyph, color_index):

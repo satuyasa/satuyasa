@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.5.1"
+VS_VERSION = "1.6.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -1683,6 +1683,221 @@ def label_positions(samples, min_gap, occupied=()):
 			chosen.append((mx, my, sm))
 			taken.append((mx, my))
 	return chosen
+
+
+# ---------------------------------------------------------------------------
+# Audit kecocokan titik antar master: urutan kontur, arah, titik awal,
+# titik lebih/kurang, tipe beda - dengan lokasi yang tepat
+
+def reverse_path_data(types, pts):
+	"""Balik arah path seperti Glyphs: titik on-curve membawa tipe segmen yang
+	masuk ke dirinya, jadi setelah dibalik tipe itu pindah ke ujung lain."""
+	n = len(types)
+	on = [i for i, t in enumerate(types) if t != "offcurve"]
+	if not on:
+		return list(reversed(types)), list(reversed(pts))
+	new = list(types)
+	for k, i in enumerate(on):
+		new[i] = types[on[(k + 1) % len(on)]]
+	return list(reversed(new)), list(reversed(pts))
+
+
+def _norm_pts(pts, box):
+	x0, y0, x1, y1 = box
+	w = (x1 - x0) or 1.0
+	h = (y1 - y0) or 1.0
+	return [((x - x0) / w, (y - y0) / h) for x, y in pts]
+
+
+def _box(pts):
+	xs = [p[0] for p in pts]
+	ys = [p[1] for p in pts]
+	return (min(xs), min(ys), max(xs), max(ys)) if xs else (0, 0, 1, 1)
+
+
+def match_contours(ref_paths, paths):
+	"""Pasangkan kontur master lain dengan kontur referensi berdasarkan letak
+	(relatif terhadap glyph), ukuran, dan jumlah/tipe titik - bukan nomor
+	urutnya. Hasil: list indeks kontur lain per kontur referensi (None bila
+	tidak ada pasangan)."""
+	gb_ref = _box([p for _, _, pts in ref_paths for p in pts])
+	gb = _box([p for _, _, pts in paths for p in pts])
+
+	def desc(paths_, gbox):
+		out = []
+		for closed, types, pts in paths_:
+			b = _box(_norm_pts(pts, gbox)) if pts else (0, 0, 0, 0)
+			out.append(((b[0] + b[2]) / 2.0, (b[1] + b[3]) / 2.0, b[2] - b[0], b[3] - b[1], len(pts),
+				sum(1 for t in types if t == "offcurve")))
+		return out
+	A, B = desc(ref_paths, gb_ref), desc(paths, gb)
+	costs = []
+	for i, a in enumerate(A):
+		for j, b in enumerate(B):
+			c = (math.hypot(a[0] - b[0], a[1] - b[1]) + abs(a[2] - b[2]) + abs(a[3] - b[3])
+				+ 0.02 * abs(a[4] - b[4]) + 0.02 * abs(a[5] - b[5]))
+			costs.append((c, i, j))
+	costs.sort()
+	out = [None] * len(A)
+	used = set()
+	for c, i, j in costs:
+		if out[i] is None and j not in used:
+			out[i] = j
+			used.add(j)
+	return out
+
+
+def _align_dp(A, B, gap=0.25):
+	"""A, B: [(tipe, (x, y) ternormalisasi)]. Penjajaran urutan (edit
+	distance). Hasil (biaya, [(i atau None, j atau None)])."""
+	n, m = len(A), len(B)
+	INF = float("inf")
+	D = [[INF] * (m + 1) for _ in range(n + 1)]
+	D[0][0] = 0.0
+	for i in range(n + 1):
+		for j in range(m + 1):
+			d = D[i][j]
+			if d == INF:
+				continue
+			if i < n and j < m:
+				(ta, pa), (tb, pb) = A[i], B[j]
+				c = math.hypot(pa[0] - pb[0], pa[1] - pb[1]) + (0.0 if ta == tb else 0.3)
+				if d + c < D[i + 1][j + 1]:
+					D[i + 1][j + 1] = d + c
+			if i < n and d + gap < D[i + 1][j]:
+				D[i + 1][j] = d + gap
+			if j < m and d + gap < D[i][j + 1]:
+				D[i][j + 1] = d + gap
+	pairs = []
+	i, j = n, m
+	while i > 0 or j > 0:
+		if i > 0 and j > 0:
+			(ta, pa), (tb, pb) = A[i - 1], B[j - 1]
+			c = math.hypot(pa[0] - pb[0], pa[1] - pb[1]) + (0.0 if ta == tb else 0.3)
+			if abs(D[i][j] - (D[i - 1][j - 1] + c)) < 1e-9:
+				pairs.append((i - 1, j - 1))
+				i, j = i - 1, j - 1
+				continue
+		if i > 0 and abs(D[i][j] - (D[i - 1][j] + gap)) < 1e-9:
+			pairs.append((i - 1, None))
+			i -= 1
+		else:
+			pairs.append((None, j - 1))
+			j -= 1
+	pairs.reverse()
+	return D[n][m], pairs
+
+
+def align_contour(ref_types, ref_pts, types, pts):
+	"""Bandingkan satu kontur dengan kontur referensi. Hasil dict:
+	reversed (arah terbalik), start (indeks titik di kontur ini yang
+	seharusnya jadi titik awal; None bila sudah sama), pairs [(i_ref, j)]
+	(j = indeks asli di kontur ini), extra [j], missing [i_ref],
+	type_diff [(i_ref, j)], compatible (bisa diperbaiki otomatis)."""
+	n, m = len(ref_types), len(types)
+	A = list(zip(ref_types, _norm_pts(ref_pts, _box(ref_pts))))
+	best = None
+	for rev in (False, True):
+		t2, p2 = (reverse_path_data(types, pts) if rev else (list(types), list(pts)))
+		# indeks asli untuk tiap posisi urutan t2
+		idx = list(range(m))[::-1] if rev else list(range(m))
+		normB = _norm_pts(p2, _box(p2))
+		if n == m:
+			for r in rotation_candidates(ref_types, t2):
+				c = sum(math.hypot(A[i][1][0] - normB[(i + r) % m][0], A[i][1][1] - normB[(i + r) % m][1]) for i in range(n))
+				if best is None or c < best[0] - 1e-9:
+					best = (c, rev, r, [(i, idx[(i + r) % m]) for i in range(n)], True)
+		if best is not None and best[4]:
+			continue
+		# jumlah/tipe beda: coba beberapa titik awal yang paling dekat posisinya
+		starts = sorted(range(m), key=lambda j: math.hypot(normB[j][0] - A[0][1][0], normB[j][1] - A[0][1][1]))[:6]
+		for r in starts:
+			Bseq = [(t2[(j + r) % m], normB[(j + r) % m]) for j in range(m)]
+			c, pairs = _align_dp(A, Bseq)
+			mapped = [(i, None if j is None else idx[(j + r) % m]) for i, j in pairs]
+			if best is None or (not best[4] and c < best[0]):
+				best = (c, rev, r, mapped, False)
+	c, rev, r, pairs, exact = best
+	extra = [j for i, j in pairs if i is None]
+	missing = [i for i, j in pairs if j is None]
+	type_diff = [(i, j) for i, j in pairs if i is not None and j is not None and ref_types[i] != types[j]
+		and not rev]
+	start = None
+	if exact:
+		# titik awal Glyphs = titik on-curve terakhir di daftar; laporkan
+		# titik kontur ini yang sepadan dengan titik awal referensi
+		ref_start = max(i for i in range(n) if ref_types[i] != "offcurve")
+		cur_start = max(j for j in range(m) if types[j] != "offcurve")
+		want = [j for i, j in pairs if i == ref_start][0]
+		if rev or want != cur_start:
+			start = want
+	return {"reversed": rev, "start": start, "pairs": pairs, "extra": sorted(extra),
+		"missing": sorted(missing), "type_diff": type_diff, "compatible": exact}
+
+
+def diff_paths(ref_paths, paths):
+	"""Bandingkan semua kontur satu master dengan referensi. Hasil dict:
+	order (list indeks kontur lain per kontur ref), unmatched_ref,
+	unmatched_other, contours [{ref, other, ...hasil align_contour}]."""
+	order = match_contours(ref_paths, paths)
+	contours = []
+	for i, j in enumerate(order):
+		if j is None:
+			continue
+		rc, rt, rp = ref_paths[i]
+		oc, ot, op = paths[j]
+		d = align_contour(rt, rp, ot, op)
+		d.update({"ref": i, "other": j, "closed_diff": bool(rc) != bool(oc)})
+		contours.append(d)
+	used = set(j for j in order if j is not None)
+	return {"order": order, "unmatched_ref": [i for i, j in enumerate(order) if j is None],
+		"unmatched_other": [j for j in range(len(paths)) if j not in used], "contours": contours}
+
+
+def diff_items(diff, ref_paths, paths, ref_name, name):
+	"""Masalah per item: {text, nodes [(kontur, titik) di master ini],
+	ref_nodes [(kontur, titik) di referensi], kind}."""
+	out = []
+
+	def item(kind, text, nodes=(), ref_nodes=()):
+		out.append({"kind": kind, "text": text, "nodes": list(nodes), "ref_nodes": list(ref_nodes)})
+	if len(ref_paths) != len(paths):
+		item("count", "%s punya %d kontur, %s %d" % (name, len(paths), ref_name, len(ref_paths)))
+	for i in diff["unmatched_ref"]:
+		item("contour", "kontur %d di %s tidak ada pasangannya di %s" % (i, ref_name, name),
+			ref_nodes=[(i, k) for k in range(len(ref_paths[i][2]))])
+	for j in diff["unmatched_other"]:
+		item("contour", "kontur %d di %s tidak ada pasangannya di %s" % (j, name, ref_name),
+			nodes=[(j, k) for k in range(len(paths[j][2]))])
+	for d in diff["contours"]:
+		i, j = d["ref"], d["other"]
+		tag = "%s kontur %d" % (name, j)
+		ot, rt = paths[j][1], ref_paths[i][1]
+		on_j = [k for k in range(len(ot)) if ot[k] != "offcurve"]
+		if i != j:
+			item("order", "%s = kontur %d di %s (urutan kontur beda)" % (tag, i, ref_name), nodes=[(j, k) for k in on_j[:1]])
+		if d["closed_diff"]:
+			item("closed", "%s: terbuka/tertutup beda" % tag)
+		if d["reversed"]:
+			item("direction", "%s: arah titik terbalik" % tag, nodes=[(j, k) for k in on_j])
+		if d["start"] is not None:
+			item("start", "%s: titik awal beda, seharusnya %d:%d" % (tag, j, d["start"]), nodes=[(j, d["start"])])
+		for jj in d["extra"]:
+			x, y = paths[j][2][jj]
+			item("extra", "%s: titik LEBIH %d:%d (%s) di %s, %s" % (tag, j, jj, ot[jj], fmt_num(round(x)), fmt_num(round(y))),
+				nodes=[(j, jj)])
+		for ii in d["missing"]:
+			x, y = ref_paths[i][2][ii]
+			item("missing", "%s: KURANG titik seperti %s %d:%d (%s) di %s, %s" % (tag, ref_name, i, ii, rt[ii],
+				fmt_num(round(x)), fmt_num(round(y))), ref_nodes=[(i, ii)])
+		for ii, jj in d["type_diff"]:
+			item("type", "%s: titik %d:%d %s, di %s %d:%d %s" % (tag, j, jj, ot[jj], ref_name, i, ii, rt[ii]),
+				nodes=[(j, jj)], ref_nodes=[(i, ii)])
+	return out
+
+
+def describe_diff(diff, ref_paths, paths, ref_name, name):
+	return [x["text"] for x in diff_items(diff, ref_paths, paths, ref_name, name)]
 # ======================================================================
 # vs_glyphs.py
 # Variable Studio - operasi pada font Glyphs 3 (axis, master, instance,
@@ -1995,23 +2210,37 @@ def _types_pts(path):
 	return [node_type(n) for n in path.nodes], [_xy(n) for n in path.nodes]
 
 
-def check_glyph(glyph, font):
+def _sig_extras(ref_layer, layer, ref_name, name):
+	"""Masalah komponen & anchor (bagian non-kontur)."""
+	ref, sig = layer_signature(ref_layer), layer_signature(layer)
+	ref["paths"] = sig["paths"] = []
+	return compare_signatures(ref, sig, ref_name, name)
+
+
+def glyph_issue_items(glyph, font):
+	"""Semua masalah kecocokan antar master dengan lokasi titiknya.
+	[{text, kind, source, layer, nodes, ref_nodes}]: nodes = (kontur, titik)
+	di layer `layer` (master `source`), ref_nodes di master referensi."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
 	ref_name, _, ref_layer = srcs[0]
-	ref = layer_signature(ref_layer)
-	issues = []
+	ref_paths = layer_paths(ref_layer)
+	out = []
 	for name, _, layer in srcs[1:]:
-		issues += compare_signatures(ref, layer_signature(layer), ref_name, name)
-		if len(layer.paths) == len(ref_layer.paths):
-			for ci, (rp, p) in enumerate(zip(ref_layer.paths, layer.paths)):
-				if len(rp.nodes) != len(p.nodes):
-					continue
-				rd, d = path_direction(rp), path_direction(p)
-				if rd and d and rd != d:
-					issues.append("path %d: arah beda di %s" % (ci, name))
-	return issues
+		paths = layer_paths(layer)
+		diff = diff_paths(ref_paths, paths)
+		for it in diff_items(diff, ref_paths, paths, ref_name, name):
+			it.update({"source": name, "layer": layer, "ref_layer": ref_layer})
+			out.append(it)
+		for text in _sig_extras(ref_layer, layer, ref_name, name):
+			out.append({"text": text, "kind": "other", "source": name, "layer": layer, "ref_layer": ref_layer,
+				"nodes": [], "ref_nodes": []})
+	return out
+
+
+def check_glyph(glyph, font):
+	return [it["text"] for it in glyph_issue_items(glyph, font)]
 
 
 def scan_font(font, glyphs=None):
@@ -2044,38 +2273,74 @@ def _rotate_path(path, r):
 	return False
 
 
+def _reorder_paths(layer, order):
+	"""order[i] = indeks path sekarang yang harus berada di posisi i. Komponen
+	tetap di tempatnya di daftar shapes."""
+	paths = list(layer.paths)
+	new_paths = [paths[j] for j in order] + [p for k, p in enumerate(paths) if k not in order]
+	shapes = list(layer.shapes)
+	it = iter(new_paths)
+	layer.shapes = [next(it) if hasattr(sh, "nodes") else sh for sh in shapes]
+
+
 def fix_glyph(glyph, font):
-	"""Samakan arah dan titik awal path semua master dengan master pertama."""
+	"""Samakan urutan kontur, arah, dan titik awal semua master dengan master
+	pertama. Titik lebih/kurang tidak bisa ditebak, jadi hanya dilaporkan."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
-	ref_layer = srcs[0][2]
+	ref_name, _, ref_layer = srcs[0]
+	ref_paths = layer_paths(ref_layer)
 	changes = []
 	for name, _, layer in srcs[1:]:
-		if len(layer.paths) != len(ref_layer.paths):
-			changes.append("%s: jumlah path beda, tidak diubah" % name)
-			continue
-		for ci, (rp, p) in enumerate(zip(ref_layer.paths, layer.paths)):
-			if len(rp.nodes) != len(p.nodes) or not getattr(p, "closed", True):
+		diff = diff_paths(ref_paths, layer_paths(layer))
+		order = diff["order"]
+		if None not in order and not diff["unmatched_other"] and order != list(range(len(order))):
+			_reorder_paths(layer, order)
+			changes.append("%s: urutan kontur disamakan" % name)
+			diff = diff_paths(ref_paths, layer_paths(layer))
+		for d in diff["contours"]:
+			ci = d["other"]
+			p = layer.paths[ci]
+			if not d["compatible"]:
+				left = []
+				if d["extra"]:
+					left.append("titik lebih " + ", ".join("%d:%d" % (ci, j) for j in d["extra"]))
+				if d["missing"]:
+					left.append("kurang %d titik" % len(d["missing"]))
+				changes.append("%s kontur %d: perlu diperbaiki manual (%s)" % (name, ci, "; ".join(left) or "tipe titik beda"))
 				continue
-			rd, d = path_direction(rp), path_direction(p)
-			if rd and d and rd != d:
+			if d["reversed"]:
 				p.reverse()
-				changes.append("%s path %d: arah dibalik" % (name, ci))
-			rt, rpts = _types_pts(rp)
+				changes.append("%s kontur %d: arah dibalik" % (name, ci))
+			rt, rpts = ref_paths[d["ref"]][1], ref_paths[d["ref"]][2]
 			t, pts = _types_pts(p)
 			r = best_rotation(rt, rpts, t, pts)
-			if r is None:
-				if t != rt:
-					changes.append("%s path %d: tipe titik tidak bisa dicocokkan" % (name, ci))
-				continue
-			if r == 0:
-				continue
-			if _rotate_path(p, r):
-				changes.append("%s path %d: titik awal digeser %d" % (name, ci, r))
-			else:
-				changes.append("%s path %d: gagal menggeser titik awal" % (name, ci))
+			if r:
+				if _rotate_path(p, r):
+					changes.append("%s kontur %d: titik awal digeser" % (name, ci))
+				else:
+					changes.append("%s kontur %d: gagal menggeser titik awal" % (name, ci))
 	return changes
+
+
+def select_nodes(layer, ids):
+	"""Pilih titik (kontur, titik) di layer supaya mudah ditemukan."""
+	nodes = []
+	for ci, ni in ids:
+		try:
+			nodes.append(layer.paths[ci].nodes[ni])
+		except Exception:
+			pass
+	try:
+		layer.selection = nodes
+	except Exception:
+		for n in nodes:
+			try:
+				n.selected = True
+			except Exception:
+				pass
+	return len(nodes)
 
 
 def set_glyph_color(glyph, color_index):
@@ -2809,14 +3074,15 @@ class VariableStudioWindow(object):
 		t.csv = Button((-105, 6, 95, 22), "Salin CSV", callback=lambda s: self._guard(self.copy_csv))
 		t.points = List((10, 36, -10, 210), [])
 		t.check = Button((10, 254, 140, 22), "Cek glyph ini", callback=lambda s: self._guard(self.check_current))
-		t.fix = Button((156, 254, 230, 22), "Samakan arah & titik awal", callback=lambda s: self._guard(self.fix_current))
+		t.fix = Button((156, 254, 270, 22), "Samakan urutan, arah & titik awal", callback=lambda s: self._guard(self.fix_current))
+		t.locate = Button((-170, 254, 160, 22), "Tunjukkan titik", callback=lambda s: self._guard(self.locate_issue))
 		t.line = HorizontalLine((10, 286, -10, 1))
 		t.scan = Button((10, 296, 160, 22), "Cek seluruh font", callback=lambda s: self._guard(self.scan))
 		t.scanSel = CheckBox((180, 297, 220, 20), "Hanya glyph terpilih")
 		t.fixAll = Button((-200, 296, 190, 22), "Perbaiki semua hasil", callback=lambda s: self._guard(self.fix_results))
 		t.results = List((10, 326, -10, -66), [],
 			columnDescriptions=[{"title": "Glyph", "key": "glyph", "width": 140}, {"title": "Masalah", "key": "issue"}],
-			doubleClickCallback=lambda s: self._guard(self.open_results, True))
+			doubleClickCallback=lambda s: self._guard(self.locate_issue))
 		t.color = PopUpButton((10, -56, 140, 22), [n for n, _ in GLYPH_COLORS])
 		t.paint = Button((156, -57, 150, 22), "Beri warna (flag)", callback=lambda s: self._guard(self.paint_results))
 		t.openTab = Button((-170, -57, 160, 22), "Buka hasil di tab", callback=lambda s: self._guard(self.open_results, False))
@@ -2916,6 +3182,48 @@ class VariableStudioWindow(object):
 			for k, issue in enumerate(issues):
 				items.append({"glyph": name if k == 0 else "", "issue": issue, "name": name})
 		self.w.tabs[0].results.set(items)
+
+	def locate_issue(self):
+		"""Buka glyph dari baris terpilih di master yang bermasalah dan pilih
+		titiknya, supaya langsung terlihat di Edit View."""
+		t = self.w.tabs[0]
+		rows = t.results.get()
+		sel = t.results.getSelection()
+		if not sel:
+			raise ValueError("Pilih satu baris masalah di daftar.")
+		row = rows[sel[0]]
+		font = self.font
+		glyph = font.glyphs[row["name"]]
+		if glyph is None:
+			raise ValueError("Glyph %s tidak ada." % row["name"])
+		item = next((it for it in glyph_issue_items(glyph, font) if it["text"] == row["issue"]), None)
+		if item is None:
+			t.status.set("Masalah ini sudah tidak ada (mungkin sudah diperbaiki).")
+			return
+		on_ref = not item["nodes"] and item["ref_nodes"]
+		layer = item["ref_layer"] if on_ref else item["layer"]
+		ids = item["ref_nodes"] if on_ref else item["nodes"]
+		mid = getattr(layer, "associatedMasterId", None)
+		tab = None
+		try:
+			cur = font.currentTab
+			if cur is not None and glyph.name in [l.parent.name for l in cur.layers if l.parent]:
+				tab = cur
+		except Exception:
+			tab = None
+		if tab is None:
+			tab = font.newTab("/" + glyph.name)
+		try:
+			for k, m in enumerate(font.masters):
+				if m.id == mid:
+					tab.masterIndex = k
+		except Exception:
+			pass
+		n = select_nodes(layer, ids)
+		where = ", ".join("%d:%d" % x for x in ids[:6])
+		t.status.set("%s di %s: %s%s" % (glyph.name, item["source"] if not on_ref else "master referensi", where,
+			" (dipilih)" if n else ""))
+		Glyphs.redraw()
 
 	def _result_names(self, selected_only):
 		t = self.w.tabs[0]
@@ -3279,35 +3587,37 @@ class VariableStudioWindow(object):
 		t.ghosts = CheckBox((10, 58, 200, 20), "Bayangan semua master", value=pref_bool("showGhosts", True), callback=self.on_pref)
 		t.trails = CheckBox((220, 58, -10, 20), "Jalur titik antar master", value=pref_bool("showTrails", True), callback=self.on_pref)
 		t.brace = CheckBox((10, 82, 200, 20), "Ikutkan brace layer {…}", value=pref_bool("showBrace", True), callback=self.on_pref)
+		t.diff = CheckBox((10, 106, 330, 20), "Tandai titik yang tidak sama antar master", value=pref_bool("showDiff", True),
+			callback=self.on_pref)
 		t.thick = CheckBox((220, 82, -10, 20), "Ukuran tebal garis (biru tipis, merah tebal)",
 			value=pref_bool("showThickness", False), callback=self.on_pref)
-		t.line = HorizontalLine((10, 110, -10, 1))
-		t.axLabel = TextBox((10, 122, 60, 17), "Axis")
-		t.axis = PopUpButton((70, 120, 200, 22), [], callback=lambda s: self.refresh_preview_axis())
-		t.value = TextBox((290, 122, -10, 17), "")
-		t.slider = Slider((10, 150, -10, 23), minValue=0, maxValue=1, value=0, callback=self.on_slider, continuous=True)
-		t.fLabel = TextBox((10, 186, 40, 17), "Dari")
-		t.vFrom = EditText((50, 184, 80, 22), "")
-		t.tLabel = TextBox((140, 186, 30, 17), "ke")
-		t.vTo = EditText((170, 184, 80, 22), "")
-		t.cLabel = TextBox((270, 186, 60, 17), "Siklus (s)")
-		t.cycle = EditText((330, 184, 60, 22), "8")
-		t.play = Button((-130, 183, 120, 22), "Putar", callback=self.toggle_play)
-		t.minus = Button((10, 216, 40, 22), "[", callback=lambda s: self.step(-1))
-		t.plus = Button((56, 216, 40, 22), "]", callback=lambda s: self.step(1))
-		t.line2 = HorizontalLine((10, 248, -10, 1))
-		t.wTitle = TextBox((10, 256, -10, 17), "Ukuran lebar tanpa kursor (selalu tampil di Edit View):")
-		t.wLabels = CheckBox((10, 278, -10, 20), "Label lebar di setiap goresan",
+		t.line = HorizontalLine((10, 136, -10, 1))
+		t.axLabel = TextBox((10, 148, 60, 17), "Axis")
+		t.axis = PopUpButton((70, 146, 200, 22), [], callback=lambda s: self.refresh_preview_axis())
+		t.value = TextBox((290, 148, -10, 17), "")
+		t.slider = Slider((10, 176, -10, 23), minValue=0, maxValue=1, value=0, callback=self.on_slider, continuous=True)
+		t.fLabel = TextBox((10, 212, 40, 17), "Dari")
+		t.vFrom = EditText((50, 210, 80, 22), "")
+		t.tLabel = TextBox((140, 212, 30, 17), "ke")
+		t.vTo = EditText((170, 210, 80, 22), "")
+		t.cLabel = TextBox((270, 212, 60, 17), "Siklus (s)")
+		t.cycle = EditText((330, 210, 60, 22), "8")
+		t.play = Button((-130, 209, 120, 22), "Putar", callback=self.toggle_play)
+		t.minus = Button((10, 242, 40, 22), "[", callback=lambda s: self.step(-1))
+		t.plus = Button((56, 242, 40, 22), "]", callback=lambda s: self.step(1))
+		t.line2 = HorizontalLine((10, 274, -10, 1))
+		t.wTitle = TextBox((10, 282, -10, 17), "Ukuran lebar tanpa kursor (selalu tampil di Edit View):")
+		t.wLabels = CheckBox((10, 304, -10, 20), "Label lebar di setiap goresan",
 			value=pref_bool("showWidthLabels", False), callback=self.on_pref)
-		t.scanH = CheckBox((10, 302, 200, 20), "Garis ukur mendatar di", value=pref_bool("showScanH", False),
+		t.scanH = CheckBox((10, 328, 200, 20), "Garis ukur mendatar di", value=pref_bool("showScanH", False),
 			callback=self.on_pref)
-		t.heights = EditText((210, 300, 180, 22), pref_get("scanHeights", "x/2, H/2"), callback=self.on_pref)
-		t.hHint = TextBox((400, 303, -10, 17), "x, H, a, d, angka; boleh /2", sizeStyle="small")
-		t.scanV = CheckBox((10, 326, 250, 20), "Garis ukur tegak di tengah glyph", value=pref_bool("showScanV", False),
+		t.heights = EditText((210, 326, 180, 22), pref_get("scanHeights", "x/2, H/2"), callback=self.on_pref)
+		t.hHint = TextBox((400, 329, -10, 17), "x, H, a, d, angka; boleh /2", sizeStyle="small")
+		t.scanV = CheckBox((10, 352, 250, 20), "Garis ukur tegak di tengah glyph", value=pref_bool("showScanV", False),
 			callback=self.on_pref)
-		t.gaps = CheckBox((270, 326, -10, 20), "Jarak putih (counter, sidebearing)", value=pref_bool("showGaps", True),
+		t.gaps = CheckBox((270, 352, -10, 20), "Jarak putih (counter, sidebearing)", value=pref_bool("showGaps", True),
 			callback=self.on_pref)
-		t.note = TextBox((10, 356, -10, 80),
+		t.note = TextBox((10, 382, -10, 80),
 			"Aktifkan reporter lewat View > Show Variable Studio. Pratinjau memakai model interpolasi "
 			"OpenType (sama seperti fontTools) dari semua master dan brace layer; glyph yang tidak kompatibel "
 			"tidak digambar. Sumbu lain memakai nilai master origin.", sizeStyle="small")
@@ -3321,6 +3631,7 @@ class VariableStudioWindow(object):
 		pref_set("showTrails", int(bool(t.trails.get())))
 		pref_set("showBrace", int(bool(t.brace.get())))
 		pref_set("showThickness", int(bool(t.thick.get())))
+		pref_set("showDiff", int(bool(t.diff.get())))
 		pref_set("showWidthLabels", int(bool(t.wLabels.get())))
 		pref_set("showScanH", int(bool(t.scanH.get())))
 		pref_set("showScanV", int(bool(t.scanV.get())))

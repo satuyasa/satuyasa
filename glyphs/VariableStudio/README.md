@@ -18,8 +18,15 @@ Dua plugin yang dipakai bersama:
 
 **Titik** – membaca semua titik glyph yang sedang dibuka: ID `kontur:indeks`, tipe, halus/tidak, dan koordinat x, y di setiap master (dan brace layer) berdampingan. Tanda `!` = tipe titik beda dengan master pertama.
 - *Salin CSV*: semua koordinat ke clipboard.
-- *Cek glyph ini* / *Cek seluruh font*: jumlah path, jumlah & tipe titik, titik awal, arah, komponen, anchor.
-- *Samakan arah & titik awal*: membalik arah dan menggeser titik awal di master lain agar sama dengan master pertama (dipilih posisi yang paling mirip, jadi aman untuk huruf simetris seperti o).
+- *Cek glyph ini* / *Cek seluruh font*: kontur dipasangkan antar master menurut letak & bentuknya (bukan nomor urut), lalu titiknya disejajarkan. Laporan menyebut lokasi persis dengan ID titik:
+  - urutan kontur beda (`Bold kontur 2 = kontur 1 di Light`)
+  - arah titik terbalik
+  - titik awal beda, beserta titik yang seharusnya jadi titik awal
+  - titik **LEBIH** (`0:2 (line) di 110, 380`) / **KURANG** (posisi titik yang sepadan di master referensi)
+  - tipe titik beda (`2:5 line, di Light 1:5 curve`), komponen, anchor
+- *Tunjukkan titik* (atau klik dua kali baris masalah): membuka glyph di master yang bermasalah dan **memilih titiknya** di Edit View.
+- *Samakan urutan, arah & titik awal*: memperbaiki otomatis urutan kontur, arah, dan titik awal di semua master. Titik lebih/kurang hanya dilaporkan (perlu keputusan desain).
+- Reporter (centang *Tandai titik yang tidak sama* di tab Pratinjau, bawaan aktif): lingkaran merah = titik lebih/kurang, oranye = tipe beda, biru = jadikan titik awal, label ungu = arah terbalik / urutan kontur beda. Di master referensi, titik yang tidak ada di master lain juga ditandai.
 - *Beri warna (flag)*: menandai glyph bermasalah dengan warna glyph; *Buka hasil di tab*.
 
 **Axis & Master** – daftar axis beserta rentang desainnya; tambah axis dari preset (wght, wdth, ital, slnt, opsz, GRAD) atau buat sendiri (tag 4 huruf, bisa disembunyikan); ubah koordinat desain master; ubah Axis Location (nilai user); jadikan origin; tambah *Variable Font Setting*; tambah *Virtual Master*.

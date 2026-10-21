@@ -250,6 +250,14 @@ class GSLayer(object):
 		self.attributes = {}
 		self.selection = []
 
+	def _get_shapes(self):
+		return list(self.paths) + list(self.components)
+
+	def _set_shapes(self, shapes):
+		self.paths = [x for x in shapes if hasattr(x, "nodes")]
+		self.components = [x for x in shapes if not hasattr(x, "nodes")]
+	shapes = property(_get_shapes, _set_shapes)
+
 	def copy(self):
 		l = GSLayer()
 		l.paths = [p.copy() for p in self.paths]
