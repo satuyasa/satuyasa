@@ -518,11 +518,18 @@ def test_curve_audit():
 	e = oval(0, 0, 200, 300)
 	ep = [(True, [n.type for n in e.nodes], [P._xy(n) for n in e.nodes])]
 	k = 0.5523
-	r = P.offset_paths(ep, 40, 0)[0]
-	assert abs((r[0][1] - r[11][1]) - 300 * k) < 0.05  # handle tegak tetap
-	assert abs((r[1][0] - r[2][0]) - 240 * k) < 0.05   # handle mendatar ikut lebar baru
-	r = P.offset_paths(ep, 30, 30)[0]
-	assert abs((r[0][1] - r[11][1]) - 330 * k) < 0.1 and abs((r[1][0] - r[2][0]) - 230 * k) < 0.1
+	src = ep[0][2]
+	for dx, dy in ((40, 0), (30, 30), (40, 15)):
+		r = P.offset_paths(ep, dx, dy)[0]
+		# arah handle tetap: handle di sisi kanan tegak, di puncak mendatar
+		assert abs(r[0][0] - r[11][0]) < 1e-6 and abs(r[1][1] - r[2][1]) < 1e-6
+		# titik tengah lengkung tepat di offset sejati (geser tegak lurus per sumbu)
+		ctrl = [src[11], src[0], src[1], src[2]]
+		mid, tan = P._bez(ctrl, 0.5), P._bez_tangent(ctrl, 0.5)
+		nm = (tan[1], -tan[0])
+		want = (mid[0] + nm[0] * dx, mid[1] + nm[1] * dy)
+		got = P._bez([r[11], r[0], r[1], r[2]], 0.5)
+		assert math.hypot(got[0] - want[0], got[1] - want[1]) < 0.01, (dx, dy, got, want)
 	# titik halus diagonal: kedua handle tetap segaris setelah tebal x != y
 	diag = [(True, ["curve", "offcurve", "offcurve", "curve", "offcurve", "offcurve", "curve", "line"],
 		[(0, 0), (60, 20), (120, 140), (200, 200), (280, 260), (300, 380), (300, 500), (0, 500)])]

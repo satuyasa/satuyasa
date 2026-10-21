@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.3.0"
+VS_VERSION = "1.3.1"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -659,6 +659,57 @@ def _corner_vector(pts, i, closed, clamp):
 	return (mx, my)
 
 
+def _fit_cubic_offset(ctrl, na, nb, s):
+	"""Handle baru untuk kurva kubik yang ujungnya sudah digeser ke na, nb.
+	Arah handle tetap (titik halus tetap halus); panjangnya dihitung supaya
+	titik tengah kurva (t = 0,5) jatuh tepat di posisi offset-nya. Besar
+	offset di tengah diambil dari geseran nyata kedua ujung per sumbu
+	(termasuk bobot kontras dan titik zona yang dipegang), jadi bagian
+	diagonal lengkung ikut menebal sebanding dengan bagian tegak & datar.
+	None bila tidak bisa dipecahkan dengan wajar (pakai skala biasa)."""
+	p0, p1, p2, p3 = ctrl
+	u0 = _unit(p1[0] - p0[0], p1[1] - p0[1])
+	u3 = _unit(p2[0] - p3[0], p2[1] - p3[1])
+	if u0 is None or u3 is None:
+		return None
+	t0 = _bez_tangent(ctrl, 0.0)
+	t3 = _bez_tangent(ctrl, 1.0)
+	tm = _bez_tangent(ctrl, 0.5)
+	if t0 is None or t3 is None or tm is None:
+		return None
+	# normal ke luar tinta di kedua ujung dan di tengah
+	n0 = (t0[1] * s, -t0[0] * s)
+	n3 = (t3[1] * s, -t3[0] * s)
+	nm = (tm[1] * s, -tm[0] * s)
+	d0 = (na[0] - p0[0], na[1] - p0[1])
+	d3 = (nb[0] - p3[0], nb[1] - p3[1])
+	# besar offset per sumbu: geseran ujung searah normalnya (tumbuh = +),
+	# dibobot seberapa besar normal ujung itu mengarah ke sumbu tsb.
+	eff = []
+	for k in (0, 1):
+		w = abs(n0[k]) + abs(n3[k])
+		g0 = d0[k] if n0[k] >= 0 else -d0[k]
+		g3 = d3[k] if n3[k] >= 0 else -d3[k]
+		if w < 0.2:
+			eff.append((g0 + g3) / 2.0)
+		else:
+			eff.append((g0 * (abs(n0[k]) > 1e-9) + g3 * (abs(n3[k]) > 1e-9)) / w)
+	mid = _bez(ctrl, 0.5)
+	target = (mid[0] + nm[0] * eff[0], mid[1] + nm[1] * eff[1])
+	# B(0.5) = (na + nb)/2 + 3/8 (a*u0 + b*u3)  ->  a*u0 + b*u3 = R
+	rx = (target[0] - (na[0] + nb[0]) / 2.0) * 8.0 / 3.0
+	ry = (target[1] - (na[1] + nb[1]) / 2.0) * 8.0 / 3.0
+	det = u0[0] * u3[1] - u0[1] * u3[0]
+	if abs(det) < 0.05:
+		return None
+	la = (rx * u3[1] - ry * u3[0]) / det
+	lb = (u0[0] * ry - u0[1] * rx) / det
+	chord = math.hypot(nb[0] - na[0], nb[1] - na[1])
+	if la <= 0 or lb <= 0 or la > 1.5 * chord or lb > 1.5 * chord:
+		return None
+	return (na[0] + u0[0] * la, na[1] + u0[1] * la), (nb[0] + u3[0] * lb, nb[1] + u3[1] * lb)
+
+
 def _segment_scale(a, b, na, nb):
 	"""Skala x dan y sebuah segmen dari perubahan titik ujungnya. Bila segmen
 	hampir tegak/mendatar, skala sumbu itu memakai rasio tali busur."""
@@ -732,6 +783,7 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 			out.append(pts)
 			continue
 		vec = dict((i, vecs.get((pi, i), (0.0, 0.0))) for i in on)
+		path_s = path_side(polys, pi)
 		new = list(pts)
 		for i in on:
 			new[i] = (pts[i][0] + vec[i][0], pts[i][1] + vec[i][1])
@@ -745,6 +797,11 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 			if not offs:
 				continue
 			sx, sy = _segment_scale(pts[a], pts[b], new[a], new[b])
+			if selected is None and len(offs) == 2:
+				fit = _fit_cubic_offset([pts[a], pts[offs[0]], pts[offs[1]], pts[b]], new[a], new[b], path_s)
+				if fit is not None:
+					new[offs[0]], new[offs[1]] = fit
+					continue
 			for m, j in enumerate(offs):
 				base = a if m < len(offs) / 2.0 else b
 				if selected is not None:
