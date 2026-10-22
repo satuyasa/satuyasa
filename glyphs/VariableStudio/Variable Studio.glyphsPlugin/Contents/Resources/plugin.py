@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.6.0"
+VS_VERSION = "1.7.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -842,7 +842,8 @@ def _ray_hit_info(p, d, lines, eps=1.0):
 	return best
 
 
-def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_stroke=4.0):
+def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_stroke=4.0,
+		bias=None, limits=True):
 	"""Batasi geseran supaya bentuk tidak rusak di bobot ekstrem (ubah vecs).
 	- Menebal: sisi yang menghadap ruang putih tertutup (counter, mata e,
 	  celah antar stem, aperture) hanya boleh memakan celah sampai tersisa
@@ -851,7 +852,12 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 	  sana melihat titik yang ditembus sinarnya di sisi counter dan mengambil
 	  kekurangan di situ (diinterpolasi sepanjang segmen), jadi sisi stem
 	  tetap sejajar dan tebal yang diminta tercapai; huruf melebar.
-	- Menipis: goresan tidak boleh lebih tipis dari min_stroke."""
+	- Menipis: goresan tidak boleh lebih tipis dari min_stroke.
+	- bias (x, y, io), masing-masing -1..1: arah perubahan tebal. x: -1 =
+	  semua ke kiri, +1 = semua ke kanan; y: -1 = ke bawah, +1 = ke atas;
+	  io: -1 = ke dalam (counter), +1 = ke luar. Bagian yang dikurangi dari
+	  satu sisi diambil alih sisi seberang goresan, jadi total tebal tetap.
+	limits=False: hanya bias, tanpa batas counter/tebal minimum."""
 	polys = [list(p[2]) for p in paths]
 	meta = []
 	lines = _flat_lines(paths, meta=meta)
@@ -882,12 +888,33 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 			out_rays.append((out, gap, back))
 		rays[(pi, i)] = out_rays
 
-	# 1) batasi tiap titik; catat kekurangan (deficit) per arah
+	# 1) arah (bias) lalu batasi tiap titik; catat kekurangan (deficit,
+	# bertanda: + = tambahan tebal yang belum terpakai, - = penipisan)
 	deficit = {}
+	bx, by, bio = bias if bias else (0.0, 0.0, 0.0)
 	for key, out_rays in rays.items():
 		for out, gap, back in out_rays:
 			vx, vy = vecs[key]
 			grow = vx * out[0] + vy * out[1]  # + = menebal ke arah luar tinta
+			if (bx or by or bio) and abs(grow) > 1e-9 and back is not None:
+				red = 0.0
+				cx_, cy_ = vx * out[0], vy * out[1]  # bagian dari geseran x dan y
+				if (bx > 0 and out[0] < -0.3) or (bx < 0 and out[0] > 0.3):
+					red += abs(bx) * cx_
+				if (by > 0 and out[1] < -0.3) or (by < 0 and out[1] > 0.3):
+					red += abs(by) * cy_
+				inside = gap is not None
+				if (bio > 0 and inside) or (bio < 0 and not inside):
+					red += abs(bio) * (grow - red)
+				if abs(red) > abs(grow):
+					red = grow
+				if abs(red) > 1e-9:
+					vx, vy = vx - out[0] * red, vy - out[1] * red
+					vecs[key] = (vx, vy)
+					deficit.setdefault(key, []).append((out, red))
+					grow -= red
+			if not limits:
+				continue
 			if grow > 0 and gap is not None:
 				limit = max(0.0, (gap - max(min_gap, gap_ratio * gap)) / 2.0)
 				if grow > limit:
@@ -933,12 +960,12 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 		return
 
 	def deficit_at(key, direction):
-		"""kekurangan titik key yang arahnya berlawanan dengan direction"""
-		best = 0.0
+		"""kekurangan (bertanda) titik key yang arahnya berlawanan dengan direction"""
+		total = 0.0
 		for out, ex in deficit.get(key, []):
 			if out[0] * direction[0] + out[1] * direction[1] < -0.5:
-				best = max(best, ex)
-		return best
+				total += ex
+		return total
 
 	# 2) sisi seberang mengambil alih kekurangan di titik yang ditembusnya
 	add = {}
@@ -950,7 +977,7 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 			pi, a, b, t0, t1 = meta[idx]
 			t = t0 + (t1 - t0) * u
 			ex = deficit_at((pi, a), out) * (1 - t) + deficit_at((pi, b), out) * t
-			if ex <= 1e-9:
+			if abs(ex) <= 1e-9:
 				continue
 			tx, ty = out[0] * ex, (0.0 if key in pins else out[1] * ex)
 			ox, oy = add.get(key, (0.0, 0.0))
@@ -977,9 +1004,10 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 			gb = pb[0] * nrm[0] + pb[1] * nrm[1]
 			if abs(ga - gb) < 1e-6:
 				continue
-			low = min(ga, gb)
+			# ambil yang besarnya terkecil (0 bila tandanya berlawanan)
+			low = 0.0 if ga * gb < 0 else (ga if abs(ga) < abs(gb) else gb)
 			for key, g, cur in ((ka, ga, pa), (kb, gb, pb)):
-				if g > low:
+				if abs(g - low) > 1e-9:
 					cut = g - low
 					add[key] = (cur[0] - nrm[0] * cut, cur[1] - nrm[1] * cut)
 	# ekor / taji yang tumbuh dari sisi yang menerima pindahan ikut bergeser
@@ -992,9 +1020,13 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 		for step in (1, -1):
 			for j0, i0 in enumerate(on):
 				src = add.get((pi, i0))
-				if not src or math.hypot(*src) < 1e-6:
+				if not src or math.hypot(*src) < 1e-6 or (pi, i0) not in rays:
 					continue
 				u = _unit(*src)
+				# arah luar sumber: pindahan menebal searah luar, menipis berlawanan
+				so = max((o for o, _, _ in rays[(pi, i0)]), key=lambda o: abs(o[0] * u[0] + o[1] * u[1]))
+				if so[0] * u[0] + so[1] * u[1] < 0:
+					u = so  # menipis: tetangga yang menghadap ke luar searah sumber
 				j = j0
 				while True:
 					j = (j + step) % len(on)
@@ -1004,7 +1036,7 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 					if not any(o[0] * u[0] + o[1] * u[1] > 0.2 for o, _, _ in rays[key]):
 						break
 					have = add.get(key, (0.0, 0.0))
-					if have[0] * u[0] + have[1] * u[1] >= math.hypot(*src) - 1e-6:
+					if abs(have[0] * src[0] + have[1] * src[1]) >= (src[0] ** 2 + src[1] ** 2) - 1e-6:
 						break  # sudah menerima pindahan yang sama atau lebih
 					add[key] = (src[0], 0.0 if key in pins else src[1])
 	for key, (tx, ty) in add.items():
@@ -1091,7 +1123,7 @@ def path_side(polys, pi):
 
 
 def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=None, protect=None,
-		notch_clamp=1.0, terminals=None):
+		notch_clamp=1.0, terminals=None, bias=None):
 	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
 	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
 	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
@@ -1137,8 +1169,8 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 				extra[target] = -vy
 		for key, ey in extra.items():
 			vecs[key] = (vecs[key][0], vecs[key][1] + ey)
-	if protect and selected is None:
-		protect_space(paths, vecs, pins or {}, clamp, **protect)
+	if (protect or (bias and any(bias))) and selected is None:
+		protect_space(paths, vecs, pins or {}, clamp, bias=bias, limits=bool(protect), **(protect or {}))
 	if terminals and selected is None:
 		stabilize_terminals(paths, vecs, pins or {}, terminals)
 	if selected is None:
@@ -1276,7 +1308,7 @@ DEFAULT_TERMINAL = 40.0
 
 def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 		selected=None, tolerance=25.0, weights=None, measure=None, protect=DEFAULT_PROTECT,
-		terminals=DEFAULT_TERMINAL):
+		terminals=DEFAULT_TERMINAL, bias=None):
 	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
 	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
 	...); titik yang menempel padanya tidak bergeser vertikal dan goresannya
@@ -1285,7 +1317,7 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 	old = [list(p[2]) for p in paths]
 	pins = zone_pins(paths, zones, tolerance, measure) if (zones and selected is None) else None
 	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights, pins=pins, protect=protect,
-		terminals=terminals)
+		terminals=terminals, bias=bias)
 	if pins:
 		for limit, top in zone_limits(paths, pins):
 			for pi, pts in enumerate(new):
@@ -2819,7 +2851,8 @@ def measure_layer(layer, decompose=True):
 
 
 def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, selected_only=False,
-		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT, terminals=DEFAULT_TERMINAL):
+		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT, terminals=DEFAULT_TERMINAL,
+		bias=None):
 	"""Tebalkan (positif) / tipiskan (negatif) satu layer tanpa mengubah
 	jumlah atau urutan titik. mode 'keepthin': garis setipis thin_limit
 	tidak berubah, garis setebal thick_limit ke atas bertambah penuh
@@ -2839,7 +2872,8 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 		if not selected:
 			return 0
 	res = embolden(paths, float(layer.width), float(add_x), float(add_y),
-		keep_sidebearings, zones, selected, weights=weights, measure=measure, protect=protect, terminals=terminals)
+		keep_sidebearings, zones, selected, weights=weights, measure=measure, protect=protect, terminals=terminals,
+		bias=bias)
 	moved = 0
 	for p, pts in zip(layer.paths, res["pts"]):
 		for n, (x, y) in zip(p.nodes, pts):
@@ -2856,7 +2890,8 @@ def embolden_layer(layer, add_x, add_y, keep_sidebearings=True, zones=None, sele
 
 def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=None,
 		axis_value=None, keep_sidebearings=True, keep_heights=True, glyphs=None, kerning=True,
-		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT, terminals=DEFAULT_TERMINAL):
+		mode="uniform", thin_limit=None, thick_limit=None, protect=DEFAULT_PROTECT, terminals=DEFAULT_TERMINAL,
+		bias=None):
 	"""Isi master target (atau master baru `name`) dengan salinan master
 	sumber yang ditebalkan/ditipiskan. target == src berarti diubah di tempat.
 	Hasil: (master, jumlah glyph diubah)."""
@@ -2887,7 +2922,7 @@ def embolden_master(font, src, add_x, add_y, target=None, name=None, axis_idx=No
 		if not layer.paths and layer.components:
 			composites.append(layer)
 		elif embolden_layer(layer, add_x, add_y, keep_sidebearings, zones, False, mode, thin_limit, thick_limit, protect,
-				terminals):
+				terminals, bias):
 			done += 1
 	# Glyph yang hanya berisi komponen: lebar ikut glyph dasarnya, komponen
 	# berikutnya (aksen) digeser setengahnya agar tetap di tengah.
@@ -2998,7 +3033,7 @@ class VariableStudioWindow(object):
 		self.point_columns = None
 		self.plan = []
 
-		self.w = Window((720, 680), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
+		self.w = Window((720, 740), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
 		self.w.tabs = Tabs((10, 10, -10, -10), ["Titik", "Axis & Master", "Style", "Italic", "Master Baru", "Pratinjau", "Tebal / Tipis"])
 		self._build_points(self.w.tabs[0])
 		self._build_axes(self.w.tabs[1])
@@ -3738,37 +3773,49 @@ class VariableStudioWindow(object):
 		t.terminal = CheckBox((480, 96, 125, 20), "Ujung stabil ≤", value=True)
 		t.termLen = EditText((605, 94, 45, 22), "40")
 		t.termLabel = TextBox((655, 97, -10, 17), "unit")
-		t.modeLabel = TextBox((10, 126, 60, 17), "Mode")
-		t.mode = PopUpButton((70, 124, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
-		t.loLabel = TextBox((10, 156, 110, 17), "Garis tipis ≤")
-		t.lo = EditText((120, 154, 60, 22), "", placeholder="auto")
-		t.hiLabel = TextBox((190, 156, 110, 17), "Garis tebal ≥")
-		t.hi = EditText((300, 154, 60, 22), "", placeholder="auto")
-		t.scan = Button((-200, 153, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
-		t.summary = TextBox((10, 182, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
+		t.dirTitle = TextBox((10, 122, 60, 17), "Arah")
+		t.biasXL = TextBox((70, 122, 200, 17), "◀ kiri          ·          kanan ▶", sizeStyle="small")
+		t.biasYL = TextBox((285, 122, 200, 17), "▼ bawah          ·          atas ▲", sizeStyle="small")
+		t.biasIL = TextBox((500, 122, 200, 17), "● dalam          ·          luar ○", sizeStyle="small")
+		t.biasX = Slider((70, 138, 200, 23), minValue=-100, maxValue=100, value=0, tickMarkCount=5,
+			callback=lambda s: self.on_bias())
+		t.biasY = Slider((285, 138, 200, 23), minValue=-100, maxValue=100, value=0, tickMarkCount=5,
+			callback=lambda s: self.on_bias())
+		t.biasI = Slider((500, 138, -10, 23), minValue=-100, maxValue=100, value=0, tickMarkCount=5,
+			callback=lambda s: self.on_bias())
+		t.biasReset = Button((10, 140, 55, 20), "Rata", sizeStyle="small", callback=lambda s: self.reset_bias())
+		t.biasInfo = TextBox((70, 160, -10, 14), "", sizeStyle="mini")
+		t.modeLabel = TextBox((10, 178, 60, 17), "Mode")
+		t.mode = PopUpButton((70, 176, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
+		t.loLabel = TextBox((10, 208, 110, 17), "Garis tipis ≤")
+		t.lo = EditText((120, 206, 60, 22), "", placeholder="auto")
+		t.hiLabel = TextBox((190, 208, 110, 17), "Garis tebal ≥")
+		t.hi = EditText((300, 206, 60, 22), "", placeholder="auto")
+		t.scan = Button((-200, 205, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
+		t.summary = TextBox((10, 234, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
 			sizeStyle="small")
-		t.line = HorizontalLine((10, 220, -10, 1))
-		t.lLabel = TextBox((10, 228, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
-		t.selOnly = CheckBox((310, 226, -10, 20), "Hanya titik terpilih")
-		t.m10 = Button((10, 250, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
-		t.m2 = Button((76, 250, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
-		t.p2 = Button((132, 250, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
-		t.p10 = Button((188, 250, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
-		t.apply = Button((260, 250, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
-		t.line2 = HorizontalLine((10, 282, -10, 1))
-		t.sLabel = TextBox((10, 292, 80, 17), "Sumber")
-		t.src = PopUpButton((90, 290, 200, 22), [], callback=lambda s: self.on_weight_target())
-		t.tLabel = TextBox((310, 292, 60, 17), "Hasil ke")
-		t.target = PopUpButton((370, 290, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
-		t.nLabel = TextBox((10, 322, 80, 17), "Nama")
-		t.name = EditText((90, 320, 200, 22), "Bold")
-		t.aLabel = TextBox((310, 322, 60, 17), "Axis")
-		t.axis = PopUpButton((370, 320, 150, 22), [], callback=lambda s: self.on_weight_target())
-		t.value = EditText((530, 320, -10, 22), "", placeholder="nilai")
-		t.glyphSel = CheckBox((10, 348, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
-		t.kern = CheckBox((340, 348, -10, 20), "Salin kerning ke master baru", value=True)
-		t.make = Button((10, 374, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
-		t.results = List((10, 406, -10, -34), [], columnDescriptions=[
+		t.line = HorizontalLine((10, 272, -10, 1))
+		t.lLabel = TextBox((10, 280, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
+		t.selOnly = CheckBox((310, 278, -10, 20), "Hanya titik terpilih")
+		t.m10 = Button((10, 302, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
+		t.m2 = Button((76, 302, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
+		t.p2 = Button((132, 302, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
+		t.p10 = Button((188, 302, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
+		t.apply = Button((260, 302, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
+		t.line2 = HorizontalLine((10, 334, -10, 1))
+		t.sLabel = TextBox((10, 344, 80, 17), "Sumber")
+		t.src = PopUpButton((90, 342, 200, 22), [], callback=lambda s: self.on_weight_target())
+		t.tLabel = TextBox((310, 344, 60, 17), "Hasil ke")
+		t.target = PopUpButton((370, 342, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
+		t.nLabel = TextBox((10, 374, 80, 17), "Nama")
+		t.name = EditText((90, 372, 200, 22), "Bold")
+		t.aLabel = TextBox((310, 374, 60, 17), "Axis")
+		t.axis = PopUpButton((370, 372, 150, 22), [], callback=lambda s: self.on_weight_target())
+		t.value = EditText((530, 372, -10, 22), "", placeholder="nilai")
+		t.glyphSel = CheckBox((10, 400, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
+		t.kern = CheckBox((340, 400, -10, 20), "Salin kerning ke master baru", value=True)
+		t.make = Button((10, 426, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
+		t.results = List((10, 458, -10, -34), [], columnDescriptions=[
 			{"title": "Glyph", "key": "name", "width": 130}, {"title": "Tertipis", "key": "thin", "width": 70},
 			{"title": "Tertebal", "key": "thick", "width": 70}, {"title": "Kontras", "key": "ratio", "width": 70},
 			{"title": "Tegak (min-max)", "key": "v"}, {"title": "Datar (min-max)", "key": "h"}],
@@ -3776,6 +3823,7 @@ class VariableStudioWindow(object):
 		t.status = TextBox((10, -26, -10, 17), "", sizeStyle="small")
 		t.lo.enable(False)
 		t.hi.enable(False)
+		self.on_bias()
 
 	def _weight_protect(self):
 		t = self.w.tabs[6]
@@ -3787,6 +3835,25 @@ class VariableStudioWindow(object):
 	def _weight_terminals(self):
 		t = self.w.tabs[6]
 		return max(0.0, _num(t.termLen.get(), 40)) if t.terminal.get() else None
+
+	def _weight_bias(self):
+		t = self.w.tabs[6]
+		b = tuple(max(-1.0, min(1.0, float(sl.get() or 0) / 100.0)) for sl in (t.biasX, t.biasY, t.biasI))
+		return b if any(abs(v) > 1e-3 for v in b) else None
+
+	def on_bias(self):
+		t = self.w.tabs[6]
+		x, y, i = (float(sl.get() or 0) for sl in (t.biasX, t.biasY, t.biasI))
+
+		def split(v, a, b):
+			return "%s %d%% / %s %d%%" % (a, round(50 - v / 2.0), b, round(50 + v / 2.0))
+		t.biasInfo.set("  ·  ".join((split(x, "kiri", "kanan"), split(y, "bawah", "atas"), split(i, "dalam", "luar"))))
+
+	def reset_bias(self):
+		t = self.w.tabs[6]
+		for sl in (t.biasX, t.biasY, t.biasI):
+			sl.set(0)
+		self.on_bias()
 
 	def _weight_mode(self):
 		return CONTRAST_MODES[self.w.tabs[6].mode.get()][0]
@@ -3885,7 +3952,8 @@ class VariableStudioWindow(object):
 		try:
 			lo, hi = self._weight_limits()
 			moved = embolden_layer(layer, add_x, add_y, bool(t.keepSB.get()), self._layer_zones(layer),
-				bool(t.selOnly.get()), self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals())
+				bool(t.selOnly.get()), self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals(),
+				self._weight_bias())
 		finally:
 			glyph.endUndo()
 		if not moved and t.selOnly.get():
@@ -3923,7 +3991,7 @@ class VariableStudioWindow(object):
 		with _Batch(font):
 			m, done = embolden_master(font, src, add_x, add_y, target, name, axis_idx, axis_value,
 				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()),
-				self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals())
+				self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals(), self._weight_bias())
 		t.status.set("Master %s: %d glyph diubah. Cek di tab Titik > Cek seluruh font." % (m.name, done))
 		self._changed()
 

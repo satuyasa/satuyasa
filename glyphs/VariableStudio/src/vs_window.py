@@ -65,7 +65,7 @@ class VariableStudioWindow(object):
 		self.point_columns = None
 		self.plan = []
 
-		self.w = Window((720, 680), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
+		self.w = Window((720, 740), "Variable Studio %s" % VS_VERSION, minSize=(600, 560))
 		self.w.tabs = Tabs((10, 10, -10, -10), ["Titik", "Axis & Master", "Style", "Italic", "Master Baru", "Pratinjau", "Tebal / Tipis"])
 		self._build_points(self.w.tabs[0])
 		self._build_axes(self.w.tabs[1])
@@ -805,37 +805,49 @@ class VariableStudioWindow(object):
 		t.terminal = CheckBox((480, 96, 125, 20), "Ujung stabil ≤", value=True)
 		t.termLen = EditText((605, 94, 45, 22), "40")
 		t.termLabel = TextBox((655, 97, -10, 17), "unit")
-		t.modeLabel = TextBox((10, 126, 60, 17), "Mode")
-		t.mode = PopUpButton((70, 124, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
-		t.loLabel = TextBox((10, 156, 110, 17), "Garis tipis ≤")
-		t.lo = EditText((120, 154, 60, 22), "", placeholder="auto")
-		t.hiLabel = TextBox((190, 156, 110, 17), "Garis tebal ≥")
-		t.hi = EditText((300, 154, 60, 22), "", placeholder="auto")
-		t.scan = Button((-200, 153, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
-		t.summary = TextBox((10, 182, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
+		t.dirTitle = TextBox((10, 122, 60, 17), "Arah")
+		t.biasXL = TextBox((70, 122, 200, 17), "◀ kiri          ·          kanan ▶", sizeStyle="small")
+		t.biasYL = TextBox((285, 122, 200, 17), "▼ bawah          ·          atas ▲", sizeStyle="small")
+		t.biasIL = TextBox((500, 122, 200, 17), "● dalam          ·          luar ○", sizeStyle="small")
+		t.biasX = Slider((70, 138, 200, 23), minValue=-100, maxValue=100, value=0, tickMarkCount=5,
+			callback=lambda s: self.on_bias())
+		t.biasY = Slider((285, 138, 200, 23), minValue=-100, maxValue=100, value=0, tickMarkCount=5,
+			callback=lambda s: self.on_bias())
+		t.biasI = Slider((500, 138, -10, 23), minValue=-100, maxValue=100, value=0, tickMarkCount=5,
+			callback=lambda s: self.on_bias())
+		t.biasReset = Button((10, 140, 55, 20), "Rata", sizeStyle="small", callback=lambda s: self.reset_bias())
+		t.biasInfo = TextBox((70, 160, -10, 14), "", sizeStyle="mini")
+		t.modeLabel = TextBox((10, 178, 60, 17), "Mode")
+		t.mode = PopUpButton((70, 176, -10, 22), [m[1] for m in CONTRAST_MODES], callback=lambda s: self.on_weight_mode())
+		t.loLabel = TextBox((10, 208, 110, 17), "Garis tipis ≤")
+		t.lo = EditText((120, 206, 60, 22), "", placeholder="auto")
+		t.hiLabel = TextBox((190, 208, 110, 17), "Garis tebal ≥")
+		t.hi = EditText((300, 206, 60, 22), "", placeholder="auto")
+		t.scan = Button((-200, 205, 190, 22), "Scan ketebalan", callback=lambda s: self._guard(self.scan_weight))
+		t.summary = TextBox((10, 234, -10, 34), "Scan dulu untuk mencari garis tertipis dan tertebal di master sumber.",
 			sizeStyle="small")
-		t.line = HorizontalLine((10, 220, -10, 1))
-		t.lLabel = TextBox((10, 228, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
-		t.selOnly = CheckBox((310, 226, -10, 20), "Hanya titik terpilih")
-		t.m10 = Button((10, 250, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
-		t.m2 = Button((76, 250, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
-		t.p2 = Button((132, 250, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
-		t.p10 = Button((188, 250, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
-		t.apply = Button((260, 250, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
-		t.line2 = HorizontalLine((10, 282, -10, 1))
-		t.sLabel = TextBox((10, 292, 80, 17), "Sumber")
-		t.src = PopUpButton((90, 290, 200, 22), [], callback=lambda s: self.on_weight_target())
-		t.tLabel = TextBox((310, 292, 60, 17), "Hasil ke")
-		t.target = PopUpButton((370, 290, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
-		t.nLabel = TextBox((10, 322, 80, 17), "Nama")
-		t.name = EditText((90, 320, 200, 22), "Bold")
-		t.aLabel = TextBox((310, 322, 60, 17), "Axis")
-		t.axis = PopUpButton((370, 320, 150, 22), [], callback=lambda s: self.on_weight_target())
-		t.value = EditText((530, 320, -10, 22), "", placeholder="nilai")
-		t.glyphSel = CheckBox((10, 348, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
-		t.kern = CheckBox((340, 348, -10, 20), "Salin kerning ke master baru", value=True)
-		t.make = Button((10, 374, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
-		t.results = List((10, 406, -10, -34), [], columnDescriptions=[
+		t.line = HorizontalLine((10, 272, -10, 1))
+		t.lLabel = TextBox((10, 280, 300, 17), "Glyph yang sedang dibuka (bisa di-Undo)")
+		t.selOnly = CheckBox((310, 278, -10, 20), "Hanya titik terpilih")
+		t.m10 = Button((10, 302, 60, 22), "-10", callback=lambda s: self._guard(self.nudge_layer, -10))
+		t.m2 = Button((76, 302, 50, 22), "-2", callback=lambda s: self._guard(self.nudge_layer, -2))
+		t.p2 = Button((132, 302, 50, 22), "+2", callback=lambda s: self._guard(self.nudge_layer, 2))
+		t.p10 = Button((188, 302, 60, 22), "+10", callback=lambda s: self._guard(self.nudge_layer, 10))
+		t.apply = Button((260, 302, -10, 22), "Terapkan nilai di atas ke glyph ini", callback=lambda s: self._guard(self.apply_layer))
+		t.line2 = HorizontalLine((10, 334, -10, 1))
+		t.sLabel = TextBox((10, 344, 80, 17), "Sumber")
+		t.src = PopUpButton((90, 342, 200, 22), [], callback=lambda s: self.on_weight_target())
+		t.tLabel = TextBox((310, 344, 60, 17), "Hasil ke")
+		t.target = PopUpButton((370, 342, -10, 22), ["Master baru"], callback=lambda s: self.on_weight_target())
+		t.nLabel = TextBox((10, 374, 80, 17), "Nama")
+		t.name = EditText((90, 372, 200, 22), "Bold")
+		t.aLabel = TextBox((310, 374, 60, 17), "Axis")
+		t.axis = PopUpButton((370, 372, 150, 22), [], callback=lambda s: self.on_weight_target())
+		t.value = EditText((530, 372, -10, 22), "", placeholder="nilai")
+		t.glyphSel = CheckBox((10, 400, 330, 20), "Hanya glyph terpilih (scan & master yang ada)")
+		t.kern = CheckBox((340, 400, -10, 20), "Salin kerning ke master baru", value=True)
+		t.make = Button((10, 426, 240, 22), "Buat / isi master", callback=lambda s: self._guard(self.weight_master))
+		t.results = List((10, 458, -10, -34), [], columnDescriptions=[
 			{"title": "Glyph", "key": "name", "width": 130}, {"title": "Tertipis", "key": "thin", "width": 70},
 			{"title": "Tertebal", "key": "thick", "width": 70}, {"title": "Kontras", "key": "ratio", "width": 70},
 			{"title": "Tegak (min-max)", "key": "v"}, {"title": "Datar (min-max)", "key": "h"}],
@@ -843,6 +855,7 @@ class VariableStudioWindow(object):
 		t.status = TextBox((10, -26, -10, 17), "", sizeStyle="small")
 		t.lo.enable(False)
 		t.hi.enable(False)
+		self.on_bias()
 
 	def _weight_protect(self):
 		t = self.w.tabs[6]
@@ -854,6 +867,25 @@ class VariableStudioWindow(object):
 	def _weight_terminals(self):
 		t = self.w.tabs[6]
 		return max(0.0, _num(t.termLen.get(), 40)) if t.terminal.get() else None
+
+	def _weight_bias(self):
+		t = self.w.tabs[6]
+		b = tuple(max(-1.0, min(1.0, float(sl.get() or 0) / 100.0)) for sl in (t.biasX, t.biasY, t.biasI))
+		return b if any(abs(v) > 1e-3 for v in b) else None
+
+	def on_bias(self):
+		t = self.w.tabs[6]
+		x, y, i = (float(sl.get() or 0) for sl in (t.biasX, t.biasY, t.biasI))
+
+		def split(v, a, b):
+			return "%s %d%% / %s %d%%" % (a, round(50 - v / 2.0), b, round(50 + v / 2.0))
+		t.biasInfo.set("  ·  ".join((split(x, "kiri", "kanan"), split(y, "bawah", "atas"), split(i, "dalam", "luar"))))
+
+	def reset_bias(self):
+		t = self.w.tabs[6]
+		for sl in (t.biasX, t.biasY, t.biasI):
+			sl.set(0)
+		self.on_bias()
 
 	def _weight_mode(self):
 		return CONTRAST_MODES[self.w.tabs[6].mode.get()][0]
@@ -952,7 +984,8 @@ class VariableStudioWindow(object):
 		try:
 			lo, hi = self._weight_limits()
 			moved = embolden_layer(layer, add_x, add_y, bool(t.keepSB.get()), self._layer_zones(layer),
-				bool(t.selOnly.get()), self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals())
+				bool(t.selOnly.get()), self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals(),
+				self._weight_bias())
 		finally:
 			glyph.endUndo()
 		if not moved and t.selOnly.get():
@@ -990,7 +1023,7 @@ class VariableStudioWindow(object):
 		with _Batch(font):
 			m, done = embolden_master(font, src, add_x, add_y, target, name, axis_idx, axis_value,
 				bool(t.keepSB.get()), bool(t.keepH.get()), glyphs, bool(t.kern.get()),
-				self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals())
+				self._weight_mode(), lo, hi, self._weight_protect(), self._weight_terminals(), self._weight_bias())
 		t.status.set("Master %s: %d glyph diubah. Cek di tab Titik > Cek seluruh font." % (m.name, done))
 		self._changed()
 

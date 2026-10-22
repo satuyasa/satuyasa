@@ -6,7 +6,7 @@
 from __future__ import division, print_function, unicode_literals
 import math
 
-VS_VERSION = "1.6.0"
+VS_VERSION = "1.7.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -839,7 +839,8 @@ def _ray_hit_info(p, d, lines, eps=1.0):
 	return best
 
 
-def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_stroke=4.0):
+def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_stroke=4.0,
+		bias=None, limits=True):
 	"""Batasi geseran supaya bentuk tidak rusak di bobot ekstrem (ubah vecs).
 	- Menebal: sisi yang menghadap ruang putih tertutup (counter, mata e,
 	  celah antar stem, aperture) hanya boleh memakan celah sampai tersisa
@@ -848,7 +849,12 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 	  sana melihat titik yang ditembus sinarnya di sisi counter dan mengambil
 	  kekurangan di situ (diinterpolasi sepanjang segmen), jadi sisi stem
 	  tetap sejajar dan tebal yang diminta tercapai; huruf melebar.
-	- Menipis: goresan tidak boleh lebih tipis dari min_stroke."""
+	- Menipis: goresan tidak boleh lebih tipis dari min_stroke.
+	- bias (x, y, io), masing-masing -1..1: arah perubahan tebal. x: -1 =
+	  semua ke kiri, +1 = semua ke kanan; y: -1 = ke bawah, +1 = ke atas;
+	  io: -1 = ke dalam (counter), +1 = ke luar. Bagian yang dikurangi dari
+	  satu sisi diambil alih sisi seberang goresan, jadi total tebal tetap.
+	limits=False: hanya bias, tanpa batas counter/tebal minimum."""
 	polys = [list(p[2]) for p in paths]
 	meta = []
 	lines = _flat_lines(paths, meta=meta)
@@ -879,12 +885,33 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 			out_rays.append((out, gap, back))
 		rays[(pi, i)] = out_rays
 
-	# 1) batasi tiap titik; catat kekurangan (deficit) per arah
+	# 1) arah (bias) lalu batasi tiap titik; catat kekurangan (deficit,
+	# bertanda: + = tambahan tebal yang belum terpakai, - = penipisan)
 	deficit = {}
+	bx, by, bio = bias if bias else (0.0, 0.0, 0.0)
 	for key, out_rays in rays.items():
 		for out, gap, back in out_rays:
 			vx, vy = vecs[key]
 			grow = vx * out[0] + vy * out[1]  # + = menebal ke arah luar tinta
+			if (bx or by or bio) and abs(grow) > 1e-9 and back is not None:
+				red = 0.0
+				cx_, cy_ = vx * out[0], vy * out[1]  # bagian dari geseran x dan y
+				if (bx > 0 and out[0] < -0.3) or (bx < 0 and out[0] > 0.3):
+					red += abs(bx) * cx_
+				if (by > 0 and out[1] < -0.3) or (by < 0 and out[1] > 0.3):
+					red += abs(by) * cy_
+				inside = gap is not None
+				if (bio > 0 and inside) or (bio < 0 and not inside):
+					red += abs(bio) * (grow - red)
+				if abs(red) > abs(grow):
+					red = grow
+				if abs(red) > 1e-9:
+					vx, vy = vx - out[0] * red, vy - out[1] * red
+					vecs[key] = (vx, vy)
+					deficit.setdefault(key, []).append((out, red))
+					grow -= red
+			if not limits:
+				continue
 			if grow > 0 and gap is not None:
 				limit = max(0.0, (gap - max(min_gap, gap_ratio * gap)) / 2.0)
 				if grow > limit:
@@ -930,12 +957,12 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 		return
 
 	def deficit_at(key, direction):
-		"""kekurangan titik key yang arahnya berlawanan dengan direction"""
-		best = 0.0
+		"""kekurangan (bertanda) titik key yang arahnya berlawanan dengan direction"""
+		total = 0.0
 		for out, ex in deficit.get(key, []):
 			if out[0] * direction[0] + out[1] * direction[1] < -0.5:
-				best = max(best, ex)
-		return best
+				total += ex
+		return total
 
 	# 2) sisi seberang mengambil alih kekurangan di titik yang ditembusnya
 	add = {}
@@ -947,7 +974,7 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 			pi, a, b, t0, t1 = meta[idx]
 			t = t0 + (t1 - t0) * u
 			ex = deficit_at((pi, a), out) * (1 - t) + deficit_at((pi, b), out) * t
-			if ex <= 1e-9:
+			if abs(ex) <= 1e-9:
 				continue
 			tx, ty = out[0] * ex, (0.0 if key in pins else out[1] * ex)
 			ox, oy = add.get(key, (0.0, 0.0))
@@ -974,9 +1001,10 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 			gb = pb[0] * nrm[0] + pb[1] * nrm[1]
 			if abs(ga - gb) < 1e-6:
 				continue
-			low = min(ga, gb)
+			# ambil yang besarnya terkecil (0 bila tandanya berlawanan)
+			low = 0.0 if ga * gb < 0 else (ga if abs(ga) < abs(gb) else gb)
 			for key, g, cur in ((ka, ga, pa), (kb, gb, pb)):
-				if g > low:
+				if abs(g - low) > 1e-9:
 					cut = g - low
 					add[key] = (cur[0] - nrm[0] * cut, cur[1] - nrm[1] * cut)
 	# ekor / taji yang tumbuh dari sisi yang menerima pindahan ikut bergeser
@@ -989,9 +1017,13 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 		for step in (1, -1):
 			for j0, i0 in enumerate(on):
 				src = add.get((pi, i0))
-				if not src or math.hypot(*src) < 1e-6:
+				if not src or math.hypot(*src) < 1e-6 or (pi, i0) not in rays:
 					continue
 				u = _unit(*src)
+				# arah luar sumber: pindahan menebal searah luar, menipis berlawanan
+				so = max((o for o, _, _ in rays[(pi, i0)]), key=lambda o: abs(o[0] * u[0] + o[1] * u[1]))
+				if so[0] * u[0] + so[1] * u[1] < 0:
+					u = so  # menipis: tetangga yang menghadap ke luar searah sumber
 				j = j0
 				while True:
 					j = (j + step) % len(on)
@@ -1001,7 +1033,7 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 					if not any(o[0] * u[0] + o[1] * u[1] > 0.2 for o, _, _ in rays[key]):
 						break
 					have = add.get(key, (0.0, 0.0))
-					if have[0] * u[0] + have[1] * u[1] >= math.hypot(*src) - 1e-6:
+					if abs(have[0] * src[0] + have[1] * src[1]) >= (src[0] ** 2 + src[1] ** 2) - 1e-6:
 						break  # sudah menerima pindahan yang sama atau lebih
 					add[key] = (src[0], 0.0 if key in pins else src[1])
 	for key, (tx, ty) in add.items():
@@ -1088,7 +1120,7 @@ def path_side(polys, pi):
 
 
 def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=None, protect=None,
-		notch_clamp=1.0, terminals=None):
+		notch_clamp=1.0, terminals=None, bias=None):
 	"""Geser kontur sejauh dx (arah x) dan dy (arah y) per sisi. Positif =
 	lebih tebal: kontur luar melebar, counter menyempit (ditentukan dari
 	tumpukan kontur, jadi tetap benar walau arah path belum dirapikan).
@@ -1134,8 +1166,8 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 				extra[target] = -vy
 		for key, ey in extra.items():
 			vecs[key] = (vecs[key][0], vecs[key][1] + ey)
-	if protect and selected is None:
-		protect_space(paths, vecs, pins or {}, clamp, **protect)
+	if (protect or (bias and any(bias))) and selected is None:
+		protect_space(paths, vecs, pins or {}, clamp, bias=bias, limits=bool(protect), **(protect or {}))
 	if terminals and selected is None:
 		stabilize_terminals(paths, vecs, pins or {}, terminals)
 	if selected is None:
@@ -1273,7 +1305,7 @@ DEFAULT_TERMINAL = 40.0
 
 def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 		selected=None, tolerance=25.0, weights=None, measure=None, protect=DEFAULT_PROTECT,
-		terminals=DEFAULT_TERMINAL):
+		terminals=DEFAULT_TERMINAL, bias=None):
 	"""Tambah tebal stem tegak sebesar add_x dan stem datar sebesar add_y
 	(negatif = lebih tipis). zones: garis metrik (0, x-height, cap height,
 	...); titik yang menempel padanya tidak bergeser vertikal dan goresannya
@@ -1282,7 +1314,7 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 	old = [list(p[2]) for p in paths]
 	pins = zone_pins(paths, zones, tolerance, measure) if (zones and selected is None) else None
 	new = offset_paths(paths, add_x / 2.0, add_y / 2.0, selected, weights=weights, pins=pins, protect=protect,
-		terminals=terminals)
+		terminals=terminals, bias=bias)
 	if pins:
 		for limit, top in zone_limits(paths, pins):
 			for pi, pts in enumerate(new):

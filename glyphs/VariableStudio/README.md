@@ -51,6 +51,10 @@ Dua plugin yang dipakai bersama:
 - Handle kurva: arah tetap (titik halus tetap halus); panjangnya dihitung ulang supaya titik tengah lengkung jatuh tepat di posisi offset sejatinya (geser tegak lurus, tebal tegak & datar dicampur sesuai kemiringan, termasuk efek bobot kontras dan titik zona yang dipegang). Jadi bagian diagonal busur ikut menebal sebanding, tidak tertinggal.
 - **Glyph yang sedang dibuka**: tombol −10 / −2 / +2 / +10 atau nilai isian, bisa di-Undo. Centang *Hanya titik terpilih* untuk menebalkan satu stem saja.
 - **Satu master sekaligus**: sumber (mis. Light) → *Master baru* (nama + nilai axis, otomatis = nilai sumber + tambahan) atau ke master yang sudah ada (mis. Bold yang masih salinan Light). Glyph komposit ikut menyesuaikan lebar dan posisi aksen; kerning disalin.
+- **Arah** (tiga slider, bawaan seimbang 50/50; tombol *Rata* untuk kembali): ke mana perubahan tebal terjadi. Total tebal tetap sama dengan isian; bagian yang dikurangi dari satu sisi diambil alih sisi seberang goresan, jadi sisi stem tetap lurus. Berlaku untuk menebal dan menipis.
+  - *kiri ↔ kanan*: tambahan tebal tegak ke sisi kiri atau kanan goresan (mis. 100% kanan: sisi kiri stem diam).
+  - *bawah ↔ atas*: tambahan tebal datar ke bawah atau ke atas (mis. palang H naik). Titik yang dipegang di zona (*Pertahankan baseline, x-height…*) tetap di tempatnya.
+  - *dalam ↔ luar*: ke counter (bentuk luar & lebar tetap, counter menyempit) atau ke luar (counter tetap, huruf membesar).
 - **Bobot ekstrem (Thin ↔ Black)** – *Lindungi counter* (bawaan aktif):
   - Sisi yang menghadap ruang putih tertutup (counter, mata e, celah antar stem, aperture) hanya boleh memakan celah sampai tersisa minimal 20% (bisa diubah). Kekurangannya diambil alih sisi seberang goresan, jadi tebal yang diminta tetap tercapai dan huruf melebar seperti Black sungguhan.
   - Goresan tidak bisa lebih tipis dari *tebal min* (bawaan 4 unit), jadi Thin tidak membalik hairline.

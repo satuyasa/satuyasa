@@ -741,6 +741,51 @@ def test_point_audit():
 	assert not any("lebih" in x for x in R.ReporterPlugin.texts)
 
 
+def test_direction_bias():
+	"""Arah perubahan tebal: kiri/kanan, bawah/atas, dalam/luar; total tetap."""
+	stem = [(True, ["line"] * 4, [(100, 0), (180, 0), (180, 600), (100, 600)])]
+	bar = [(True, ["line"] * 4, [(0, 300), (400, 300), (400, 340), (0, 340)])]
+
+	def xs(r, k=0):
+		return round(min(p[0] for p in r["pts"][k])), round(max(p[0] for p in r["pts"][k]))
+
+	def ys(r, k=0):
+		return round(min(p[1] for p in r["pts"][k])), round(max(p[1] for p in r["pts"][k]))
+	assert xs(P.embolden(stem, 300, 60, 0, False, None, bias=(-1, 0, 0))) == (40, 180)
+	assert xs(P.embolden(stem, 300, 60, 0, False, None)) == (70, 210)
+	assert xs(P.embolden(stem, 300, 60, 0, False, None, bias=(1, 0, 0))) == (100, 240)
+	assert xs(P.embolden(stem, 300, 60, 0, False, None, bias=(0.5, 0, 0))) == (85, 225)
+	assert xs(P.embolden(stem, 300, -40, 0, False, None, bias=(1, 0, 0))) == (100, 140)
+	assert xs(P.embolden(stem, 300, -40, 0, False, None, bias=(-1, 0, 0))) == (140, 180)
+	assert ys(P.embolden(bar, 400, 0, 30, False, None, bias=(0, 1, 0))) == (300, 370)
+	assert ys(P.embolden(bar, 400, 0, 30, False, None, bias=(0, -1, 0))) == (270, 340)
+	# dalam: bentuk luar o tetap, counter menyempit; luar: counter tetap
+	f = make_font()
+	o = contrast_o(f, f.masters[0])
+	paths = P.layer_paths(o)
+	r_in = P.embolden(paths, 600, 60, 40, False, None, bias=(0, 0, -1))
+	r_out = P.embolden(paths, 600, 60, 40, False, None, bias=(0, 0, 1))
+	assert xs(r_in, 0) == (20, 580) and xs(r_in, 1) == (200, 400), (xs(r_in, 0), xs(r_in, 1))
+	assert xs(r_out, 0) == (-40, 640) and xs(r_out, 1) == (140, 460), (xs(r_out, 0), xs(r_out, 1))
+	# jendela: slider arah dipakai tombol terapkan
+	f.selectedLayers = [f.glyphs["H"].layers[f.masters[0].id]]
+	h = f.glyphs["H"].layers[f.masters[0].id]
+	h.paths = [rect(50, 0, 70, 700), rect(430, 0, 450, 700), rect(50, 330, 450, 340)]
+	w = P.VariableStudioWindow()
+	t = w.w.tabs[6]
+	t.keepSB.value = False
+	t.addX.value, t.addY.value = "40", "0"
+	t.biasX.value = 100
+	w.on_bias()
+	assert "kanan 100%" in t.biasInfo.value
+	t.apply.press()
+	assert not GlyphsApp.MESSAGES, GlyphsApp.MESSAGES
+	assert (h.paths[0].nodes[0].position.x, h.paths[0].nodes[1].position.x) == (50, 110), [P._xy(n) for n in h.paths[0].nodes]
+	t.biasReset.press()
+	assert w._weight_bias() is None
+	w.w.binds["close"](None)
+
+
 if __name__ == "__main__":
 	n = 0
 	for name, fn in sorted(globals().items()):
