@@ -1,0 +1,2490 @@
+/*
+Theme Name: Aksara
+Theme URI: https://github.com/satuyasa/satuyasa
+Author: Aksara
+Author URI: https://github.com/satuyasa
+Description: Marketplace theme for Fonts, Canva Templates, and Canva Elements. Fully custom, built to work with the Aksara Marketplace plugin and WooCommerce. Monochrome "type gallery" visual system following docs/DESIGN.md.
+Version: 0.9.43
+Requires at least: 6.0
+Tested up to: 6.6
+Requires PHP: 7.4
+License: GNU General Public License v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: aksara
+Tags: e-commerce, custom-menu, custom-logo, featured-images, translation-ready
+*/
+
+/* =======================================================================
+   AKSARA — sistem visual monokrom
+   Sumber: docs/DESIGN.md ("Studio Few — Style Reference").
+
+   Prinsip yang dipegang di seluruh berkas ini:
+   - Tinta cuma #000, kertas cuma #fff. TIDAK ada warna kromatik sama sekali.
+   - Kedalaman datang dari hairline 1px, bukan shadow/elevation.
+   - Radius hanya dua nilai: 6px (tombol) & 2px (sisanya).
+   - Satu pola tombol saja: Trial (outline) + View (isi penuh).
+   - Baris spesimen dipisah hairline, bukan card/box/background berbeda.
+
+   Menggantikan palet hangat versi lama (paper #EDEBE3 / indigo / ochre)
+   yang mengikuti mockup-home.html. DESIGN.md adalah acuan terbaru.
+======================================================================= */
+
+:root {
+	/* --- Warna (DESIGN.md > Tokens — Colors) --- */
+	--color-ink-black: #000000;
+	--color-paper-white: #ffffff;
+	--color-foam-gray: #ebedee;
+	--color-concrete-gray: #b7b7b7;
+	--color-mid-ink: #18181d;
+	/* --color-ash (#858585) DIHAPUS. DESIGN.md menugaskannya sebagai "quiet
+	 * link text", tapi di atas putih ia cuma 3,69:1 — gagal AA untuk teks
+	 * kecil, yang justru satu-satunya perannya. Tidak ada satu pun aturan yang
+	 * memakainya; membiarkannya berarti menyimpan nilai yang siap dipakai
+	 * orang berikutnya dan langsung gagal. Teks redup memakai
+	 * --color-ash-text (#767676 = 4,54:1). */
+
+	/* PENYIMPANGAN SADAR DARI DESIGN.md — dan alasannya:
+	 * Ash #858585 di atas kertas putih cuma 3,69:1. DESIGN.md menugaskannya
+	 * ke "quiet link text and low-emphasis labels", yang di sistem ini
+	 * berukuran 12-14px — persis kategori yang WCAG AA minta 4,5:1.
+	 * Jadi Ash tetap dipakai untuk hal NON-teks (track slider tidak aktif,
+	 * kontrol disabled) di mana kontras teks tidak berlaku, dan teks kecil
+	 * yang redup memakai --color-ash-text (#767676 = 4,54:1) — nilai
+	 * tergelap yang masih terbaca sebagai abu-abu yang sama, bukan hitam.
+	 * Diukur, bukan dikira-kira. */
+	--color-ash-text: #767676;
+
+	/* Alias peran, supaya komponen tidak menyebut warna mentah. */
+	--paper: var(--color-paper-white);
+	--ink: var(--color-ink-black);
+	--hairline: var(--color-foam-gray);
+	/* --hairline-strong dipakai untuk DUA hal yang syaratnya berbeda: garis
+	 * pemisah dekoratif (tidak ada syarat kontras) dan batas kontrol form
+	 * (WCAG 1.4.11 menuntut 3:1 karena batas itulah yang memberi tahu di mana
+	 * kolomnya). Terukur #b7b7b7 di atas putih cuma 2,01:1 — gagal untuk peran
+	 * kedua. Nilainya dipertahankan untuk garis, dan kontrol memakai
+	 * --control-border di bawah. */
+	--hairline-strong: var(--color-concrete-gray);
+	/* #949494 = 3,03:1 di atas putih: nilai TERTERANG yang masih lolos 1.4.11,
+	 * jadi kolom isian tetap terlihat ringan dan tidak berubah jadi kotak
+	 * bergaris tebal. */
+	--control-border: #949494;
+	--muted: var(--color-ash-text);
+
+	/* --- Tipografi ---
+	 * Sterling adalah suara resmi sistem ini tapi berkasnya milik foundry
+	 * dan tidak ikut dalam repo. Jadi ia tetap disebut PERTAMA: begitu
+	 * berkasnya dipasang (mis. lewat @font-face di child theme), ia
+	 * otomatis mengambil alih tanpa mengubah CSS ini. Work Sans berdiri
+	 * sebagai failsafe persis seperti perannya di DESIGN.md — bukan
+	 * dipilih sebagai suara utama. */
+	--font-ui: 'SterlingVF', 'Sterling', 'Work Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-display: var(--font-ui);
+	/* Editorial dulu memakai 'Playfair Display' — sebuah serif, dan keluarga
+	 * Google KEDUA. DESIGN.md menyebut Work Sans sebagai "the only Google face
+	 * in the system" dan menegaskan "Sterling is the only voice"; Playfair
+	 * Display tidak disebut sama sekali di sana. Jadi halaman editorial kini
+	 * memakai suara yang sama dengan seluruh situs. Token-nya sengaja
+	 * DIPERTAHANKAN (bukan dihapus lalu 9 pemakaiannya ditulis ulang) supaya
+	 * peran "teks editorial" tetap punya nama sendiri kalau suatu saat
+	 * diberi keluarga tersendiri lagi — pola yang sama persis dengan
+	 * --font-display di baris atas. */
+	--font-editorial: var(--font-ui);
+
+	--text-caption: 12px;
+	--leading-caption: 1.5;
+	--tracking-caption: 0.204px;
+	--text-body-sm: 14px;
+	--leading-body-sm: 1.43;
+	--tracking-body-sm: 0.196px;
+	--text-body: 16px;
+	--leading-body: 1.5;
+	--font-weight-regular: 400;
+	--font-weight-medium: 500;
+
+	/* --- Spasi (base unit 4px) --- */
+	--spacing-12: 12px;
+	--spacing-16: 16px;
+	--spacing-20: 20px;
+	--spacing-24: 24px;
+	--spacing-36: 36px;
+	--spacing-40: 40px;
+	--spacing-112: 112px;
+	--spacing-136: 136px;
+	--spacing-160: 160px;
+
+	--gutter: 24px;
+	--page-top: 64px;
+	--page-bottom: 80px;
+	--section-rhythm: 80px;
+	--component-rhythm: 36px;
+
+	/* --- Radius: tepat dua nilai, tidak pernah tiga --- */
+	--radius-sm: 2px;
+	--radius-md: 6px;
+
+	/* Lebar baca untuk teks panjang (artikel/halaman). Halaman galeri
+	 * sendiri sengaja full-bleed sesuai DESIGN.md > Layout. */
+	--measure: 68ch;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: var(--font-ui);
+	font-size: var(--text-body);
+	line-height: var(--leading-body);
+	font-weight: var(--font-weight-regular);
+	-webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+img { max-width: 100%; height: auto; display: block; border-radius: var(--radius-sm); }
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: var(--font-display);
+	font-weight: var(--font-weight-medium);
+	line-height: 1.1;
+	letter-spacing: -0.02em;
+	margin: 0 0 0.5em;
+}
+
+p { margin: 0 0 1.2em; }
+hr { border: 0; border-top: 1px solid var(--hairline); margin: var(--spacing-36) 0; }
+
+/* Full-bleed adalah default (DESIGN.md > Layout: "no max-width container").
+ * Hanya bar navigasi & konten prosa yang punya batasan lebar. */
+/* Gutter kiri/kanan seluruh situs.
+ *
+ * ATURAN UNTUK SIAPA PUN YANG MENAMBAH KELAS DI ELEMEN BER-.wrap:
+ * gunakan padding-block, JANGAN shorthand `padding`. Shorthand menulis ulang
+ * keempat sisi, dan karena selektor kelas Anda hampir pasti muncul belakangan
+ * di berkas ini, ia menang atas aturan di bawah dan gutter horizontalnya jadi
+ * 0 - elemen menempel rata di tepi halaman, tanpa pesan error apa pun.
+ *
+ * Ini sudah terjadi tiga kali: .content-area, .aksara-product-summary, dan
+ * .editorial-single__footer. Yang terakhir bahkan lolos dari audit responsif
+ * 0.9.11 karena audit itu mengukur overflow, sedangkan gejalanya justru
+ * kebalikannya - elemennya berhenti tepat di 0, bukan melewatinya. */
+.wrap {
+	width: 100%;
+	margin: 0;
+	padding: 0 var(--gutter);
+}
+
+.wrap--measure { max-width: var(--measure); margin: 0 auto; }
+
+.screen-reader-text {
+	position: absolute !important;
+	width: 1px; height: 1px;
+	overflow: hidden;
+	clip: rect(1px, 1px, 1px, 1px);
+	white-space: nowrap;
+}
+.screen-reader-text:focus {
+	position: fixed; top: 8px; left: 8px; width: auto; height: auto;
+	padding: var(--spacing-12) var(--spacing-20);
+	background: var(--ink); color: var(--paper);
+	z-index: 100000; border-radius: var(--radius-md); clip: auto;
+}
+
+/* Fokus keyboard: tinta, bukan biru sistem — satu-satunya cara menandai
+ * fokus di palet 0% warna. Tetap :focus-visible supaya tidak muncul di
+ * setiap klik mouse. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible,
+[contenteditable]:focus-visible {
+	outline: 2px solid var(--ink);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
+}
+
+/* -----------------------------------------------------------------------
+   1. Tombol — HANYA dua varian (DESIGN.md > Do's)
+   .btn-view  = aksi utama, isi tinta penuh
+   .btn-trial = aksi sekunder, wireframe, tidak pernah terisi
+------------------------------------------------------------------------ */
+.btn-view, .btn-trial,
+.button, .btn,
+button[type="submit"],
+input[type="submit"],
+.woocommerce a.button,
+.woocommerce button.button,
+.woocommerce #respond input#submit,
+.single_add_to_cart_button {
+	display: inline-block;
+	font-family: var(--font-ui);
+	font-size: var(--text-body-sm);
+	line-height: 1;
+	letter-spacing: var(--tracking-body-sm);
+	padding: var(--spacing-12) var(--spacing-24);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--ink);
+	cursor: pointer;
+	text-decoration: none;
+	transition: none;
+}
+.btn-view, .button, .btn,
+button[type="submit"], input[type="submit"],
+.woocommerce a.button, .woocommerce button.button,
+.woocommerce #respond input#submit,
+.single_add_to_cart_button {
+	background: var(--ink);
+	color: var(--paper) !important;
+	font-weight: var(--font-weight-medium);
+}
+.btn-view:hover, .button:hover, .btn:hover,
+.woocommerce a.button:hover, .woocommerce button.button:hover,
+.single_add_to_cart_button:hover {
+	background: var(--color-mid-ink);
+	color: var(--paper) !important;
+	text-decoration: none;
+}
+
+/* Trial tetap wireframe SELAMANYA — DESIGN.md: "No hover fill — the button
+ * remains a wireframe at all times, its outline is its only identity."
+ * Umpan balik hover diberikan lewat ketebalan outline, bukan isian. */
+.btn-trial {
+	background: transparent;
+	color: var(--ink) !important;
+	font-weight: var(--font-weight-regular);
+}
+.btn-trial:hover {
+	background: transparent;
+	color: var(--ink) !important;
+	box-shadow: inset 0 0 0 1px var(--ink);
+	text-decoration: none;
+}
+.btn-view[disabled], .btn-trial[disabled], .button[disabled] {
+	opacity: .4;
+	cursor: not-allowed;
+}
+
+/* -----------------------------------------------------------------------
+   2. Header — bar putih full-bleed, hairline bawah, logomark kiri
+------------------------------------------------------------------------ */
+/* Bilah pengumuman opsional (Customizer > Aksara > Header).
+ *
+ * Tinta di atas kertas, bukan warna baru: sistem visualnya akromatik, dan
+ * satu-satunya cara membuat strip ini menonjol tanpa keluar dari sistem adalah
+ * membalik pasangan yang sudah ada. Pola yang sama dipakai .skip-link.
+ *
+ * Tidak lengket. Yang lengket cuma .site-header di bawahnya — lihat alasannya
+ * di template-parts/header/topbar.php. */
+.site-topbar {
+	background: var(--ink);
+	color: var(--paper);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+}
+/* text-align, bukan flex: pengumuman yang panjang harus boleh membungkus
+ * seperti kalimat biasa, dan panahnya ikut mengalir bersama kata terakhir. */
+.site-topbar__inner {
+	padding-block: var(--spacing-12);
+	text-align: center;
+}
+.site-topbar__link { color: inherit; }
+.site-topbar__link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.site-header {
+	position: sticky;
+	top: 0;
+	z-index: 999;
+	background: var(--paper);
+	border-bottom: 1px solid var(--hairline-strong);
+}
+.site-header-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--spacing-24);
+	min-height: 56px;
+	padding-top: var(--spacing-12);
+	padding-bottom: var(--spacing-12);
+}
+.site-title {
+	font-family: var(--font-ui);
+	font-size: var(--text-body);
+	font-weight: var(--font-weight-medium);
+	letter-spacing: 0;
+	line-height: 1;
+	margin: 0;
+}
+.site-title a { color: var(--ink); }
+.site-title a:hover { text-decoration: none; }
+/* KENAPA 32px, DAN KENAPA DULU 20px KELIRU
+ *
+ * add_theme_support('custom-logo') meminta berkas 200x60, jadi media uploader
+ * memberi tahu admin "siapkan logo setinggi 60px" — lalu baris ini dulu
+ * mengecilkannya ke 20px. Logo yang diunggah tampil sepertiga ukuran yang
+ * diminta, dan itulah kenapa ia terasa kecil sekali.
+ *
+ * 20px kemungkinan diambil dari DESIGN.md, yang menyebut logomark 16px. Tapi
+ * yang dimaksud di sana adalah WORDMARK TEKS — huruf telanjang tanpa apa pun
+ * di sekelilingnya. Berkas logo hampir selalu membawa ruang kosong di dalam
+ * gambarnya, sering pula lambang di samping tulisan, sehingga hurufnya sendiri
+ * jatuh jauh di bawah 16px. Diukur: wordmark teks setinggi 16px, sedangkan
+ * gambar logo pada 20px hanya menyisakan huruf setinggi ~9px.
+ *
+ * 32px adalah SELURUH kotak isi .site-header-inner (min-height 56px dikurangi
+ * padding 12px atas-bawah), jadi menaikkannya ke sini TIDAK menambah tinggi
+ * header sama sekali — diukur: 57px sebelum dan sesudah.
+ *
+ * Bisa diubah dari Customizer, karena banyaknya ruang kosong di dalam berkas
+ * logo cuma diketahui pemilik berkasnya. Lihat inc/customizer.php. */
+.custom-logo { max-height: var(--aksara-logo-height, 32px); width: auto; }
+
+.main-navigation ul { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--spacing-20); }
+.main-navigation a {
+	font-size: var(--text-body-sm);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: var(--tracking-body-sm);
+	color: var(--ink);
+	padding-right: var(--spacing-12);
+}
+.main-navigation .current-menu-item > a { font-weight: var(--font-weight-medium); }
+
+/* --- Dropdown satu tingkat ------------------------------------------------
+ *
+ * Sebelumnya baris di sini cuma ".main-navigation ul ul { display: none }".
+ * Akibatnya sub-item yang dibuat admin di Appearance > Menus TETAP dicetak ke
+ * HTML tapi tidak pernah terlihat — tidak di desktop, tidak juga di menu
+ * ponsel yang sudah dibuka. Terukur: 6 tautan di HTML, hanya 3 yang tampil.
+ * Hilang diam-diam, tanpa tanda apa pun bahwa ia disembunyikan.
+ *
+ * KENAPA TANPA JAVASCRIPT. Panel ini dibuka oleh :hover DAN :focus-within.
+ * Yang kedua itulah yang membuatnya bisa dipakai keyboard: Tab masuk ke
+ * tautan induk membuka panelnya, Tab berikutnya masuk ke anak-anaknya, Tab
+ * terakhir keluar dan menutupnya — semuanya urutan fokus alami, tanpa
+ * satu baris skrip pun.
+ *
+ * Dan justru KARENA tanpa skrip, tidak ada aria-expanded di sini. Atribut itu
+ * harus mencerminkan keadaan sebenarnya; tanpa JS yang memperbaruinya ia akan
+ * selalu berbunyi "false" sementara panelnya terbuka — pembaca layar
+ * dibohongi, dan itu lebih buruk daripada tidak ada atributnya sama sekali.
+ * Kalau suatu saat perlu tombol yang bisa ditutup dengan Escape, pola ini
+ * harus diganti utuh jadi pola disclosure ber-JS, bukan ditambal atributnya.
+ *
+ * DEPTH 2, ditetapkan di template-parts/header/nav-primary.php: tingkat
+ * ketiga tidak dicetak sama sekali alih-alih dicetak lalu disembunyikan.
+ * Itu persis kesalahan yang baru saja diperbaiki di sini, dan tidak perlu
+ * diulang satu tingkat lebih dalam.
+ *
+ * position: relative pada <li>, dan panelnya absolute: kalau ia ikut alur
+ * normal, membuka menu akan mendorong tinggi header dan menggeser seluruh
+ * halaman. */
+.main-navigation li { position: relative; }
+.main-navigation ul ul {
+	display: none;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	z-index: 1;
+	min-width: 200px;
+	/* flex-direction: column, karena ".main-navigation ul" di atas adalah
+	 * selektor KETURUNAN dan ikut mengenai panel ini — tanpa baris ini
+	 * anak-anaknya berbaris mendatar keluar dari header. */
+	flex-direction: column;
+	gap: 0;
+	padding: 8px 0;
+	background: var(--paper);
+	border: 1px solid var(--hairline-strong);
+	border-radius: var(--radius-md);
+}
+.main-navigation li:hover > ul,
+.main-navigation li:focus-within > ul { display: flex; }
+.main-navigation ul ul li { border: 0; }
+.main-navigation ul ul a {
+	display: block;
+	padding: 8px var(--spacing-16);
+	white-space: nowrap;
+}
+.main-navigation ul ul a:hover { background: var(--hairline); }
+/* Penanda bahwa item punya anak. Segitiga kecil dalam tinta, bukan ikon
+ * berwarna — sistemnya akromatik. */
+.main-navigation .menu-item-has-children > a::after {
+	content: "";
+	display: inline-block;
+	width: 0;
+	height: 0;
+	margin-left: 6px;
+	vertical-align: middle;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-top: 4px solid currentColor;
+}
+
+.header-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-16);
+	font-size: var(--text-body-sm);
+	letter-spacing: var(--tracking-body-sm);
+}
+/* Hitungan keranjang: angka biasa dalam kurung siku, BUKAN pil berwarna.
+ * Pil bulat berwarna adalah dua pelanggaran sekaligus di sistem ini
+ * (warna kromatik + radius 9999px). */
+.header-actions .cart-count {
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	font-variant-numeric: tabular-nums;
+}
+.header-actions .cart-count::before { content: "["; }
+.header-actions .cart-count::after { content: "]"; }
+
+.menu-toggle {
+	display: none;
+	background: transparent;
+	color: var(--ink);
+	border: 1px solid var(--ink);
+	border-radius: var(--radius-md);
+	padding: 8px var(--spacing-12);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	cursor: pointer;
+}
+
+@media (max-width: 860px) {
+	.menu-toggle { display: block; }
+	.main-navigation { display: none; width: 100%; }
+	.main-navigation.is-open { display: block; }
+	.main-navigation ul { flex-direction: column; gap: 0; padding: var(--spacing-12) 0 0; }
+	.main-navigation li { border-top: 1px solid var(--hairline); padding: var(--spacing-12) 0; }
+	/* Di ponsel panelnya kembali ke alur normal dan SELALU terbuka: tidak ada
+	 * hover di sana, dan sebuah panel yang hanya bisa dibuka dengan fokus akan
+	 * sulit dijangkau lewat sentuhan. Menjorok 16px supaya hierarkinya tetap
+	 * terbaca tanpa perlu garis atau ikon tambahan. */
+	.main-navigation ul ul,
+	.main-navigation li:hover > ul,
+	.main-navigation li:focus-within > ul {
+		display: flex;
+		position: static;
+		min-width: 0;
+		padding: 0 0 0 var(--spacing-16);
+		border: 0;
+		border-radius: 0;
+	}
+	.main-navigation ul ul li:first-child { border-top: 0; }
+	.main-navigation ul ul a { padding: 0; white-space: normal; }
+	.main-navigation .menu-item-has-children > a::after { display: none; }
+	.site-header-inner { flex-wrap: wrap; }
+}
+
+/* -----------------------------------------------------------------------
+   3. Hero
+------------------------------------------------------------------------ */
+/* 76px dan 56px dulu ditulis sebagai angka lepas, padahal keduanya BUKAN
+ * angka sembarang: --page-top bernilai 64px di desktop dan 44px di ponsel,
+ * dan hero selalu 12px lebih lapang dari itu di KEDUA lebar. Itu keputusan
+ * yang konsisten, cuma tidak pernah dituliskan sebagai hubungan — jadi kalau
+ * --page-top berubah, hero diam-diam berhenti mengikutinya. Ditulis ulang
+ * sebagai hubungannya: nilainya persis sama, tapi sekarang tidak bisa hanyut.
+ * Efek sampingnya, override .hero di @media 782px jadi tidak perlu lagi dan
+ * ikut dihapus — 44px + 12px memang 56px.
+ *
+ * Bagian bawahnya (44px) DIBIARKAN, dan itu disengaja. Sesudah hero datang
+ * .categories yang tidak punya padding sendiri; yang memberi ruang adalah
+ * padding 36px milik .cat-card. Jadi jarak yang benar-benar terlihat adalah
+ * 44 + 36 = 80px, yaitu --section-rhythm. Menyamakan 44px ke token mana pun
+ * justru merusak jumlah itu. */
+.hero {
+	padding-block: calc(var(--page-top) + var(--spacing-12)) 44px;
+	border-bottom: 1px solid var(--hairline);
+}
+.hero-eyebrow { margin-bottom: 20px; }
+.hero-headline {
+	font-size: clamp(52px, 8vw, 112px);
+	line-height: .94;
+	letter-spacing: -.045em;
+	font-weight: var(--font-weight-regular);
+	margin: 0;
+	max-width: 18ch;
+}
+.hero-sub {
+	margin-top: var(--spacing-24);
+	max-width: 52ch;
+	font-size: var(--text-body-sm);
+	line-height: var(--leading-body-sm);
+	letter-spacing: var(--tracking-body-sm);
+	color: var(--muted);
+}
+
+/* Kotak cari: hairline saja, tanpa isian abu-abu. */
+.hero-search {
+	margin: var(--spacing-36) auto 0;
+	display: flex;
+	max-width: 760px;
+	gap: 6px;
+	padding: 6px;
+	border: 1px solid var(--hairline-strong);
+	border-radius: 999px;
+	background: var(--paper);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, .06);
+}
+.hero-search input {
+	flex: 1;
+	border: none;
+	background: transparent;
+	min-width: 0;
+	padding: 0 20px;
+	font-family: var(--font-ui);
+	font-size: var(--text-body-sm);
+	letter-spacing: var(--tracking-body-sm);
+	color: var(--ink);
+	margin: 0;
+	border-radius: 0;
+}
+.hero-search input:focus { outline: none; }
+.hero-search input:focus-visible { box-shadow: none; }
+.hero-search:focus-within { border-color: var(--ink); }
+.hero-search button {
+	background: var(--ink);
+	color: var(--paper);
+	border: none;
+	border-radius: 999px;
+	min-width: 132px;
+	height: 52px;
+	padding: 0 var(--spacing-24);
+	font-family: var(--font-ui);
+	font-size: var(--text-body-sm);
+	font-weight: var(--font-weight-medium);
+	cursor: pointer;
+}
+.hero-links {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 16px;
+}
+.home .hero { text-align: center; }
+.home .hero-headline,
+.home .hero-sub { margin-left: auto; margin-right: auto; }
+.home .hero-stats { justify-content: center; }
+.home .stat { min-width: 140px; text-align: center; }
+.home .cat-card { align-items: center; text-align: center; }
+.home .cat-card p { margin-left: auto; margin-right: auto; }
+.home .cat-card .go { align-self: center; }
+.home .section-head { flex-direction: column; align-items: center; text-align: center; }
+.home .sp-controls { justify-content: space-between; text-align: left; }
+.home .sp-label { justify-content: flex-start; }
+.home .sp-actions { justify-content: flex-end; margin-left: auto; }
+.hero-links a {
+	border: 1px solid var(--hairline);
+	border-radius: 999px;
+	padding: 7px 13px;
+	font-size: 12px;
+	color: var(--muted);
+}
+.hero-links a:hover,
+.hero-links a:focus-visible {
+	border-color: var(--ink);
+	color: var(--ink);
+	text-decoration: none;
+}
+
+.hero-stats {
+	display: flex;
+	gap: var(--spacing-36);
+	margin-top: var(--spacing-36);
+	flex-wrap: wrap;
+}
+.hero-stats b {
+	display: block;
+	font-size: var(--text-body);
+	font-weight: var(--font-weight-medium);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0;
+}
+.hero-stats span {
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--muted);
+	text-transform: uppercase;
+}
+
+/* -----------------------------------------------------------------------
+   4. Kategori — baris hairline, bukan kartu berlatar
+------------------------------------------------------------------------ */
+.categories { border-bottom: 1px solid var(--hairline); }
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.cat-card {
+	background: transparent;
+	border-left: 1px solid var(--hairline);
+	padding: var(--spacing-36) var(--spacing-24);
+	min-height: 160px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	color: var(--ink);
+}
+.cat-card:first-child { border-left: none; }
+.cat-card:hover { text-decoration: none; }
+.cat-card h3 { font-size: 28px; margin: 0 0 var(--spacing-12); letter-spacing: -0.02em; }
+.cat-card p {
+	font-size: var(--text-caption);
+	line-height: var(--leading-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--muted);
+	margin: 0;
+	max-width: 32ch;
+}
+.cat-card .go {
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	margin-top: var(--spacing-24);
+	border-bottom: 1px solid var(--ink);
+	align-self: flex-start;
+	padding-bottom: 2px;
+}
+@media (max-width: 782px) {
+	.cat-grid { grid-template-columns: 1fr; }
+	.cat-card { border-left: none; border-top: 1px solid var(--hairline); }
+	.cat-card:first-child { border-top: none; }
+}
+
+/* -----------------------------------------------------------------------
+   5. Bagian & judul bagian
+------------------------------------------------------------------------ */
+/* padding-block saja, dan lewat --section-rhythm. Dulu baris ini memakai
+ * --section-gap, tapi blok SPACING AUDIT di bawah menimpanya dengan
+ * --section-rhythm; jadi ada dua token bernilai 80px untuk satu ritme, dan
+ * yang satu tidak pernah menang. --section-gap kini dihapus seluruhnya. */
+.section { padding-block: var(--section-rhythm); border-bottom: 1px solid var(--hairline); }
+/* .section--last DIHAPUS di 0.9.28.
+ *
+ * Kelas itu memakai cara yang rapuh: ia menandai satu bagian TERTENTU sebagai
+ * yang terakhir supaya garis rambutnya tidak bertumpuk dengan border-top milik
+ * .trust. Begitu ada bagian baru di antara keduanya — dan Free Downloads
+ * persis begitu — penandanya jadi salah tempat: batas templates→free
+ * kehilangan garis, sedangkan batas free→trust punya dua.
+ *
+ * Yang mana bagian terakhir juga TIDAK bisa diketahui di muka: bagian aset dan
+ * bagian free sama-sama hanya tampil kalau ada isinya. Jadi masalahnya bukan
+ * kelas yang salah pasang, melainkan pendekatan yang menuntut jawaban yang
+ * memang tidak ada.
+ *
+ * Sekarang aturannya satu arah: SETIAP bagian menggambar garis di BAWAHnya,
+ * dan tidak ada yang menggambar di atasnya. .trust karena itu kehilangan
+ * border-top-nya. Berapa pun bagian yang muncul atau hilang, setiap batas
+ * dapat tepat satu garis. */
+.section-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--spacing-16);
+	flex-wrap: wrap;
+	margin-bottom: var(--spacing-36);
+}
+.section-head h2 {
+	font-size: var(--text-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	margin: 0;
+	color: var(--ink);
+}
+.section-head a {
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	border-bottom: 1px solid var(--ink);
+	padding-bottom: 2px;
+}
+.section-head a:hover { text-decoration: none; }
+
+/* -----------------------------------------------------------------------
+   6. Baris spesimen font — unit konten inti.
+   Strip kontrol tipis (label + tombol) lalu huruf raksasa di bawahnya,
+   dipisahkan hairline. Tanpa card, tanpa background, tanpa shadow.
+------------------------------------------------------------------------ */
+.specimen-list { border: 0; padding: 0; margin: 0; }
+
+.specimen-row {
+	display: block;
+	padding: 0 0 var(--spacing-36);
+	margin-bottom: var(--spacing-36);
+	border-bottom: 1px solid var(--hairline);
+}
+.specimen-row:last-child { border-bottom: none; margin-bottom: 0; }
+
+/* Strip kontrol: 3 zona (kiri label, tengah meta, kanan tombol). */
+.sp-controls {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--spacing-16);
+	flex-wrap: wrap;
+	padding-bottom: var(--spacing-24);
+}
+.sp-label {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-12);
+	min-width: 0;
+}
+.sp-name-text {
+	font-size: var(--text-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--ink);
+}
+.sp-meta {
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--muted);
+}
+.sp-meta a { color: var(--muted); }
+.sp-price {
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--ink);
+	font-variant-numeric: tabular-nums;
+}
+.sp-price del { color: var(--muted); }
+.sp-actions { display: flex; align-items: center; gap: var(--spacing-12); }
+
+/* Spesimen itu sendiri: full-width, sekitar 115-158px sesuai DESIGN.md.
+ * clamp() dipakai HANYA supaya baris tidak terpotong di layar sempit —
+ * di viewport desktop nilainya mendarat tepat di 158px, jadi skala kanonik
+ * DESIGN.md tetap yang tampil di kondisi normal. */
+/* display:block WAJIB di sini, bukan kosmetik. Elemen ini adalah <a>, yang
+ * defaultnya inline — dan padding VERTIKAL pada elemen inline non-replaced
+ * tidak menambah tinggi baris sama sekali: ia digambar, tapi tidak memesan
+ * ruang. Jadi `padding: 24px 0` di bawah ini akan hilang diam-diam dan
+ * spesimen menempel ke hairline di atas & bawahnya, padahal jarak 24px itu
+ * justru yang diminta DESIGN.md ("24px vertical padding above and below").
+ * Diukur di browser: tinggi baris 40px saat inline vs 88px saat block, untuk
+ * gambar 40px dengan padding 24px.
+ *
+ * Catatan supaya tidak salah kaprah di kemudian hari: ini BUKAN yang menahan
+ * lebar gambar. max-width:100% di bawah di-resolve terhadap containing block
+ * (.specimen-row), bukan terhadap kotak inline, jadi gambar spesimen selebar
+ * ~3000px tetap mengecil dengan benar pada kedua kasus — sudah diuji. */
+.sp-specimen {
+	display: block;
+	padding: var(--spacing-24) 0;
+	overflow: hidden;
+}
+/* !important di sini disengaja dan perlu: Aksara_Specimen_Image::get_img_tag()
+ * menulis height inline (style="height:115px;width:auto") supaya gambar
+ * tetap benar di tema lain yang tidak punya CSS ini. Tanpa override,
+ * max-width:100% akan mempersempit lebar sementara height inline bertahan
+ * — gambarnya jadi gepeng di layar sempit. */
+.sp-specimen img {
+	display: block;
+	height: auto !important;
+	width: auto;
+	max-width: 100%;
+	border-radius: 0;
+}
+/* Placeholder baris specimen - lihat aksara_specimen_placeholder().
+ *
+ * Sengaja dibuat TERBACA SEBAGAI PLACEHOLDER, bukan sebagai spesimen: ini
+ * toko huruf, dan nama keluarga font yang dicetak besar-besar dalam font TEMA
+ * bisa membuat pembeli mengira itulah wujud fontnya. Karena itu ukurannya
+ * jauh di bawah spesimen sungguhan (yang 115-158px), warnanya --muted alih-
+ * alih tinta penuh, dan selalu disertai keterangan apa yang sedang terjadi.
+ *
+ * --muted = #767676 = 4,54:1 di atas kertas putih, jadi keterangan 12px-nya
+ * tetap lolos WCAG AA. */
+.sp-specimen-placeholder {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: var(--spacing-24) 0;
+}
+.sp-specimen-placeholder__name {
+	font-family: var(--font-ui);
+	font-size: clamp(26px, 4.5vw, 56px);
+	line-height: 1.08;
+	letter-spacing: -0.02em;
+	font-weight: var(--font-weight-regular);
+	color: var(--muted);
+	word-break: break-word;
+}
+.sp-specimen-placeholder__note {
+	font-size: var(--text-caption);
+	line-height: var(--leading-caption);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+/* Varian cadangan-saat-gagal: diam sampai specimen.js benar-benar menandai
+ * canvas-nya .has-error. Selektor saudara langsung (+) aman karena helper
+ * mencetak placeholder tepat sesudah <canvas>, tanpa elemen lain di antaranya. */
+.sp-specimen-placeholder--on-error { display: none; }
+.aksara-row-canvas.has-error { display: none; }
+.aksara-row-canvas.has-error + .sp-specimen-placeholder--on-error { display: flex; }
+
+
+.font-product-gallery {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin-top: 24px;
+}
+.font-product-gallery a {
+	display: block;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+	border-radius: 2px;
+}
+.font-product-gallery img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+	transition: transform 240ms ease;
+}
+.font-product-gallery a:hover img { transform: scale(1.015); }
+
+@media (max-width: 640px) {
+	.sp-controls { align-items: flex-start; flex-direction: column; }
+	.sp-actions { width: 100%; }
+}
+
+/* -----------------------------------------------------------------------
+   7. Grid produk (Canva Template / Element)
+   DESIGN.md melarang membungkus konten dalam card — jadi kartu di sini
+   hanya gambar + label, tanpa border/latar/shadow. Gambar sendiri boleh
+   radius 2px (satu-satunya elemen yang punya radius selain tombol).
+------------------------------------------------------------------------ */
+.asset-grid, ul.products {
+	display: grid !important;
+	grid-template-columns: repeat(4, 1fr) !important;
+	gap: var(--spacing-36) var(--spacing-24);
+	margin: 0 !important;
+	padding: 0 !important;
+	list-style: none !important;
+}
+.asset-card, ul.products li.product {
+	background: transparent;
+	border: none;
+	position: relative;
+}
+.asset-thumb, ul.products li.product img {
+	aspect-ratio: 3/2;
+	object-fit: cover;
+	width: 100%;
+	background: var(--color-foam-gray);
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+.asset-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm); }
+/* Cadangan saat kartu belum punya gambar unggulan: nama rilis, kecil dan
+ * redup, di tengah kotak abu-abu yang sudah ada. Bukan dicetak besar — ini
+ * toko huruf, dan nama font berukuran besar dalam font UI bisa dikira wujud
+ * fontnya. Pola yang sama dipakai .foundry-placeholder dan kartu related di
+ * halaman free. */
+.asset-thumb__fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	padding: var(--spacing-12);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-align: center;
+	color: var(--muted);
+}
+.asset-info, ul.products li.product .woocommerce-loop-product__title {
+	padding: var(--spacing-12) 0 0;
+	font-size: var(--text-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--ink);
+}
+.asset-info h4 { font-size: inherit; font-weight: inherit; letter-spacing: inherit; margin: 0; text-transform: inherit; }
+.asset-info span, ul.products li.product .price {
+	padding: 4px 0 0;
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
+	display: block;
+	text-transform: none;
+}
+@media (max-width: 980px) { .asset-grid, ul.products { grid-template-columns: repeat(2, 1fr) !important; } }
+@media (max-width: 560px) { .asset-grid, ul.products { grid-template-columns: 1fr !important; } }
+
+.filter-bar {
+	display: flex;
+	gap: var(--spacing-12);
+	flex-wrap: wrap;
+	margin-bottom: var(--spacing-36);
+	padding-bottom: var(--spacing-16);
+	border-bottom: 1px solid var(--hairline);
+}
+.filter-bar a {
+	padding: 8px var(--spacing-16);
+	border: 1px solid var(--hairline-strong);
+	border-radius: var(--radius-md);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--ink);
+}
+.filter-bar a:hover { border-color: var(--ink); text-decoration: none; }
+.filter-bar a.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* -----------------------------------------------------------------------
+   8. Trust section — light editorial proof points
+------------------------------------------------------------------------ */
+.trust {
+	background: var(--paper);
+	color: var(--ink);
+	/* Dulu 72px di desktop tapi 56px di ponsel — dan 56px itu persis
+	 * --section-rhythm di lebar tersebut. Jadi di ponsel bagian ini sudah
+	 * seirama dengan .section di atasnya, sementara di desktop meleset 8px
+	 * tanpa alasan. Disamakan ke tokennya: .trust dan .section kini satu
+	 * ritme di semua lebar, dan override 56px di @media jadi tidak perlu. */
+	padding-block: var(--section-rhythm);
+	/* Tanpa border-top: garis di atas .trust digambar oleh border-bottom milik
+	 * bagian sebelum ia, apa pun bagian itu. Lihat catatan .section--last. */
+	border-bottom: 1px solid var(--hairline);
+}
+.trust .wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-36); }
+.trust .wrap > div { text-align: center; padding: 0 24px; }
+.trust-index {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	margin-bottom: 20px;
+	border: 1px solid var(--hairline-strong);
+	border-radius: 50%;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+.trust h3 {
+	color: var(--ink);
+	font-size: var(--text-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	margin-bottom: var(--spacing-12);
+}
+.trust p {
+	font-size: var(--text-body-sm);
+	line-height: var(--leading-body-sm);
+	letter-spacing: var(--tracking-body-sm);
+	color: var(--muted);
+	margin: 0;
+}
+@media (max-width: 782px) { .trust .wrap { grid-template-columns: 1fr; } }
+
+/* -----------------------------------------------------------------------
+   9. Footer
+------------------------------------------------------------------------ */
+/* Nilai sumbu bloknya ditetapkan blok SPACING AUDIT di bawah. */
+.site-footer { border-top: 1px solid var(--hairline); }
+.footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: var(--spacing-36); }
+.footer-tagline {
+	font-size: var(--text-caption);
+	line-height: var(--leading-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--muted);
+	max-width: 32ch;
+	margin-top: var(--spacing-12);
+}
+/* h2, bukan h5 — lihat alasannya di template-parts/footer/menus.php.
+ * Ukurannya tetap 12px, jadi tampilannya tidak berubah. */
+.footer-grid h2 {
+	font-size: var(--text-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	margin-bottom: var(--spacing-16);
+}
+.footer-grid a {
+	display: block;
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--muted);
+	margin-bottom: 8px;
+}
+.footer-grid a:hover { color: var(--ink); }
+/* Menu footer keluar dari wp_nav_menu() sebagai <ul> polos, dan tidak pernah
+ * ada yang mengatur ulang gayanya — jadi selama ini kolom Shop/Help/Company
+ * tampil BERBULATAN dan menjorok ke dalam, memakai gaya bawaan browser. Itu
+ * bukan yang digambarkan DESIGN.md dan bukan yang terlihat di kolom lain.
+ * .main-navigation ul sudah lama mengatur ulang hal yang sama untuk navigasi
+ * atas; baris ini melakukannya untuk footer. Ini memang mengubah tampilan
+ * dibanding 0.9.21 — disengaja, karena tampilan sebelumnya keliru. */
+.footer-grid ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+/* Baris sosial duduk di kolom identitas, jadi ia mewarisi .footer-grid a yang
+ * display:block — dikembalikan ke baris di sini. Tautannya teks, bukan ikon;
+ * alasannya di template-parts/footer/social.php. */
+.footer-social { margin-top: var(--spacing-16); }
+.footer-social__list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px var(--spacing-16);
+}
+.footer-social__list a {
+	display: inline;
+	margin-bottom: 0;
+}
+.footer-bottom {
+	margin-top: var(--spacing-36);
+	padding-top: var(--spacing-16);
+	border-top: 1px solid var(--hairline);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	color: var(--muted);
+	display: flex;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+@media (max-width: 782px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+
+/* -----------------------------------------------------------------------
+   10. Konten generik (blog, page, single, komentar) — pakai lebar baca
+------------------------------------------------------------------------ */
+/* padding-block, bukan shorthand: elemen ini juga berkelas .wrap, dan
+ * shorthand `padding` akan menulis ulang keempat sisi sehingga gutter
+ * horizontal dari .wrap ikut jadi 0. Nilai sumbu blok-nya sendiri kini
+ * ditetapkan blok SPACING AUDIT 0.8.4 di bawah; baris ini dipertahankan
+ * hanya sebagai dasar dan karena itu cukup menyebut sumbu blok saja. */
+.entry-card, article.post, article.page {
+	margin-bottom: var(--spacing-36);
+	padding-bottom: var(--spacing-36);
+	border-bottom: 1px solid var(--hairline);
+}
+.entry-title { font-size: 36px; letter-spacing: -0.02em; }
+.entry-title a { color: var(--ink); }
+.entry-meta {
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--muted);
+	margin-bottom: var(--spacing-12);
+}
+/* --- Pagar isi editor ----------------------------------------------------
+ * Isi artikel datang dari editor WordPress, bukan dari template tema, jadi
+ * tema tidak boleh mengandalkan markupnya berperilaku baik. Tiga elemen
+ * terbukti menembus batas kiri/kanan halaman saat diukur di Chromium
+ * headless pada viewport 375px:
+ *
+ *   <pre> berisi satu baris kode panjang   -> meluber 338px
+ *   <table> enam kolom                      -> meluber  73px
+ *   URL panjang tanpa spasi di dalam <p>    -> meluber  60px
+ *
+ * Ketiganya dipagari di sini SATU KALI untuk semua template, bukan
+ * ditambal per halaman - sumbernya sama: konten yang lebarnya tidak bisa
+ * diketahui tema di muka.
+ *
+ * overflow-wrap dipakai break-word, bukan anywhere: break-word hanya
+ * memotong kata ketika kata itu memang tidak muat, dan tidak ikut mengubah
+ * perhitungan min-content - jadi tipografi normal tidak terganggu.
+ *
+ * table dibuat display:block agar overflow-x-nya berlaku; ini konsekuensi
+ * yang diterima, karena <table> biasa mengabaikan overflow. */
+/* Baseline: kata yang tidak muat DIPOTONG, bukan dibiarkan mendorong halaman.
+ *
+ * Ditaruh di body, bukan didaftar per wadah, karena masalahnya tidak terikat
+ * pada satu komponen: nama font panjang, URL di dalam judul, alamat email di
+ * heading footer, atau kata majemuk - semuanya bisa muncul di mana saja. Uji
+ * tekan dengan token 88 karakter tanpa spasi di setiap heading dan paragraf
+ * membuktikannya: dengan daftar per wadah, 17 dari 21 halaman masih meluber
+ * (sampai 1306px di 414px); dengan baseline ini, tidak ada yang meluber.
+ *
+ * break-word, bukan anywhere: break-word hanya memotong kata yang memang
+ * tidak muat dan tidak ikut mengubah perhitungan min-content, jadi tipografi
+ * normal - termasuk spesimen besar - tidak berubah sama sekali. */
+body {
+	overflow-wrap: break-word;
+}
+
+/* Lantai min-content pada anak grid & flex.
+ *
+ * Setiap anak grid atau flex punya min-width: auto secara bawaan, yang
+ * berarti ia TIDAK BOLEH menyusut di bawah lebar min-content-nya. Satu kata
+ * atau URL panjang di dalamnya karena itu tidak menyusut mengikuti kolom -
+ * ia melebarkan seluruh induknya sampai ke <body>, dan halaman meluber ke
+ * kanan tanpa ada satu pun aturan width yang salah.
+ *
+ * Terukur di kotak About the author: .editorial-author memakai
+ * grid-template-columns: 80px minmax(0, 600px). Meski trek keduanya boleh
+ * mengecil sampai 0, ITEM di dalamnya tidak - bio yang memuat satu URL
+ * panjang memaksa lebarnya 301px, sehingga kotaknya terkunci di 80 + 24 +
+ * 301 = 405px. Di viewport 320px itu meluber 100px, di 375px 45px, dan baru
+ * hilang di 600px. Persis pola "ABOUT THE AUTHOR ke bawah" yang dilaporkan.
+ *
+ * overflow-wrap pada body membuat teksnya BOLEH dipotong; min-width: 0 di
+ * bawah membuat wadahnya BOLEH menyusut. Keduanya diperlukan: tanpa
+ * overflow-wrap teksnya tetap tumpah keluar item, tanpa min-width: 0
+ * treknya tetap dipaksa melebar.
+ *
+ * Daftar selektor di bawah TIDAK ditulis tangan - ia diturunkan dari
+ * stylesheet ini sendiri dengan memindai setiap aturan yang mendeklarasikan
+ * display: grid atau display: flex. Daftar tangan selalu tertinggal: putaran
+ * sebelumnya melewatkan .editorial-masthead dan .font-library-header, dan
+ * keduanya langsung muncul sebagai overflow di uji tekan. Kalau nanti ada
+ * wadah grid/flex baru, pindai ulang - jangan tebak. */
+.site-header-inner > *,
+.main-navigation ul > *,
+.header-actions > *,
+.hero-search > *,
+.hero-links > *,
+.hero-stats > *,
+.cat-grid > *,
+.cat-card > *,
+.section-head > *,
+.sp-controls > *,
+.sp-label > *,
+.sp-actions > *,
+.sp-specimen-placeholder > *,
+.font-product-gallery > *,
+.asset-grid > *,
+ul.products > *,
+.filter-bar > *,
+.trust .wrap > *,
+.trust-index > *,
+.footer-grid > *,
+.footer-social__list > *,
+.footer-bottom > *,
+.pagination > *,
+.aksara-product-meta > *,
+.font-library-header > *,
+.font-detail-header > *,
+.catalog-toolbar > *,
+.page-numbers ul > *,
+ul.page-numbers > *,
+.font-breadcrumb > *,
+.font-detail-meta > *,
+.font-rating > *,
+.sp-price-group > *,
+.asset-price-row > *,
+.font-archive-gallery__track > *,
+.font-single-gallery > *,
+.font-overview > *,
+.font-overview__meta .font-spec > div > *,
+.font-meta-dates > div > *,
+.font-extras__item > *,
+.related-font-grid > *,
+.font-product-card__image > *,
+.font-product-card__body > *,
+.font-product-card__price > *,
+.editorial-masthead > *,
+.editorial-feed > *,
+.editorial-card__meta > *,
+.editorial-read-link > *,
+.editorial-card--featured > *,
+.editorial-single__byline > *,
+.editorial-author > *,
+.editorial-single .post-navigation .nav-links > *,
+.editorial-single .post-navigation a > *,
+.editorial-related__grid > *,
+.editorial-footer-cta > *,
+.editorial-footer-cta a > * {
+	min-width: 0;
+}
+.entry-content pre,
+.editorial-single__body pre,
+.entry-content table,
+.editorial-single__body table {
+	display: block;
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+/* =======================================================================
+   HALAMAN DOKUMEN — About, Contact, FAQ, Licenses, Privacy, Terms
+   
+   Halaman-halaman ini isinya prosa panjang, dan sampai 0.9.28 tema tidak
+   punya lapisan tipografi untuk itu sama sekali. Diukur di Chromium pada
+   .entry-content tanpa batas lebar:
+
+       viewport   panjang baris
+       1024        ~120 karakter
+       1440        ~172
+       1920        ~234
+       2560        ~314
+
+   Batas nyaman membaca 45-75 karakter. Di 2560px barisnya empat kali lipat
+   itu — mata kehilangan awal baris berikutnya setiap kali turun. Full-bleed
+   memang bawaan sistem ini (DESIGN.md), tapi DESIGN.md sendiri mengecualikan
+   "prose content", dan --measure sudah ada sejak awal untuk itu; ia hanya
+   tidak pernah dipasang ke .entry-content.
+
+   Judul <h2> juga margin-atasnya 0 (dari reset "h1..h6 { margin: 0 0 .5em }"),
+   jadi bagian baru menempel ke paragraf terakhir bagian sebelumnya. Untuk
+   halaman satu-dua paragraf itu tidak terasa; untuk Privacy Policy dua belas
+   bagian, itu membuat dokumennya tidak bisa dipindai.
+======================================================================= */
+/* margin-inline: auto — kolomnya DIPUSATKAN, bukan menempel ke kiri.
+ *
+ * Draf 0.9.29 memasang max-width tanpa ini, dan hasilnya kolom prosa menempel
+ * kiri dengan ruang kosong yang tumbuh terus ke kanan: 564px di 1280,
+ * 724px di 1440, 1204px di 1920, 1844px di 2560. Di layar lebar halaman
+ * Privacy Policy tampak seperti gagal memuat separuh isinya.
+ *
+ * Dan tema ini SUDAH memutuskan hal itu di dua tempat sebelum saya:
+ *
+ *   .wrap--measure        { max-width: var(--measure); margin: 0 auto; }
+ *   .editorial-single__body { width: min(100% - 32px, 760px); margin: 88px auto; }
+ *
+ * Kolom prosa di tema ini dipusatkan. Yang saya tambahkan kemarin adalah pola
+ * KETIGA yang berbeda dari keduanya, di berkas yang sama. */
+.entry-content {
+	font-size: var(--text-body);
+	line-height: var(--leading-body);
+	max-width: var(--measure);
+	margin-inline: auto;
+}
+
+/* Ritme judul di dalam prosa. em, bukan px: jaraknya ikut ukuran judulnya
+ * sendiri, jadi h2 dapat ruang lebih lapang daripada h3 tanpa dua angka
+ * terpisah yang bisa hanyut. */
+.entry-content h2 { font-size: 28px; margin-top: 1.8em; }
+.entry-content h3 { font-size: 20px; margin-top: 1.6em; }
+.entry-content h4 { font-size: var(--text-body); margin-top: 1.5em; }
+.entry-content > :first-child { margin-top: 0; }
+
+.entry-content ul,
+.entry-content ol { margin: 0 0 1.2em; padding-left: 1.4em; }
+.entry-content li { margin-bottom: .4em; }
+.entry-content li > ul,
+.entry-content li > ol { margin-top: .4em; margin-bottom: 0; }
+
+.entry-content blockquote {
+	margin: var(--spacing-24) 0;
+	padding-left: var(--spacing-20);
+	border-left: 1px solid var(--hairline-strong);
+	color: var(--muted);
+}
+.entry-content hr { margin: var(--spacing-36) 0; }
+.entry-content table { width: 100%; border-collapse: collapse; font-size: var(--text-body-sm); }
+.entry-content th,
+.entry-content td { padding: var(--spacing-12) 0; border-bottom: 1px solid var(--hairline); text-align: left; vertical-align: top; }
+.entry-content th { font-weight: var(--font-weight-medium); }
+
+/* Judul halaman disamakan dengan judul arsip (clamp 40-72px). Sebelumnya
+ * .entry-title 36px mati, jadi judul "Privacy Policy" tampil jauh lebih kecil
+ * daripada judul kategori blog di situs yang sama. */
+.page .entry-title,
+.page-template .entry-title {
+	font-size: clamp(40px, 6vw, 72px);
+	line-height: 1;
+	font-weight: var(--font-weight-regular);
+	letter-spacing: -0.02em;
+	margin: 0;
+}
+.page .entry-header,
+.page-template .entry-header {
+	max-width: var(--measure);
+	/* Judul ikut dipusatkan bersama isinya. Kalau hanya isinya yang bergeser,
+	 * judul dan paragraf pertama tidak lagi berbagi tepi kiri — dan tepi kiri
+	 * yang sama itulah yang membuat keduanya terbaca sebagai satu dokumen. */
+	margin-inline: auto;
+	margin-bottom: var(--component-rhythm);
+	padding-bottom: var(--spacing-24);
+	border-bottom: 1px solid var(--hairline);
+}
+/* Baris "Last updated" di halaman dokumen. Tanggalnya dari post_modified,
+ * jadi ia tidak bisa basi diam-diam seperti tanggal yang diketik manual. */
+.doc-meta {
+	margin-top: var(--spacing-12);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+/* --- FAQ -----------------------------------------------------------------
+ * <details>/<summary> asli, bukan akordeon buatan sendiri. Peramban sudah
+ * memberi peran, keadaan terbuka/tertutup, dan dukungan keyboard secara
+ * bawaan — tanpa satu baris JS, dan tanpa risiko aria-expanded yang tidak
+ * sinkron seperti yang dihindari di dropdown menu utama.
+ *
+ * Isi FAQ ditulis admin di editor sebagai blok HTML; kelasnya sengaja pendek
+ * dan mudah diingat. */
+.entry-content .faq {
+	border-bottom: 1px solid var(--hairline);
+	padding: var(--spacing-16) 0;
+}
+.entry-content .faq:first-of-type { border-top: 1px solid var(--hairline); }
+.entry-content .faq > summary {
+	cursor: pointer;
+	list-style: none;
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--spacing-16);
+	font-weight: var(--font-weight-medium);
+}
+.entry-content .faq > summary::-webkit-details-marker { display: none; }
+/* Penanda +/- dari teks, bukan gambar: ia ikut warna dan ukuran barisnya
+ * sendiri dan tidak perlu berkas apa pun. */
+.entry-content .faq > summary::after {
+	content: "+";
+	font-variant-numeric: tabular-nums;
+	color: var(--muted);
+}
+.entry-content .faq[open] > summary::after { content: "\2212"; }
+.entry-content .faq > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.entry-content .faq > :not(summary) { margin-top: var(--spacing-12); }
+.entry-content .faq > :last-child { margin-bottom: 0; }
+
+/* --- Formulir kontak ------------------------------------------------------
+ * Kolomnya memakai gaya input global yang sudah ada; yang ditambahkan di sini
+ * hanya susunan dan label. Lebarnya mengikuti --measure yang sama dengan
+ * prosa di sekitarnya, jadi baris isian tidak melebar melampaui teks yang
+ * menjelaskannya. */
+.contact-form { max-width: var(--measure); margin: var(--spacing-36) 0; }
+.contact-form__field { margin-bottom: var(--spacing-20); }
+.contact-form__field label {
+	display: block;
+	margin-bottom: 8px;
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.contact-form textarea { resize: vertical; }
+
+/* Honeypot. Menumpang .screen-reader-text yang sudah ada di tema, bukan
+ * aturan sembunyi baru.
+ *
+ * Menyembunyikan sesuatu secara visual tapi tetap ada di DOM adalah masalah
+ * yang sudah dipecahkan satu kali di berkas ini, dan salinan kedua akan
+ * melenceng. Draf pertama di sini memang begitu — sempat memakai
+ * left:-9999px, yang meninggalkan elemen selebar sepuluh ribu piksel di luar
+ * sisi kiri setiap halaman kontak; lalu clip-path 1px, yang masih tercatat
+ * sebagai pelanggar di harness responsif. Keduanya menutupi pelanggar
+ * sungguhan kalau suatu saat ada.
+ *
+ * Yang tersisa di sini cuma jarak, karena penyembunyiannya bukan urusan
+ * komponen ini. Kolomnya sendiri tetap kolom biasa di HTML — itu justru
+ * syarat honeypot: bot membaca type="hidden" lalu melewatinya, sedangkan
+ * kolom "normal" yang tidak tergambar akan tetap diisi. */
+.contact-form__trap { margin: 0; }
+
+.contact-notice {
+	max-width: var(--measure);
+	margin: var(--spacing-24) 0;
+	padding: var(--spacing-16) var(--spacing-20);
+	border: 1px solid var(--hairline-strong);
+	border-left-width: 3px;
+	border-radius: var(--radius-sm);
+	font-size: var(--text-body-sm);
+}
+/* Berhasil dan gagal dibedakan oleh KETEBALAN garis kiri dan kata-katanya,
+ * bukan oleh warna hijau/merah — sistem ini akromatik, dan pembeda yang
+ * hanya berupa warna juga gagal untuk pembaca yang buta warna. */
+.contact-notice--error { border-left-width: 6px; font-weight: var(--font-weight-medium); }
+.entry-content a { border-bottom: 1px solid var(--hairline-strong); }
+.entry-thumbnail img { border-radius: var(--radius-sm); margin-bottom: var(--spacing-24); }
+
+.pagination { display: flex; gap: 8px; justify-content: center; margin-top: var(--spacing-36); }
+.pagination .page-numbers {
+	padding: 8px var(--spacing-16);
+	border: 1px solid var(--hairline-strong);
+	border-radius: var(--radius-md);
+	font-size: var(--text-body-sm);
+}
+.pagination .page-numbers.current { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+input[type="text"], input[type="email"], input[type="url"], input[type="search"],
+input[type="tel"], input[type="password"], input[type="number"], textarea, select {
+	width: 100%;
+	padding: var(--spacing-12) var(--spacing-16);
+	/* --control-border, bukan --hairline-strong: batas kolom isian harus
+	 * memenuhi 3:1 (WCAG 1.4.11). Lihat catatannya di blok token. */
+	border: 1px solid var(--control-border);
+	border-radius: var(--radius-sm);
+	font-family: var(--font-ui);
+	font-size: var(--text-body-sm);
+	letter-spacing: var(--tracking-body-sm);
+	margin-bottom: var(--spacing-16);
+	background: var(--paper);
+	color: var(--ink);
+}
+label { font-size: var(--text-caption); letter-spacing: var(--tracking-caption); text-transform: uppercase; }
+
+/* -----------------------------------------------------------------------
+   11. Single product & WooCommerce
+------------------------------------------------------------------------ */
+/* padding-block, bukan shorthand: elemen ini juga berkelas .wrap, dan
+ * shorthand `padding` akan menulis ulang keempat sisi sehingga gutter
+ * horizontal dari .wrap ikut jadi 0. Nilai sumbu blok-nya sendiri kini
+ * ditetapkan blok SPACING AUDIT 0.8.4 di bawah; baris ini dipertahankan
+ * hanya sebagai dasar dan karena itu cukup menyebut sumbu blok saja. */
+.aksara-product-summary .product_title {
+	font-size: clamp(40px, 8vw, 115px);
+	line-height: 1;
+	letter-spacing: -0.02em;
+	font-weight: var(--font-weight-regular);
+}
+.aksara-product-meta {
+	display: flex;
+	gap: var(--spacing-16);
+	font-size: var(--text-caption);
+	letter-spacing: var(--tracking-caption);
+	text-transform: uppercase;
+	color: var(--muted);
+	margin-bottom: var(--spacing-16);
+	flex-wrap: wrap;
+}
+.aksara-product-meta span:not(:last-child)::after { content: "·"; margin-left: var(--spacing-16); }
+.woocommerce div.product p.price,
+.woocommerce div.product span.price {
+	color: var(--ink);
+	font-weight: var(--font-weight-medium);
+	font-size: var(--text-body);
+	font-variant-numeric: tabular-nums;
+}
+.woocommerce table.cart td, .woocommerce-page table.cart td { vertical-align: middle; }
+.woocommerce table.shop_table { border-color: var(--hairline); border-radius: 0; }
+.woocommerce table.shop_table th, .woocommerce table.shop_table td {
+	font-size: var(--text-body-sm);
+	letter-spacing: var(--tracking-body-sm);
+}
+.woocommerce ul.product_list_widget li { border-bottom: 1px solid var(--hairline); padding: var(--spacing-12) 0; }
+
+/* Notice WooCommerce: tanpa warna, dibedakan lewat garis tinta di kiri &
+ * berat huruf. DESIGN.md melarang hijau-sukses/merah-error, dan tidak
+ * bergantung pada warna saja justru lebih baik untuk aksesibilitas. */
+.woocommerce-message, .woocommerce-info, .woocommerce-error {
+	background: var(--paper) !important;
+	color: var(--ink) !important;
+	border: 1px solid var(--hairline-strong) !important;
+	border-left: 3px solid var(--ink) !important;
+	border-radius: var(--radius-sm);
+	font-size: var(--text-body-sm);
+	list-style: none;
+	padding: var(--spacing-16) var(--spacing-20) !important;
+	margin-bottom: var(--spacing-24);
+}
+.woocommerce-error { border-left-width: 6px !important; font-weight: var(--font-weight-medium); }
+.woocommerce-message::before, .woocommerce-info::before, .woocommerce-error::before { display: none !important; }
+
+/* Tabel WC gampang overflow di layar sempit karena banyak kolom — biarkan
+ * ia scroll di dalam wrappernya sendiri supaya body halaman tidak pernah
+ * overflow ke samping. */
+.woocommerce table.shop_table,
+.woocommerce-table {
+	display: block;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.license-page { padding: var(--page-top) var(--gutter) var(--page-bottom); }
+.license-page__hero { max-width: 1180px; margin: 0 auto var(--section-rhythm); padding-bottom: var(--spacing-40); border-bottom: 1px solid var(--hairline-strong); }
+.license-page__eyebrow, .license-page__section-label { color: var(--muted); font-size: var(--text-caption); letter-spacing: .08em; text-transform: uppercase; }
+.license-page__hero h1 { max-width: 820px; margin: 22px 0 24px; font-size: clamp(52px, 9vw, 132px); line-height: .88; letter-spacing: -.065em; }
+.license-page__intro { max-width: 620px; margin: 0 0 28px; font-size: clamp(18px, 2.2vw, 26px); line-height: 1.28; }
+.license-page__meta { display: flex; flex-wrap: wrap; gap: 8px 12px; color: var(--muted); font-size: var(--text-caption); }
+.license-page__editorial, .license-page__guide, .license-page__catalogue, .license-page__ip, .license-page__contact { max-width: 1180px; margin: 0 auto var(--section-rhythm); }
+/* Blok editorial ikut aturan bersama di atas, yang memasang max-width 1180px
+ * DAN margin: 0 auto. Menimpa max-width-nya saja dengan --measure (692px)
+ * meninggalkan margin auto itu tetap berlaku — sehingga bloknya melayang di
+ * TENGAH kolom 1180px sementara hero, guide, catalogue dan contact semuanya
+ * rata kiri. Terukur: tepi kirinya 286px di 1280px dan 366px di 1440px,
+ * sementara semua bagian lain di 43px dan 123px. Selisih 243px yang terbaca
+ * seperti paragraf yang salah tempat.
+ *
+ * Persis jenis kesalahan yang sama pernah dibuat di 0.9.29 dan diperbaiki di
+ * 0.9.30: max-width dipasang tanpa memikirkan margin yang sudah ada.
+ *
+ * Perbaikannya bukan mencabut margin auto — bloknya memang harus sejajar
+ * kolom 1180px — melainkan membatasi panjang barisnya di dalam, bukan di
+ * pembungkusnya. */
+.license-page__editorial { margin-bottom: var(--section-rhythm); }
+.license-page__editorial > * { max-width: var(--measure); }
+.license-page__guide, .license-page__ip { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr); gap: var(--spacing-36); padding-top: var(--spacing-24); border-top: 1px solid var(--hairline-strong); }
+.license-page h2 { max-width: 700px; margin: 0 0 14px; font-size: clamp(30px, 4vw, 58px); letter-spacing: -.045em; }
+.license-page__guide p, .license-page__ip p, .license-page__section-head p, .license-page__contact p { max-width: 620px; color: var(--muted); margin: 0; }
+.license-page__section-head { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr); gap: var(--spacing-36); padding-top: var(--spacing-24); margin-bottom: var(--spacing-36); border-top: 1px solid var(--hairline-strong); }
+.license-page__items { border-top: 1px solid var(--hairline-strong); }
+.license-page-item { display: grid; grid-template-columns: 64px minmax(160px, 1fr) minmax(0, 2fr); gap: var(--spacing-24); padding: 32px 0 40px; border-bottom: 1px solid var(--hairline); }
+.license-page-item__index { color: var(--muted); font-size: var(--text-caption); padding-top: 7px; }
+.license-page-item__title h3 { margin: 0; font-size: clamp(28px, 3vw, 46px); letter-spacing: -.04em; }
+.license-page-item__body { min-width: 0; }
+.license-page__overview { max-width: 620px; margin-bottom: 28px; font-size: 18px; line-height: 1.35; }
+/* auto-fit, bukan repeat(3), dan bukan pula media query.
+ *
+ * Lebar tiga kolom ini ditentukan kolom isi kartu lisensi, bukan lebar layar —
+ * jadi media query tidak bisa menyatakan syaratnya dengan benar. Diukur pada
+ * repeat(3): di 768px tiap kolom hanya 116px, di 900px 145px, di 1024px 173px.
+ * 116px untuk kalimat seperti "Installation on up to 3 devices within one
+ * organization or household." berarti sekitar 14 karakter per baris — daftar
+ * yang tercabik, bukan daftar yang ringkas. Media query 700px di bawah tidak
+ * menolong karena masalahnya justru DI ATAS 700px.
+ *
+ * minmax(200px, 1fr) membuat jumlah kolomnya mengikuti ruang yang benar-benar
+ * ada: satu kolom selama sempit, dua di tengah, tiga begitu muat.
+ *
+ * 200px, bukan 220px. Diukur: kolom isi kartu berhenti tumbuh di 712px karena
+ * .license-page__catalogue dibatasi 1180px. Tiga kolom 220px butuh
+ * 3x220 + 2x28 = 716px — lebih empat piksel dari yang akan pernah ada, jadi
+ * tiga kolom TIDAK PERNAH terjadi di lebar mana pun dan perbandingan
+ * Allowed/Prohibited/Limitations yang memang ingin dilihat berdampingan
+ * diam-diam hilang. Dengan 200px syaratnya 656px: tiga kolom kembali muncul
+ * di desktop, sementara 768-1024px — tempat masalah sebenarnya, dulu 116-173px
+ * per kolom — tetap turun ke satu atau dua kolom yang lapang. */
+.license-page__detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px 28px; }
+.license-page__detail-grid h4 { margin: 0 0 10px; color: var(--muted); font-size: var(--text-caption); letter-spacing: .08em; text-transform: uppercase; }
+.license-page__detail-grid p, .license-page__list { margin: 0; font-size: var(--text-body-sm); line-height: var(--leading-body-sm); }
+.license-page__list { padding: 0; list-style: none; }
+.license-page__list li { margin-bottom: 9px; padding-left: 18px; position: relative; }
+.license-page__list li::before { content: '—'; position: absolute; left: 0; color: var(--muted); }
+.license-page__contact { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); gap: var(--spacing-36); padding: 32px 0; border-top: 1px solid var(--hairline-strong); border-bottom: 1px solid var(--hairline-strong); }
+.license-page__contact h2 { margin-top: 14px; }
+.license-page__contact .button { display: inline-block; margin-top: 24px; }
+.license-page__contact-meta { margin-top: 20px !important; font-size: var(--text-caption); line-height: 1.7; }
+@media (max-width: 700px) {
+	.license-page { padding-top: 40px; }
+	.license-page__hero { margin-bottom: 56px; }
+	.license-page__guide, .license-page__ip, .license-page__section-head, .license-page__contact { grid-template-columns: 1fr; gap: 18px; }
+	.license-page-item { grid-template-columns: 38px 1fr; gap: 14px; }
+	.license-page-item__body { grid-column: 2; }
+}
+
+@media (max-width: 600px) {
+	/* --section-gap dulu juga disetel di sini, tapi tidak pernah berpengaruh:
+	 * .section memakai --section-rhythm, yang mengecil di 782px. Yang tersisa
+	 * di sini hanya --gutter, dan itu memang dipakai. */
+	:root { --gutter: 16px; }
+}
+
+/* -----------------------------------------------------------------------
+   12. Authentype catalog integration — Google Fonts-inspired utility UI
+------------------------------------------------------------------------ */
+.font-library-header,
+.font-detail-header {
+	display: grid;
+	grid-template-columns: minmax(0, 1.6fr) minmax(260px, .7fr);
+	gap: 48px;
+	align-items: end;
+	padding-bottom: 36px;
+	border-bottom: 1px solid var(--hairline);
+}
+.font-library-header h1,
+.font-detail-header h1 {
+	font-size: clamp(48px, 8vw, 112px);
+	line-height: .94;
+	letter-spacing: -.045em;
+	font-weight: 400;
+	margin: 0;
+}
+.font-library-header > p,
+.font-description {
+	max-width: 48ch;
+	font-size: 15px;
+	line-height: 1.55;
+	color: var(--muted);
+}
+.eyebrow {
+	font-size: 11px;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	margin: 0 0 var(--spacing-16);
+}
+.catalog-toolbar {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto auto;
+	align-items: center;
+	gap: 10px;
+	padding: 28px 0;
+	border-bottom: 1px solid var(--hairline);
+}
+.catalog-toolbar input[type="search"] {
+	margin: 0;
+	height: 48px;
+	border-radius: 999px;
+	padding: 0 20px;
+}
+.catalog-toolbar button {
+	height: 48px;
+	padding: 0 24px;
+	border: 1px solid var(--ink);
+	border-radius: 999px;
+	background: var(--ink);
+	color: var(--paper);
+	font: inherit;
+	cursor: pointer;
+}
+.catalog-count {
+	padding-left: 16px;
+	font-size: 12px;
+	color: var(--muted);
+	white-space: nowrap;
+}
+.aksara-catalog-specimen { padding-bottom: 20px; margin-bottom: 24px; }
+/* Archive preview is intentionally tighter than the reusable specimen row:
+ * keep the type large, but remove the oversized air above/below the raster. */
+.font-library .aksara-catalog-specimen .sp-controls { padding-bottom: 8px; }
+.font-library .aksara-catalog-specimen .sp-specimen { padding-block: 8px; }
+.aksara-row-canvas {
+	display: block;
+	width: 100%;
+	min-height: 112px;
+	background: var(--paper);
+}
+.aksara-row-canvas.is-loading { opacity: .55; }
+.btn-view.is-preparing { opacity: .55; }
+.page-numbers ul,
+ul.page-numbers {
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	list-style: none;
+	padding: 40px 0 0;
+	margin: 0;
+}
+.catalog-empty { padding: 96px 0; text-align: center; }
+.font-breadcrumb {
+	display: flex;
+	gap: 10px;
+	padding: 24px 0;
+	font-size: 12px;
+	color: var(--muted);
+}
+.font-detail-header { padding: 48px 0 36px; }
+.font-detail-meta {
+	display: flex;
+	justify-content: flex-end;
+	gap: 24px;
+	flex-wrap: wrap;
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+}
+.font-rating { display: inline-flex; align-items: center; gap: 7px; }
+.font-rating .star-rating { margin: 0; }
+.font-cover { margin: 36px 0; }
+.font-cover img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.font-description { margin: 40px 0 64px; }
+.authentype-specimen-shell { border-top: 1px solid var(--hairline); padding-top: 36px; }
+
+@media (max-width: 760px) {
+	.font-library-header,
+	.font-detail-header { grid-template-columns: 1fr; gap: 24px; }
+	.catalog-toolbar { grid-template-columns: 1fr auto; }
+	.catalog-count { grid-column: 1 / -1; padding: 4px 0 0; }
+	.font-detail-meta { justify-content: flex-start; }
+	.aksara-row-canvas { min-height: 84px; }
+	.font-product-gallery { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+	.hero-search { border-radius: 24px; padding: 5px; }
+	.hero-search button { min-width: 104px; }
+	.home .sp-label,
+	.home .sp-actions { width: 100%; flex-wrap: wrap; }
+	.home .sp-actions { justify-content: flex-start; margin-left: 0; }
+}
+
+/* Product discount labels. Coupons are intentionally excluded: these labels
+ * describe product/variation sale prices only, never a conditional cart deal. */
+.aksara-discount-label,
+.woocommerce span.onsale {
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
+	padding: 3px 9px;
+	border: 1px solid var(--ink);
+	border-radius: 999px;
+	background: var(--ink);
+	color: var(--paper);
+	font-size: 11px;
+	font-weight: var(--font-weight-medium);
+	line-height: 1;
+	letter-spacing: .03em;
+	white-space: nowrap;
+}
+.sp-price-group {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+.asset-price-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.asset-price-row .aksara-discount-label {
+	display: inline-flex;
+	margin-top: 4px;
+	padding: 3px 9px;
+	color: var(--paper);
+	text-transform: none;
+}
+.font-detail-meta .aksara-discount-label { align-self: center; }
+
+/* Satu-satunya font asing yang tersisa di halaman depan datang dari plugin:
+ * specimen.css menyetel .ath-feature-menu-btn ke Georgia, serif untuk tombol
+ * "ff" pembuka menu fitur OpenType. Berkas plugin tidak boleh diedit karena
+ * akan tertimpa saat update, jadi diseragamkan dari sini.
+ *
+ * Selektornya sengaja memakai button.… (0,1,1) dan .ath-specimen-v7 button.…
+ * (0,2,1) supaya menang atas aturan plugin (0,1,0 dan 0,2,0) TANPA
+ * !important, dan menang tanpa bergantung pada urutan cetak stylesheet -
+ * urutan itu tidak dijamin karena specimen.css baru di-enqueue saat
+ * shortcode/template part-nya berjalan.
+ *
+ * Chip tag fitur (.ath-feature-chip) SENGAJA dibiarkan monospace: isinya
+ * tag OpenType mentah seperti "liga" dan "dlig", dan monospace di situ
+ * fungsional, bukan dekoratif. Menyeragamkannya akan mengurangi keterbacaan
+ * tanpa menambah kesatuan visual apa pun. */
+button.ath-feature-menu-btn,
+.ath-specimen-v7 button.ath-feature-menu-btn {
+	font-family: var(--font-ui);
+}
+
+/* Authentype ships colored sale badges; the Aksara storefront keeps the
+ * meaning but normalizes them to the theme's monochrome badge language. */
+.ath-specimen-v7 .ath-discount-badge,
+.ath-specimen-v7 .ath-license-discount,
+.ath-specimen-v7 [data-summary-discount],
+.ath-specimen-v7 .ath-selected-styles-discount {
+	background: var(--ink) !important;
+	color: var(--paper) !important;
+	border: 1px solid var(--ink) !important;
+	border-radius: 999px !important;
+	font-weight: var(--font-weight-medium) !important;
+}
+
+/* =======================================================================
+   PRODUCT ARCHIVE + SINGLE PRODUCT AUDIT 0.9.5
+======================================================================= */
+.font-archive-gallery {
+	position: relative;
+	min-width: 0;
+	margin-top: 48px;
+}
+.font-archive-gallery__arrow {
+	position: absolute;
+	top: 50%;
+	z-index: 3;
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: #292d35;
+	color: #fff;
+	font-size: 21px;
+	/* Dulu Arial — satu-satunya font-family di tema ini yang menembus sistem
+	 * token. Glyph "x" ada di semua keluarga, jadi tidak ada alasan teknis
+	 * untuk mengecualikannya. */
+	font-family: var(--font-ui);
+	font-weight: 300;
+	line-height: 1;
+	transform: translateY(-50%);
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+	transition: opacity 160ms ease, visibility 160ms ease, background-color 160ms ease;
+}
+.font-archive-gallery:hover .font-archive-gallery__arrow,
+.font-archive-gallery:focus-within .font-archive-gallery__arrow {
+	opacity: 1;
+	visibility: visible;
+	pointer-events: auto;
+	cursor: pointer;
+}
+.font-archive-gallery__arrow--prev { left: 12px; }
+.font-archive-gallery__arrow--next { right: 12px; }
+.font-archive-gallery__arrow:hover { background: #111318; }
+.font-archive-gallery__arrow:focus-visible { outline: 3px solid var(--paper); outline-offset: -6px; }
+.font-archive-gallery__arrow[hidden] { display: none; }
+.font-archive-gallery__track {
+	display: flex;
+	gap: 20px;
+	overflow-x: auto;
+	overscroll-behavior-inline: contain;
+	scroll-snap-type: x mandatory;
+	scroll-behavior: smooth;
+	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+}
+.font-archive-gallery__track::-webkit-scrollbar { display: none; }
+.font-archive-gallery__slide {
+	display: block;
+	flex: 0 0 calc((100% - 60px) / 4);
+	min-width: 0;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+	border-radius: 10px;
+	scroll-snap-align: start;
+}
+.font-archive-gallery__slide img {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+	transition: transform 240ms ease;
+}
+.font-archive-gallery__slide:hover img { transform: scale(1.015); }
+
+@media (max-width: 960px) {
+	.font-archive-gallery__slide { flex-basis: calc((100% - 20px) / 2); }
+}
+@media (max-width: 600px) {
+	.font-archive-gallery__slide { flex-basis: 82%; }
+	.font-archive-gallery__arrow { width: 30px; height: 30px; font-size: 20px; }
+	.font-archive-gallery__arrow--prev { left: 8px; }
+	.font-archive-gallery__arrow--next { right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.font-archive-gallery__track { scroll-behavior: auto; }
+	.font-archive-gallery__slide img { transition: none; }
+	.font-archive-gallery__arrow { transition: none; }
+}
+
+.font-detail-lead {
+	max-width: 58ch;
+	margin-top: 24px;
+	font-size: 16px;
+	line-height: 1.55;
+	color: var(--muted);
+}
+.font-detail-lead > :last-child { margin-bottom: 0; }
+.font-single-gallery {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	padding-block: 32px;
+}
+.font-single-gallery a {
+	display: block;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+}
+.font-single-gallery img {
+	width: 100%;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+}
+/* Deskripsi yang diprioritaskan; spesifikasi jadi sidebar sempit.
+ *
+ * TIGA VERSI, DAN KENAPA YANG INI
+ *
+ * 1.7fr/.7fr — kolom kiri dibatasi --measure (68ch = 692px) tapi jalur
+ * gridnya ikut membesar, jadi di 1440px ada 313px KOSONG antara akhir
+ * kalimat dan garis Product details. Dua kolom yang tampak tidak
+ * berhubungan.
+ *
+ * measure/1fr — ruang matinya hilang, tapi sisa lebar semuanya jatuh ke
+ * kolom kanan: di 1920px daftar spesifikasi jadi 1093px, lebih lebar dari
+ * deskripsinya sendiri. Sidebar yang lebih besar dari isi utama.
+ *
+ * Sekarang kebalikannya, dan ini yang diminta: kolom kanan diberi lebar
+ * tetap yang secukupnya, sisanya milik deskripsi.
+ *
+ * PENTING — mengubah jalur grid saja TIDAK cukup. Yang benar-benar membatasi
+ * teksnya adalah `max-width: var(--measure)` di .font-overview__content;
+ * tanpa mencabutnya, jalur kiri boleh selebar apa pun dan paragrafnya tetap
+ * berhenti di 692px. Batas itu kini hanya berlaku saat kolomnya menumpuk
+ * (lihat media query 900px), di mana jalur = lebar halaman penuh dan prosa
+ * memang perlu direm.
+ *
+ * Sebagai gantinya ada batas atas yang jauh lebih longgar, 100ch. Ia tidak
+ * mengikat sama sekali sampai sekitar 1460px; tugasnya hanya mencegah monitor
+ * ultralebar menghasilkan baris 145 karakter yang tidak bisa dibaca siapa pun.
+ *
+ * Ambang runtuhnya 900px, bukan 782px seperti bagian lain. Di 783px kolom
+ * kiri hanya menyisakan 391px (≈38ch) — terlalu sempit untuk prosa. */
+.font-overview {
+	display: grid;
+	grid-template-columns: minmax(0, 100ch) minmax(260px, 330px);
+	column-gap: clamp(40px, 4vw, 72px);
+	/* Sisa lebar di layar sangat lebar jatuh ke JARAK antar kolom, bukan ke
+	 * dalam kolom deskripsi. Bedanya penting: ruang kosong di dalam kolom
+	 * terbaca sebagai tata letak yang rusak (persis cacat 313px yang
+	 * diperbaiki di 0.9.37), sedangkan jarak antar kolom terbaca sebagai
+	 * jarak. Tanpa ini, batas 100ch akan menyisakan 452px menganggur di
+	 * 1920px sementara Product details tetap di tepi kanan. */
+	justify-content: space-between;
+	row-gap: 40px;
+	padding-block: 56px;
+	border-top: 1px solid var(--hairline);
+}
+.font-overview__content {
+	font-size: 16px;
+	line-height: 1.65;
+}
+.font-overview__content > :last-child { margin-bottom: 0; }
+.font-overview__meta {
+	padding-left: 32px;
+	border-left: 1px solid var(--hairline);
+}
+.font-overview__meta h2 {
+	font-size: 13px;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+/* Diberi kelas, bukan disasar sebagai `dl` polos. Kolom Product details kini
+ * berisi LEBIH DARI SATU dl: daftar spesifikasi ini dan .font-meta-dates di
+ * bawahnya. Selektor `.font-overview__meta dl > div` akan menang atas
+ * `.font-meta-dates > div` (0,2,1 lawan 0,1,1) dan diam-diam memasang kolom
+ * 92px serta garis atas pada daftar tanggal — kebetulan yang terlihat rapi,
+ * tapi tetap kebetulan, dan dl ketiga yang ditambahkan nanti akan mewarisi
+ * kejutan yang sama. */
+.font-overview__meta .font-spec { margin: 24px 0 0; }
+.font-overview__meta .font-spec > div {
+	display: grid;
+	grid-template-columns: 92px minmax(0, 1fr);
+	gap: 16px;
+	padding-block: 12px;
+	border-top: 1px solid var(--hairline);
+}
+.font-overview__meta .font-spec dt,
+.font-overview__meta .font-spec dd { margin: 0; font-size: 13px; }
+.font-overview__meta .font-spec dt { color: var(--muted); }
+.font-overview__meta dd a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* --- Blok tambahan di kolom Product details ---------------------------
+ * Team, tanggal rilis/pembaruan, dan "Additionally". Semuanya opsional:
+ * template-parts/font-details.php tidak mencetak apa pun kalau datanya
+ * kosong, jadi tidak ada aturan di sini yang boleh mengandalkan salah satu
+ * blok selalu ada. */
+.font-meta-block {
+	margin-top: 32px;
+	padding-top: 24px;
+	border-top: 1px solid var(--hairline);
+	font-size: 13px;
+	line-height: 1.6;
+}
+.font-meta-block h3 {
+	margin: 0 0 12px;
+	font-size: 13px;
+	font-weight: var(--font-weight-medium);
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+.font-meta-block p { margin: 0 0 8px; }
+.font-meta-block > :last-child { margin-bottom: 0; }
+
+.font-meta-team { margin: 0; padding: 0; list-style: none; }
+.font-meta-team li { padding-block: 4px; }
+.font-meta-team__name { display: inline; }
+.font-meta-team__role { color: var(--muted); }
+.font-meta-team__role::before { content: " — "; }
+
+/* dt dan dd pada satu baris: "Release: 18 March 2024". flex, bukan grid
+ * kolom tetap seperti daftar spesifikasi di atasnya — labelnya pendek dan
+ * panjangnya berbeda-beda, jadi kolom 92px hanya akan menyisakan lubang. */
+.font-meta-dates { margin: 0 0 12px; }
+.font-meta-dates > div {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 8px;
+	padding-block: 2px;
+}
+.font-meta-dates dt { margin: 0; color: var(--muted); }
+.font-meta-dates dd { margin: 0; }
+.font-meta-label { color: var(--muted); }
+.font-meta-changelog { margin: 0; padding-left: 18px; }
+.font-meta-changelog li { padding-block: 3px; }
+
+.font-extras { margin: 0; padding: 0; list-style: none; }
+.font-extras__item {
+	/* Pil di kiri, penjelasan di kanan — tapi hanya selama muat. flex-basis
+	 * 16ch pada teksnya berarti begitu sisa lebar di sebelah pil turun di
+	 * bawah itu, penjelasannya pindah ke barisnya sendiri dengan lebar penuh.
+	 * Ini menggantikan media query yang tidak bisa ditulis: lebar kolom kanan
+	 * ditentukan grid induknya, bukan lebar viewport. */
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px 16px;
+	padding-block: 10px;
+}
+.font-extras__item + .font-extras__item { border-top: 1px solid var(--hairline); }
+.font-extras__link {
+	flex: 0 0 auto;
+	display: inline-block;
+	padding: 6px 16px;
+	border: 1px solid var(--control-border);
+	border-radius: 999px;
+	font-size: 12px;
+	letter-spacing: .04em;
+	text-decoration: none;
+	color: inherit;
+	transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+a.font-extras__link:hover,
+a.font-extras__link:focus-visible {
+	background: var(--ink);
+	border-color: var(--ink);
+	color: var(--paper);
+}
+/* Tanpa tautan, pil itu label — bukan sesuatu yang bisa diklik. Ia harus
+ * terlihat berbeda, kalau tidak pengunjung akan menekannya dan tidak terjadi
+ * apa-apa. */
+.font-extras__link--plain { color: var(--muted); border-style: dashed; }
+/* min-width menahan flex-shrink supaya basis itu benar-benar jadi ambang
+ * pindah baris. Tanpa itu penjelasannya tetap menempel di samping pil dan
+ * menyusut sampai 154px — 18 karakter per baris, kolom sesempit korek api.
+ * 26ch pada 13px ≈ 216px; begitu sisa di samping pil turun di bawah itu,
+ * penjelasannya turun ke barisnya sendiri dan memakai lebar penuh. Aman
+ * terhadap luber: kolom tersempit yang mungkin ada (273px di layar 320px)
+ * masih lebih lebar dari 26ch. */
+.font-extras__text { flex: 1 1 26ch; min-width: 26ch; margin: 0 !important; }
+.product-section-heading { margin-bottom: 32px; }
+.product-section-heading h2 {
+	font-size: clamp(32px, 5vw, 64px);
+	font-weight: var(--font-weight-regular);
+	margin: 0;
+}
+.related-fonts {
+	padding-top: var(--section-rhythm);
+	margin-top: var(--section-rhythm);
+	border-top: 1px solid var(--hairline);
+}
+.related-font-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 24px;
+}
+.font-product-card__image {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 220px;
+	overflow: hidden;
+	background: var(--color-foam-gray);
+}
+.font-product-card__image img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; }
+.font-product-card__image > span { font-size: clamp(28px, 4vw, 54px); }
+.font-product-card__body {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	padding-top: 16px;
+}
+.font-product-card__body h3 { margin: 0; font-size: 18px; }
+.font-product-card__body p { margin: 5px 0 0; font-size: 12px; color: var(--muted); }
+.font-product-card__price { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; white-space: nowrap; }
+
+/* Native WooCommerce products (Canva and other catalog items). */
+.woocommerce-products-header {
+	margin-bottom: 32px;
+	padding-bottom: 28px;
+	border-bottom: 1px solid var(--hairline);
+}
+.woocommerce-products-header__title.page-title {
+	font-size: clamp(44px, 7vw, 88px);
+	font-weight: var(--font-weight-regular);
+}
+.woocommerce .woocommerce-result-count,
+.woocommerce .woocommerce-ordering { margin-bottom: 32px; }
+.woocommerce ul.products { clear: both; }
+.woocommerce ul.products li.product { margin-bottom: 16px; }
+.woocommerce ul.products li.product .onsale { top: 12px; right: 12px; left: auto; margin: 0; }
+.single-product .woocommerce-product-gallery { margin-bottom: 48px !important; }
+.single-product .summary .woocommerce-product-details__short-description {
+	max-width: 54ch;
+	margin-block: 24px;
+	color: var(--muted);
+}
+.single-product .product_meta {
+	margin-top: 32px;
+	padding-top: 20px;
+	border-top: 1px solid var(--hairline);
+	font-size: 13px;
+	line-height: 1.8;
+}
+.single-product .woocommerce-tabs {
+	clear: both;
+	padding-top: 64px;
+}
+.single-product .woocommerce-tabs ul.tabs { margin-bottom: 32px !important; }
+.single-product .woocommerce-tabs .panel { max-width: var(--measure); }
+.single-product .related.products,
+.single-product .up-sells.products {
+	clear: both;
+	padding-top: 72px;
+}
+.single-product .related.products > h2,
+.single-product .up-sells.products > h2 {
+	margin-bottom: 32px;
+	font-size: clamp(30px, 4vw, 52px);
+	font-weight: var(--font-weight-regular);
+}
+
+/* Ambangnya 900px, bukan 782px — lihat alasannya di atas .font-overview. */
+@media (max-width: 900px) {
+	.font-overview {
+		grid-template-columns: 1fr;
+		row-gap: 36px;
+	}
+	.font-overview__meta { padding: 0; border-left: 0; }
+	/* Menumpuk berarti jalurnya selebar halaman. Di situ --measure kembali
+	 * jadi satu-satunya yang menahan panjang baris. */
+	.font-overview__content { max-width: var(--measure); }
+}
+
+@media (max-width: 782px) {
+	.font-single-gallery,
+	.related-font-grid { grid-template-columns: 1fr; }
+	.font-product-card__image { min-height: 180px; }
+	.single-product .woocommerce-tabs { padding-top: 48px; }
+	.single-product .related.products,
+	.single-product .up-sells.products { padding-top: 56px; }
+}
+
+/* Must stay after the generic form-control rules. The generic selector has
+ * higher specificity than `.hero-search input` and otherwise draws a second
+ * rectangular border inside the pill. */
+form.hero-search input[type="search"],
+form.hero-search input[type="search"]:focus,
+form.hero-search input[type="search"]:focus-visible {
+	border: 0 !important;
+	outline: 0 !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+/* =======================================================================
+   SPACING AUDIT 0.8.4 (diperiksa ulang & dirapikan di 0.9.24)
+   One rhythm shared by generic pages, product pages and catalog pages.
+   Context-specific values replace the previous blanket 112px spacing.
+======================================================================= */
+.section { padding-block: var(--section-rhythm); }
+.content-area { padding-block: var(--page-top) var(--page-bottom); }
+.aksara-product-summary { padding-block: var(--page-top) var(--page-bottom); }
+.single-product .aksara-product-summary { padding-top: 40px; }
+.font-library { padding-block: var(--page-top) var(--page-bottom); }
+.authentype-single { padding-bottom: var(--page-bottom); }
+.site-footer { padding-block: 72px 32px; }
+.home .site-footer { border-top: 0; }
+
+.content-area .page-header,
+.content-area .archive-header {
+	margin-bottom: var(--component-rhythm);
+	padding-bottom: 24px;
+	border-bottom: 1px solid var(--hairline);
+}
+.content-area .page-title,
+.content-area .archive-title {
+	margin: 0;
+	font-size: clamp(40px, 6vw, 72px);
+	line-height: 1;
+	font-weight: var(--font-weight-regular);
+}
+.archive-description {
+	max-width: var(--measure);
+	margin-top: 16px;
+	color: var(--muted);
+}
+.archive-description > :last-child,
+.entry-content > :last-child,
+.page-content > :last-child { margin-bottom: 0; }
+
+.content-area article:last-of-type,
+.content-area .entry-card:last-of-type {
+	margin-bottom: 0;
+}
+.content-area > .filter-bar { margin-top: -8px; }
+.content-area > .pagination { margin-bottom: 0; }
+.no-results,
+.error-404 {
+	max-width: var(--measure);
+	/* Alasan yang sama dengan .entry-content di atas: halaman 404 juga kolom
+	 * prosa, dan sebelumnya ia pun menempel kiri. */
+	margin-inline: auto;
+	padding-block: 24px;
+}
+.no-results .page-content,
+.error-404 .page-content { margin-top: 20px; }
+
+.font-library-header { padding-bottom: 32px; }
+.font-library .specimen-list { margin-top: 24px; }
+.catalog-empty { padding-block: 64px; }
+.font-detail-header { padding-block: 36px 32px; }
+.font-cover { margin-block: 32px; }
+.font-description { margin-block: 32px 48px; }
+
+/* Halaman font punya TIGA garis pemisah bagian: sebelum About this family,
+ * sebelum Preview every style, dan sebelum Related font families. Diukur
+ * di 1280px, ruang di atas dan di bawah tiap garis sebelumnya begini:
+ *
+ *     garis                      di atas   di bawah
+ *     sebelum About this family    0-32       56
+ *     sebelum Preview every style   56        32
+ *     sebelum Related families      80        80
+ *
+ * Dua yang pertama tidak simetris, dan cerminan satu sama lain — 32/56
+ * lalu 56/32 — jadi tiap garis tampak "miring" ke arah yang berbeda. Yang
+ * pertama bahkan bisa 0 di atas: galeri produk tidak punya margin bawah,
+ * sehingga garisnya menempel persis di bawah baris gambar.
+ *
+ * .related-fonts sudah punya polanya sejak awal: margin-top ritme, padding-top
+ * ritme, border-top. Dua bagian lain sekarang memakai pola yang sama, jadi
+ * ketiga garis bernapas sama dan angkanya satu — --section-rhythm — bukan
+ * tiga angka ajaib (36/32/28) untuk properti yang sama. */
+.font-overview { margin-top: var(--section-rhythm); padding-block: var(--section-rhythm); }
+/* margin-top di atas menggantikan aturan khusus lama
+ * `.single-ath_font .font-archive-gallery.font-single-gallery { margin-bottom: 48px }`,
+ * yang ada persis untuk satu masalah ini — garis menempel di tepi gambar —
+ * tapi hanya untuk satu dari dua kemungkinan gambar produk (galeri, bukan
+ * .font-cover) dan dengan angka yang tidak cocok dengan sisi bawah garis.
+ * 48px itu sekarang selalu kalah oleh margin ritme yang meruntuhkannya, jadi
+ * aturannya dihapus daripada dibiarkan menyesatkan pembaca berikutnya. */
+.authentype-specimen-shell { padding-top: var(--section-rhythm); }
+
+.woocommerce-cart .aksara-product-summary,
+.woocommerce-checkout .aksara-product-summary,
+.woocommerce-account .aksara-product-summary,
+.post-type-archive-product .aksara-product-summary,
+.tax-product_cat .aksara-product-summary,
+.tax-product_tag .aksara-product-summary {
+	padding-top: var(--page-top);
+}
+.woocommerce .woocommerce-breadcrumb { margin-bottom: 24px; }
+.woocommerce form.checkout,
+.woocommerce .woocommerce-MyAccount-content,
+.woocommerce .cart-collaterals { margin-top: 32px; }
+
+@media (max-width: 782px) {
+	:root {
+		--page-top: 44px;
+		--page-bottom: 56px;
+		--section-rhythm: 56px;
+		--component-rhythm: 28px;
+	}
+	.hero { padding-bottom: 36px; }
+	.hero-search { margin-top: 28px; }
+	.hero-stats { margin-top: 28px; gap: 24px; }
+	.cat-card { min-height: 0; padding-block: 28px; }
+	.trust .wrap { gap: 40px; }
+	.site-footer { padding-block: 56px 28px; }
+	.footer-grid { row-gap: 32px; }
+	.font-breadcrumb { padding-block: var(--spacing-16); }
+	.font-detail-header { padding-block: 28px; }
+	.font-description { margin-block: 28px 40px; }
+}
+
+@media (max-width: 560px) {
+	.footer-grid { grid-template-columns: 1fr; }
+	.footer-bottom { margin-top: 28px; }
+	.content-area .page-header,
+	.content-area .archive-header { padding-bottom: 20px; }
+}
+
+/* Normalize every custom font gallery to the same carousel shell. These
+ * selectors intentionally come after the older grid rules used by 0.9.0. */
+.font-archive-gallery.font-product-gallery,
+.font-archive-gallery.font-single-gallery {
+	display: block;
+	grid-template-columns: none;
+	gap: 0;
+	padding-block: 0;
+}
+
+/* =======================================================================
+   EDITORIAL JOURNAL — DESIGN-2 adaptation
+   Scoped to blog templates so marketplace/product UI remains unchanged.
+======================================================================= */
+.editorial-index { padding: 72px 0 112px; color: #111118; }
+.editorial-masthead {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(240px, .32fr);
+	align-items: end;
+	gap: 48px;
+	padding-bottom: 64px;
+}
+.editorial-kicker,
+.editorial-card__meta {
+	font-size: 12px;
+	line-height: 1.4;
+	letter-spacing: .107em;
+	text-transform: uppercase;
+}
+.editorial-masthead .editorial-kicker { grid-column: 1 / -1; margin: 0; }
+.editorial-masthead h1,
+.editorial-single__header h1 {
+	margin: 0;
+	font-family: var(--font-editorial);
+	font-weight: 400;
+	line-height: .96;
+	letter-spacing: -.045em;
+}
+.editorial-masthead h1 { font-size: clamp(76px, 13vw, 160px); }
+.editorial-masthead > p:last-child { max-width: 34ch; margin: 0 0 12px; color: #6a6a6a; line-height: 1.5; }
+.editorial-masthead--archive { border-bottom: 1px solid #bdbdbd; margin-bottom: 56px; }
+.editorial-masthead--archive .archive-description { margin: 0 0 12px; }
+
+.editorial-feed {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 88px 32px;
+}
+.editorial-index .editorial-card,
+.editorial-related .editorial-card {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+.editorial-card__image { display: block; overflow: hidden; border-radius: 8px; background: #ddd; }
+.editorial-card__image img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; transition: transform 420ms ease; }
+.editorial-card__image:hover img { transform: scale(1.018); }
+.editorial-card__copy { padding-top: 24px; }
+.editorial-card__meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: #6a6a6a; }
+.editorial-card__meta a { color: #111118; border-bottom: 1px solid #333; }
+.editorial-card h2 { margin: 16px 0 16px; font-family: var(--font-editorial); font-size: clamp(36px, 4.2vw, 64px); line-height: 1.03; font-weight: 400; letter-spacing: -.035em; }
+.editorial-card h2 a { color: #111118; }
+.editorial-card__excerpt { max-width: 54ch; color: #555; line-height: 1.55; }
+.editorial-card__excerpt > :last-child { margin-bottom: 0; }
+.editorial-read-link { display: inline-flex; gap: 16px; align-items: center; margin-top: 24px; padding: 9px 16px; border: 1px solid #111118; border-radius: 24px; color: #111118; font-size: 12px; font-weight: 600; letter-spacing: .107em; text-transform: uppercase; }
+.editorial-read-link:hover { background: #111118; color: #fff; }
+.editorial-card--featured { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 48px; align-items: center; padding-bottom: 88px !important; border-bottom: 1px solid #bdbdbd !important; }
+.editorial-card--featured .editorial-card__image { border-radius: 999px; }
+.editorial-card--featured .editorial-card__image img { aspect-ratio: 16 / 9; }
+.editorial-card--featured .editorial-card__copy { padding: 0; }
+.editorial-card--featured h2 { font-size: clamp(48px, 6vw, 82px); }
+
+.editorial-single { color: #111118; padding-top: 72px; }
+.editorial-single article.post { margin: 0; padding: 0; border: 0; }
+.editorial-single__header { text-align: center; }
+.editorial-single__header .editorial-card__meta { justify-content: center; }
+.editorial-single__header h1 { max-width: 1250px; margin: 28px auto 0; font-size: clamp(64px, 10.5vw, 150px); }
+.editorial-single__dek { max-width: 700px; margin: 32px auto 0; font-size: 20px; line-height: 1.5; color: #555; }
+.editorial-single__byline { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 32px; font-size: 13px; letter-spacing: .04em; }
+.editorial-single__byline img { border-radius: 50%; }
+.editorial-single__hero { margin-top: 64px; }
+.editorial-single__hero img { display: block; width: 100%; max-height: 820px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 999px; }
+.editorial-single__hero figcaption { max-width: 760px; margin: 12px auto 0; color: #6a6a6a; font-size: 12px; letter-spacing: .05em; }
+.editorial-single__body { width: min(100% - 32px, 760px); margin: 88px auto; font-size: 18px; line-height: 1.72; }
+.editorial-single__body > p:first-child::first-letter { float: left; margin: .08em .12em 0 0; font-family: var(--font-editorial); font-size: 5.4em; line-height: .72; }
+.editorial-single__body h2,
+.editorial-single__body h3 { font-family: var(--font-editorial); font-weight: 400; line-height: 1.08; letter-spacing: -.025em; }
+.editorial-single__body h2 { margin-top: 2em; font-size: clamp(42px, 6vw, 68px); }
+.editorial-single__body h3 { margin-top: 1.8em; font-size: 34px; }
+/* Bleed -120px SENGAJA hanya di >=1000px, bukan default yang dibatalkan di
+ * layar kecil. Badan artikel lebarnya min(100% - 32px, 760px), jadi bleed
+ * 120px per sisi baru muat kalau viewport >= 760 + 240 = 1000px. Versi lama
+ * memasang -120px tanpa syarat lalu membatalkannya di bawah 900px, sehingga
+ * tersisa celah 901-999px yang meluber - terukur 50px di 901px, 25px di
+ * 950px, 1px di 999px. Menyatakan syaratnya lewat min-width menutup celah itu
+ * secara definisi, bukan dengan menambal breakpoint.
+ *
+ * Ambangnya 1040px, bukan 1000px pas. Batas teoretisnya memang 1000px, tapi
+ * saat halaman cukup panjang untuk memunculkan scrollbar vertikal, ruang yang
+ * benar-benar tersedia berkurang selebar scrollbar itu (~15px) sementara
+ * media query tetap dievaluasi terhadap 1000px - terukur menyisakan 8px
+ * overflow tepat di 1000px. 40px kelonggaran menutupinya dengan aman di semua
+ * lebar scrollbar yang wajar. */
+.editorial-single__body blockquote { margin: 64px 0; padding: 0; border: 0; font-family: var(--font-editorial); font-size: clamp(42px, 6vw, 72px); line-height: 1.08; text-align: center; }
+@media (min-width: 1040px) { .editorial-single__body blockquote { margin-inline: -120px; } }
+.editorial-single__body img { border-radius: 8px; }
+/* padding-block, BUKAN shorthand `padding: 64px 0 88px`.
+ *
+ * Elemen ini di markup berkelas "editorial-single__footer wrap", dan .wrap
+ * menyetel padding: 0 var(--gutter). Kedua selektor sama-sama berbobot
+ * (0,1,0), jadi yang menang adalah yang muncul BELAKANGAN di stylesheet -
+ * yaitu aturan ini. Shorthand `padding` menulis ulang KEEMPAT sisi, jadi
+ * padding kiri/kanan dari .wrap ikut jadi 0 dan kotak About the author
+ * beserta kartu Previous/Next menempel rata di tepi 0 halaman, sementara
+ * badan artikel di atasnya tetap masuk karena ia punya width sendiri.
+ *
+ * Ini regresi dari blok SPACING AUDIT 0.8.4 di atas, yang justru mengubah
+ * .content-area dan .aksara-product-summary dari shorthand ke padding-block
+ * untuk alasan yang sama persis. Aturan editorial di 0.9.8 memasukkannya
+ * kembali. Setiap elemen yang ikut memakai .wrap HANYA boleh menyetel
+ * padding sumbu blok. */
+.editorial-single__footer { padding-block: 64px 88px; border-top: 1px solid #bdbdbd; }
+.editorial-author { display: grid; grid-template-columns: 80px minmax(0, 600px); gap: 24px; align-items: start; }
+.editorial-author img { border-radius: 50%; }
+.editorial-author h2 { margin: 8px 0; font-family: var(--font-editorial); font-size: 36px; font-weight: 400; }
+.editorial-single .post-navigation { margin-top: 64px; }
+.editorial-single .post-navigation .nav-links { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.editorial-single .post-navigation a { display: flex; flex-direction: column; gap: 8px; padding: 24px; border: 1px solid #111118; border-radius: 24px; color: #111118; }
+.editorial-single .post-navigation span { font-size: 11px; letter-spacing: .107em; text-transform: uppercase; color: #6a6a6a; }
+.editorial-single .post-navigation strong { font-family: var(--font-editorial); font-size: 24px; font-weight: 400; }
+.editorial-comments { width: min(100% - 32px, 760px); margin: 0 auto 88px; }
+.editorial-related { padding: 96px 0 112px; background: #f4f4f2; }
+.editorial-related > .wrap > h2 { margin: 12px 0 48px; font-family: var(--font-editorial); font-size: clamp(52px, 7vw, 88px); font-weight: 400; }
+.editorial-related__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.editorial-related .editorial-card h2 { font-size: 34px; }
+.editorial-related .editorial-card__excerpt { display: none; }
+
+.blog .site-footer,
+.single-post .site-footer,
+.category .site-footer,
+.tag .site-footer,
+.date .site-footer,
+.author .site-footer { border: 0; background: #111118; color: #fff; }
+.blog .site-footer a,
+.single-post .site-footer a,
+.category .site-footer a,
+.tag .site-footer a,
+.date .site-footer a,
+.author .site-footer a { color: #fff; }
+.editorial-footer-cta { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding-bottom: 72px; margin-bottom: 56px; border-bottom: 1px solid #33333b; }
+/* max-width: min(34ch, 100%), bukan 34ch saja. Di bawah 640px wadahnya jadi
+ * flex-direction: column dengan align-items: flex-start, sehingga item ini
+ * menyusut ke lebar kontennya - dibatasi max-width, TAPI mengabaikan lebar
+ * wadahnya. 34ch pada 18px = 321px, sementara di viewport 320px ruang yang
+ * tersedia cuma 273px: meluber tepat 32px, di setiap halaman, karena footer
+ * ini dipakai semua halaman. min-width: 0 tidak menolong di sini - itu soal
+ * penyusutan sumbu utama, bukan batas atas di sumbu silang. */
+.editorial-footer-cta p { max-width: min(34ch, 100%); margin: 0; font-size: 18px; color: #ddd; }
+.editorial-footer-cta a { display: inline-flex !important; align-items: center; gap: 28px; margin: 0 !important; padding: 18px 26px; border: 2px solid #fef199; border-radius: 999px; font-family: var(--font-editorial); font-size: clamp(28px, 4vw, 52px) !important; letter-spacing: -.02em !important; }
+.blog .footer-bottom,
+.single-post .footer-bottom,
+.category .footer-bottom,
+.tag .footer-bottom,
+.date .footer-bottom,
+.author .footer-bottom { border-color: #33333b; color: #bdbdbd; }
+
+@media (max-width: 900px) {
+	.editorial-card--featured { grid-template-columns: 1fr; gap: 28px; }
+	.editorial-card--featured .editorial-card__image { border-radius: 160px; }
+	.editorial-related__grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+	.editorial-index { padding-block: 48px 72px; }
+	.editorial-masthead { grid-template-columns: 1fr; gap: 24px; padding-bottom: 48px; }
+	.editorial-masthead .editorial-kicker { grid-column: auto; }
+	.editorial-masthead h1 { font-size: clamp(68px, 25vw, 110px); }
+	.editorial-feed { grid-template-columns: 1fr; gap: 64px; }
+	.editorial-card--featured { padding-bottom: 64px !important; }
+	.editorial-card--featured .editorial-card__image { border-radius: 80px; }
+	.editorial-single { padding-top: 48px; }
+	.editorial-single__header h1 { font-size: clamp(54px, 17vw, 86px); }
+	.editorial-single__dek { font-size: 17px; }
+	.editorial-single__hero { margin-top: 44px; }
+	.editorial-single__hero img { border-radius: 80px; aspect-ratio: 4 / 3; }
+	.editorial-single__body { margin-block: 64px; font-size: 17px; }
+	.editorial-single__body blockquote { font-size: 40px; }
+	.editorial-single .post-navigation .nav-links,
+	.editorial-related__grid { grid-template-columns: 1fr; }
+	.editorial-footer-cta { align-items: flex-start; flex-direction: column; }
+	.editorial-footer-cta a { font-size: 28px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.editorial-card__image img { transition: none; }
+}

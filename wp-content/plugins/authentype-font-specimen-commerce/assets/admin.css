@@ -1,0 +1,420 @@
+.ath-admin-metabox {
+  display: grid;
+  gap: 22px;
+}
+
+.ath-admin-section h3 {
+  margin: 0 0 12px;
+}
+
+.ath-builder-flow {
+  padding: 18px;
+  border: 1px solid #dcdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ath-builder-flow h4 {
+  margin: 22px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid #ecebea;
+  font-size: 14px;
+}
+
+.ath-builder-flow h4:first-of-type {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ath-admin-advanced {
+  border: 1px solid #dcdcde;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ath-admin-advanced summary {
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.ath-admin-advanced .ath-admin-section {
+  padding: 0 16px 18px;
+}
+
+.ath-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ath-admin-grid label,
+.ath-admin-row input,
+.ath-admin-row select,
+.ath-admin-row textarea {
+  width: 100%;
+}
+
+.ath-admin-grid span {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.ath-repeat-table {
+  margin-bottom: 10px;
+  table-layout: auto;
+}
+
+.ath-smart-import {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #dcdcde;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ath-smart-import textarea {
+  width: 100%;
+  margin: 8px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.ath-smart-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.ath-smart-actions label {
+  color: #50575e;
+}
+
+.ath-license-smart-status {
+  color: #646970;
+  font-weight: 600;
+}
+
+.ath-repeat-table th,
+.ath-repeat-table td {
+  vertical-align: top;
+}
+
+.ath-admin-metabox .button {
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.ath-admin-metabox .button.button-primary {
+  min-height: 34px;
+  padding: 0 16px;
+  line-height: 32px;
+}
+
+.ath-repeat-table th:nth-child(2) {
+  width: 13%;
+}
+
+.ath-repeat-table th:nth-child(3) {
+  width: 32%;
+}
+
+.ath-row-order {
+  white-space: nowrap;
+  width: 64px;
+}
+
+.ath-move-row {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  line-height: 28px;
+}
+
+.ath-move-row:disabled {
+  opacity: 0.35;
+}
+
+.ath-font-url {
+  margin-bottom: 6px;
+}
+
+.ath-package-template-zip {
+  margin-bottom: 6px;
+}
+
+.ath-admin-metabox .ath-remove-row,
+.ath-admin-metabox .ath-upload-font,
+.ath-admin-metabox .ath-upload-download,
+.ath-admin-metabox .ath-upload-package-template {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 28px;
+}
+
+.ath-admin-metabox .ath-add-package-license,
+.ath-admin-metabox .ath-add-pairing-font,
+.ath-admin-metabox .ath-add-style,
+.ath-admin-metabox .ath-add-license,
+.ath-admin-metabox .ath-add-product-download,
+.ath-admin-metabox .ath-bulk-upload-styles,
+.ath-admin-metabox .ath-bulk-upload-downloads {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  line-height: 30px;
+}
+
+.ath-package-license-table td:nth-child(4) {
+  min-width: 240px;
+}
+
+.ath-package-license-table th:nth-child(1),
+.ath-package-license-table td:nth-child(1) {
+  width: 70px;
+}
+
+.ath-package-license-table th:nth-child(2),
+.ath-package-license-table td:nth-child(2) {
+  width: 13%;
+}
+
+.ath-package-license-table th:nth-child(3),
+.ath-package-license-table td:nth-child(3) {
+  width: 28%;
+}
+
+.ath-package-license-table th:nth-child(5),
+.ath-package-license-table td:nth-child(5),
+.ath-package-license-table th:nth-child(6),
+.ath-package-license-table td:nth-child(6),
+.ath-package-license-table th:nth-child(7),
+.ath-package-license-table td:nth-child(7) {
+  width: 126px;
+  min-width: 126px;
+}
+
+.ath-package-license-table th:nth-child(8),
+.ath-package-license-table td:nth-child(8) {
+  width: 92px;
+}
+
+.ath-package-license-table input[type="number"],
+.ath-price-matrix input[type="number"],
+.ath-admin-row input[name*="[font_weight]"] {
+  min-width: 110px;
+  max-width: 140px;
+}
+
+.ath-admin-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+}
+
+.ath-admin-row select {
+  min-height: 32px;
+}
+
+.ath-pairing-font-table th:nth-child(1),
+.ath-pairing-font-table td:nth-child(1) {
+  width: 70px;
+}
+
+.ath-pairing-font-table th:nth-child(2),
+.ath-pairing-font-table td:nth-child(2) {
+  width: 13%;
+}
+
+.ath-pairing-font-table th:nth-child(3),
+.ath-pairing-font-table td:nth-child(3) {
+  min-width: 280px;
+  width: 34%;
+}
+
+.ath-pairing-font-table th:nth-child(4),
+.ath-pairing-font-table td:nth-child(4) {
+  width: 120px;
+  min-width: 120px;
+}
+
+.ath-pairing-font-table th:nth-child(5),
+.ath-pairing-font-table td:nth-child(5) {
+  width: 92px;
+}
+
+.ath-pairing-font-table th:nth-child(6),
+.ath-pairing-font-table td:nth-child(6) {
+  width: 150px;
+}
+
+.ath-pairing-font-table th:nth-child(n+7),
+.ath-pairing-font-table td:nth-child(n+7) {
+  width: 82px;
+  text-align: center;
+}
+
+.ath-pairing-font-table th:nth-child(11),
+.ath-pairing-font-table td:nth-child(11) {
+  width: 92px;
+}
+
+.ath-price-matrix-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.ath-price-matrix th:first-child {
+  min-width: 150px;
+}
+
+.ath-price-matrix td {
+  min-width: 170px;
+}
+
+.ath-price-matrix code {
+  display: block;
+  margin-top: 4px;
+  color: #646970;
+  font-size: 11px;
+}
+
+.ath-price-matrix label {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.ath-price-matrix label:last-child {
+  margin-bottom: 0;
+}
+
+.ath-price-matrix label span {
+  color: #50575e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ath-package-price-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) repeat(2, minmax(120px, 180px));
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  max-width: 560px;
+}
+
+.ath-package-price-grid strong,
+.ath-package-price-grid span {
+  font-weight: 700;
+}
+
+.ath-package-status {
+  margin-left: 10px;
+  color: #646970;
+  font-weight: 600;
+}
+
+.ath-sync-status {
+  margin-left: 10px;
+  color: #646970;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .ath-admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Secure.7.2 resumable Woo batch sync */
+.ath-woo-sync-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px;
+}
+.ath-woo-sync-progress[hidden] { display: none !important; }
+.ath-woo-sync-progress progress {
+  width: min(420px, 100%);
+  height: 14px;
+}
+.ath-woo-progress-label {
+  min-width: 110px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+
+.ath-pricing-authority-note {
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border-left: 4px solid #2271b1;
+  background: #f0f6fc;
+}
+.ath-pricing-authority-note strong { display: block; margin-bottom: 4px; }
+.ath-pricing-authority-note p { margin: 0; color: #50575e; }
+.ath-matrix-discount { display: block; margin-top: 7px; color: #646970; font-weight: 600; }
+.ath-matrix-discount.has-discount { color: #008a20; }
+.ath-matrix-discount.has-warning { color: #b32d2e; }
+
+/* Secure.7.3.6 asset/pricing separation status */
+.ath-admin-state-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 10px 0 12px;
+}
+.ath-admin-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid #c3c4c7;
+  background: #f6f7f7;
+  color: #3c434a;
+  font-size: 12px;
+}
+.ath-admin-state.is-good {
+  border-color: #a7d7b2;
+  background: #edfaef;
+  color: #116329;
+}
+.ath-admin-state.is-warning {
+  border-color: #e6c56d;
+  background: #fff8df;
+  color: #7a4b00;
+}
+.ath-pricing-status {
+  margin-left: 10px;
+  color: #646970;
+  font-weight: 600;
+}
+
+/* Secure.7.3.7 adaptive license picker admin metadata */
+#ath-license-rows select[name$="[license_group]"] { min-width: 120px; }
+#ath-license-rows .ath-license-featured-cell { white-space: nowrap; }
+#ath-license-rows .ath-license-featured-cell label { display: inline-flex; align-items: center; gap: 5px; }
+
+/* secure.7.3.11 — internal license icon manager */
+#ath-license-rows .ath-license-icon-select { min-width: 155px; max-width: 190px; }
+#ath-license-rows .ath-license-icon-note { display: block; margin-top: 3px; color: #757575; font-size: 11px; line-height: 1.2; }
+
+.ath-license-options-table th:nth-child(1), .ath-license-options-table td:nth-child(1) { width: 64px; }
+.ath-license-options-table th:nth-child(2), .ath-license-options-table td:nth-child(2) { min-width: 135px; width: 13%; }
+.ath-license-options-table th:nth-child(3), .ath-license-options-table td:nth-child(3) { min-width: 130px; width: 13%; }
+.ath-license-options-table th:nth-child(4), .ath-license-options-table td:nth-child(4) { min-width: 155px; width: 15%; }
+.ath-license-options-table th:nth-child(5), .ath-license-options-table td:nth-child(5) { min-width: 115px; width: 11%; }
+.ath-license-options-table th:nth-child(6), .ath-license-options-table td:nth-child(6) { min-width: 120px; width: 11%; }
+.ath-license-options-table th:nth-child(7), .ath-license-options-table td:nth-child(7) { min-width: 120px; width: 11%; }
+.ath-license-options-table th:nth-child(8), .ath-license-options-table td:nth-child(8) { min-width: 220px; width: 22%; }
