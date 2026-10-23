@@ -141,7 +141,7 @@ class VariableStudioWindow(object):
 		t.csv = Button((-105, 6, 95, 22), "Salin CSV", callback=lambda s: self._guard(self.copy_csv))
 		t.points = List((10, 36, -10, 210), [])
 		t.check = Button((10, 254, 140, 22), "Cek glyph ini", callback=lambda s: self._guard(self.check_current))
-		t.fix = Button((156, 254, 270, 22), "Samakan urutan, arah & titik awal", callback=lambda s: self._guard(self.fix_current))
+		t.fix = Button((156, 254, 270, 22), "Samakan titik (sinkron otomatis)", callback=lambda s: self._guard(self.fix_current))
 		t.locate = Button((-170, 254, 160, 22), "Tunjukkan titik", callback=lambda s: self._guard(self.locate_issue))
 		t.line = HorizontalLine((10, 286, -10, 1))
 		t.scan = Button((10, 296, 160, 22), "Cek seluruh font", callback=lambda s: self._guard(self.scan))
@@ -227,7 +227,11 @@ class VariableStudioWindow(object):
 		finally:
 			glyph.endUndo()
 		self.refresh_points()
-		self.w.tabs[0].status.set("; ".join(changes) if changes else "Tidak ada yang perlu diubah.")
+		left = check_glyph(glyph, self.font)
+		self.scan_results = [(glyph.name, left)] if left else []
+		self._show_results()
+		msg = "; ".join(changes) if changes else "Tidak ada yang perlu diubah."
+		self.w.tabs[0].status.set(msg + (" — sisa %d masalah (lihat daftar)." % len(left) if left else " — semua master cocok."))
 
 	def _scan_glyphs(self):
 		font = self.font

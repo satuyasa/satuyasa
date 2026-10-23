@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.7.1"
+VS_VERSION = "1.8.0"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -2049,6 +2049,219 @@ def diff_items(diff, ref_paths, paths, ref_name, name):
 
 def describe_diff(diff, ref_paths, paths, ref_name, name):
 	return [x["text"] for x in diff_items(diff, ref_paths, paths, ref_name, name)]
+
+
+# ---------------------------------------------------------------------------
+# Sinkron titik antar master: sisipkan titik yang kurang (membelah segmen,
+# bentuk tidak berubah), samakan tipe garis/kurva, arah & titik awal
+
+def _to_struct(types, pts):
+	"""-> (on-curve [(x,y)], segmen masuk [(jenis, [handle...])]) per titik."""
+	n = len(types)
+	on = [i for i in range(n) if types[i] != "offcurve"]
+	O, S = [], []
+	for k, i in enumerate(on):
+		prev = on[k - 1]
+		offs = []
+		j = (prev + 1) % n
+		while j != i:
+			offs.append(tuple(pts[j]))
+			j = (j + 1) % n
+		O.append(tuple(pts[i]))
+		S.append((types[i] if offs else "line", offs))
+	return O, S
+
+
+def _from_struct(O, S):
+	types, pts = [], []
+	for (kind, offs), p in zip(S, O):
+		for h in offs:
+			types.append("offcurve")
+			pts.append(h)
+		types.append("curve" if offs and kind != "qcurve" else ("qcurve" if offs else "line"))
+		pts.append(p)
+	return types, pts
+
+
+def _seg_ctrl(O, S, k):
+	"""Titik kontrol segmen yang berakhir di O[k] (dari O[k-1])."""
+	return [O[k - 1]] + list(S[k][1]) + [O[k]]
+
+
+def _seg_len(ctrl, steps=24):
+	if len(ctrl) == 2:
+		return math.hypot(ctrl[1][0] - ctrl[0][0], ctrl[1][1] - ctrl[0][1])
+	L, prev = 0.0, ctrl[0]
+	for j in range(1, steps + 1):
+		q = _bez(ctrl, j / float(steps))
+		L += math.hypot(q[0] - prev[0], q[1] - prev[1])
+		prev = q
+	return L
+
+
+def _t_at_length(ctrl, frac, steps=48):
+	"""Parameter t pada kurva untuk pecahan panjang `frac` (0..1)."""
+	if len(ctrl) == 2:
+		return frac
+	acc = [0.0]
+	prev = ctrl[0]
+	for j in range(1, steps + 1):
+		q = _bez(ctrl, j / float(steps))
+		acc.append(acc[-1] + math.hypot(q[0] - prev[0], q[1] - prev[1]))
+		prev = q
+	target = frac * acc[-1]
+	for j in range(1, steps + 1):
+		if acc[j] >= target:
+			seg = acc[j] - acc[j - 1]
+			u = 0.0 if seg < 1e-12 else (target - acc[j - 1]) / seg
+			return (j - 1 + u) / float(steps)
+	return 1.0
+
+
+def _split_ctrl(ctrl, t):
+	"""Belah segmen (garis atau kurva Bezier derajat berapa pun) di t."""
+	if len(ctrl) == 2:
+		m = (ctrl[0][0] + (ctrl[1][0] - ctrl[0][0]) * t, ctrl[0][1] + (ctrl[1][1] - ctrl[0][1]) * t)
+		return [ctrl[0], m], [m, ctrl[1]]
+	left, right = [ctrl[0]], [ctrl[-1]]
+	pts = list(ctrl)
+	while len(pts) > 1:
+		pts = [(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) for a, b in zip(pts, pts[1:])]
+		left.append(pts[0])
+		right.append(pts[-1])
+	return left, list(reversed(right))
+
+
+def _chain(O, S, a, b, closed):
+	"""Segmen dari titik on-curve a ke b (indeks; melingkar bila tertutup)."""
+	n = len(O)
+	out = []
+	k = a
+	while k != b:
+		k2 = (k + 1) % n if closed else k + 1
+		out.append(_seg_ctrl(O, S, k2))
+		k = k2
+	return out
+
+
+def _chain_fracs(chain):
+	lens = [_seg_len(c) for c in chain]
+	total = sum(lens) or 1.0
+	fr, acc = [], 0.0
+	for L in lens[:-1]:
+		acc += L
+		fr.append(acc / total)
+	return fr, lens, total
+
+
+def _insert_fracs(chain, add):
+	"""Sisipkan titik di pecahan panjang `add` (urut) pada rantai segmen."""
+	chain = [list(c) for c in chain]
+	for f in sorted(add):
+		lens = [_seg_len(c) for c in chain]
+		total = sum(lens) or 1.0
+		target = f * total
+		acc = 0.0
+		for k, c in enumerate(chain):
+			if acc + lens[k] >= target or k == len(chain) - 1:
+				local = 0.0 if lens[k] < 1e-9 else (target - acc) / lens[k]
+				local = max(1e-4, min(1 - 1e-4, local))
+				l, r = _split_ctrl(c, _t_at_length(c, local))
+				chain[k:k + 1] = [l, r]
+				break
+			acc += lens[k]
+	return chain
+
+
+def _best_onalign(O1, O2, closed):
+	"""Penjajaran titik on-curve: (biaya, dibalik?, putaran, pasangan)."""
+	A = [("on", p) for p in _norm_pts(O1, _box(O1))]
+	best = None
+	m = len(O2)
+	for rev in (False, True):
+		seq = list(reversed(O2)) if rev else list(O2)
+		normB = _norm_pts(seq, _box(seq))
+		rots = range(m) if closed else [0]
+		if closed and m > 8:
+			rots = sorted(range(m), key=lambda j: math.hypot(normB[j][0] - A[0][1][0], normB[j][1] - A[0][1][1]))[:8]
+		for r in rots:
+			B = [("on", normB[(j + r) % m]) for j in range(m)]
+			c, pairs = _align_dp(A, B)
+			if best is None or c < best[0]:
+				best = (c, rev, r, pairs)
+	return best
+
+
+def sync_contour(ref, other, closed=True):
+	"""ref, other: (types, pts). Hasil (ref_baru, other_baru, laporan) dengan
+	struktur titik sama persis: titik yang kurang disisipkan (membelah
+	segmen, bentuk tetap), garis lawan kurva dijadikan kurva, dan arah &
+	titik awal `other` mengikuti `ref`. None bila tidak bisa disejajarkan."""
+	rt, rp = ref
+	ot, op = other
+	if any(t == "qcurve" for t in list(rt) + list(ot)):
+		return None
+	RO, RS = _to_struct(rt, rp)
+	OO_plain, _ = _to_struct(ot, op)
+	if len(RO) < 2 or len(OO_plain) < 2:
+		return None
+	c, rev, r, pairs = _best_onalign(RO, OO_plain, closed)
+	# susun ulang other sesuai arah & putaran terbaik
+	t2, p2 = (reverse_path_data(ot, op) if rev else (list(ot), list(op)))
+	OO, OS = _to_struct(t2, p2)
+	if rev:
+		# _best_onalign memakai list(reversed(O)); reverse_path_data memberi
+		# on-curve dalam urutan terbalik dengan titik terakhir lama di depan
+		m = len(OO)
+		target0 = list(reversed(OO_plain))[r % m]
+		r = min(range(m), key=lambda j: math.hypot(OO[j][0] - target0[0], OO[j][1] - target0[1]))
+	OO, OS = OO[r:] + OO[:r], OS[r:] + OS[:r]
+	matched = [(i, j) for i, j in pairs if i is not None and j is not None]
+	if not matched:
+		return None
+	report = {"added_ref": 0, "added_other": 0, "converted": 0, "reoriented": bool(rev or r)}
+	nR, nO = len(RO), len(OO)
+	# pastikan titik on-curve pertama berpasangan (titik awal sama)
+	i0, j0 = matched[0]
+	RO, RS = RO[i0:] + RO[:i0], RS[i0:] + RS[:i0]
+	OO, OS = OO[j0:] + OO[:j0], OS[j0:] + OS[:j0]
+	matched = [((i - i0) % nR, (j - j0) % nO) for i, j in matched]
+	newR_O, newR_S, newO_O, newO_S = [], [], [], []
+	ring = matched + ([(nR, nO)] if closed else [])
+	for (ia, ja), (ib, jb) in zip(ring, ring[1:]):
+		rc = _chain(RO, RS, ia % nR, ib % nR, closed) if ib != ia else []
+		oc = _chain(OO, OS, ja % nO, jb % nO, closed) if jb != ja else []
+		if not rc or not oc:
+			return None
+		rf, _, _ = _chain_fracs(rc)
+		of, _, _ = _chain_fracs(oc)
+		rc2 = _insert_fracs(rc, of)
+		oc2 = _insert_fracs(oc, rf)
+		report["added_ref"] += len(of)
+		report["added_other"] += len(rf)
+		for a, b in zip(rc2, oc2):
+			if len(a) != len(b):
+				if len(a) == 2 and len(b) == 4:
+					a = [a[0], _lerp2(a[0], a[1], 1 / 3.0), _lerp2(a[0], a[1], 2 / 3.0), a[1]]
+				elif len(b) == 2 and len(a) == 4:
+					b = [b[0], _lerp2(b[0], b[1], 1 / 3.0), _lerp2(b[0], b[1], 2 / 3.0), b[1]]
+				else:
+					return None
+				report["converted"] += 1
+			newR_O.append(tuple(a[-1]))
+			newR_S.append(("curve" if len(a) > 2 else "line", [tuple(h) for h in a[1:-1]]))
+			newO_O.append(tuple(b[-1]))
+			newO_S.append(("curve" if len(b) > 2 else "line", [tuple(h) for h in b[1:-1]]))
+	# kembalikan titik awal ref seperti semula (titik on-curve pertama lama)
+	first = tuple(_to_struct(rt, rp)[0][0])
+	k0 = next((k for k, p in enumerate(newR_O) if p == first), 0)
+	newR_O, newR_S = newR_O[k0:] + newR_O[:k0], newR_S[k0:] + newR_S[:k0]
+	newO_O, newO_S = newO_O[k0:] + newO_O[:k0], newO_S[k0:] + newO_S[:k0]
+	return _from_struct(newR_O, newR_S), _from_struct(newO_O, newO_S), report
+
+
+def _lerp2(a, b, t):
+	return (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
 # ======================================================================
 # vs_glyphs.py
 # Variable Studio - operasi pada font Glyphs 3 (axis, master, instance,
@@ -2059,7 +2272,7 @@ import json
 import math
 import uuid
 
-from GlyphsApp import Glyphs, GSAxis, GSInstance, GSCustomParameter
+from GlyphsApp import Glyphs, GSAxis, GSInstance, GSCustomParameter, GSNode
 from Foundation import NSPoint
 
 INSTANCE_VARIABLE = 1  # INSTANCETYPEVARIABLE
@@ -2434,44 +2647,108 @@ def _reorder_paths(layer, order):
 	layer.shapes = [next(it) if hasattr(sh, "nodes") else sh for sh in shapes]
 
 
-def fix_glyph(glyph, font):
-	"""Samakan urutan kontur, arah, dan titik awal semua master dengan master
-	pertama. Titik lebih/kurang tidak bisa ditebak, jadi hanya dilaporkan."""
+def _write_path(path, types, pts):
+	"""Tulis ulang titik path (jumlah, tipe, posisi). Titik lama dipakai
+	ulang sebanyak mungkin; titik halus ditandai bila kedua sisinya segaris."""
+	while len(path.nodes) < len(types):
+		node = GSNode((0, 0), "line")
+		path.nodes.append(node)
+		try:
+			node.parent = path
+		except Exception:
+			pass
+	while len(path.nodes) > len(types):
+		path.nodes.remove(path.nodes[-1])
+	nodes = list(path.nodes)
+	for node, t, p in zip(nodes, types, pts):
+		node.type = t
+		node.position = NSPoint(p[0], p[1])
+	n = len(pts)
+	for i, (node, t) in enumerate(zip(nodes, types)):
+		if t == "offcurve":
+			continue
+		a = _unit(pts[i][0] - pts[(i - 1) % n][0], pts[i][1] - pts[(i - 1) % n][1])
+		b = _unit(pts[(i + 1) % n][0] - pts[i][0], pts[(i + 1) % n][1] - pts[i][1])
+		smooth = bool(a and b and (types[(i - 1) % n] == "offcurve" or types[(i + 1) % n] == "offcurve")
+			and a[0] * b[0] + a[1] * b[1] > 0.9995)
+		try:
+			node.smooth = smooth
+		except Exception:
+			pass
+
+
+def _same_data(a_types, a_pts, b_types, b_pts):
+	return list(a_types) == list(b_types) and all(
+		abs(p[0] - q[0]) < 1e-6 and abs(p[1] - q[1]) < 1e-6 for p, q in zip(a_pts, b_pts)) and len(a_pts) == len(b_pts)
+
+
+def fix_glyph(glyph, font, sync=True, passes=4):
+	"""Samakan semua master dengan master pertama: urutan kontur, arah, titik
+	awal; bila sync, juga jumlah & tipe titik (titik yang kurang disisipkan
+	dengan membelah segmen - bentuk tidak berubah; tidak ada yang dihapus)."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
 	ref_name, _, ref_layer = srcs[0]
-	ref_paths = layer_paths(ref_layer)
 	changes = []
-	for name, _, layer in srcs[1:]:
-		diff = diff_paths(ref_paths, layer_paths(layer))
-		order = diff["order"]
-		if None not in order and not diff["unmatched_other"] and order != list(range(len(order))):
-			_reorder_paths(layer, order)
-			changes.append("%s: urutan kontur disamakan" % name)
+	for _ in range(passes):
+		changed = False
+		for name, _, layer in srcs[1:]:
+			ref_paths = layer_paths(ref_layer)
 			diff = diff_paths(ref_paths, layer_paths(layer))
-		for d in diff["contours"]:
-			ci = d["other"]
-			p = layer.paths[ci]
-			if not d["compatible"]:
-				left = []
-				if d["extra"]:
-					left.append("titik lebih " + ", ".join("%d:%d" % (ci, j) for j in d["extra"]))
-				if d["missing"]:
-					left.append("kurang %d titik" % len(d["missing"]))
-				changes.append("%s kontur %d: perlu diperbaiki manual (%s)" % (name, ci, "; ".join(left) or "tipe titik beda"))
-				continue
-			if d["reversed"]:
-				p.reverse()
-				changes.append("%s kontur %d: arah dibalik" % (name, ci))
-			rt, rpts = ref_paths[d["ref"]][1], ref_paths[d["ref"]][2]
-			t, pts = _types_pts(p)
-			r = best_rotation(rt, rpts, t, pts)
-			if r:
-				if _rotate_path(p, r):
-					changes.append("%s kontur %d: titik awal digeser" % (name, ci))
-				else:
-					changes.append("%s kontur %d: gagal menggeser titik awal" % (name, ci))
+			order = diff["order"]
+			if None not in order and not diff["unmatched_other"] and order != list(range(len(order))):
+				_reorder_paths(layer, order)
+				changes.append("%s: urutan kontur disamakan" % name)
+				changed = True
+				diff = diff_paths(ref_paths, layer_paths(layer))
+			for d in diff["contours"]:
+				ci = d["other"]
+				p = layer.paths[ci]
+				if d["compatible"]:
+					if d["reversed"]:
+						p.reverse()
+						changes.append("%s kontur %d: arah dibalik" % (name, ci))
+						changed = True
+					rt, rpts = ref_paths[d["ref"]][1], ref_paths[d["ref"]][2]
+					t, pts = _types_pts(p)
+					r = best_rotation(rt, rpts, t, pts)
+					if r:
+						if _rotate_path(p, r):
+							changes.append("%s kontur %d: titik awal digeser" % (name, ci))
+							changed = True
+						else:
+							changes.append("%s kontur %d: gagal menggeser titik awal" % (name, ci))
+					continue
+				if not sync:
+					changes.append("%s kontur %d: perlu diperbaiki manual" % (name, ci))
+					continue
+				closed, rt, rp = ref_paths[d["ref"]]
+				_, ot, op = layer_paths(layer)[ci]
+				res = sync_contour((rt, rp), (ot, op), closed)
+				if res is None:
+					changes.append("%s kontur %d: tidak bisa disinkronkan otomatis (perlu manual)" % (name, ci))
+					continue
+				(nrt, nrp), (nt, npts), rep = res
+				parts = []
+				if not _same_data(rt, rp, nrt, nrp):
+					_write_path(ref_layer.paths[d["ref"]], nrt, nrp)
+					changed = True
+					if rep["added_ref"]:
+						parts.append("%s +%d titik" % (ref_name, rep["added_ref"]))
+				if not _same_data(ot, op, nt, npts):
+					_write_path(p, nt, npts)
+					changed = True
+					if rep["added_other"]:
+						parts.append("%s +%d titik" % (name, rep["added_other"]))
+				if rep["converted"]:
+					parts.append("%d garis jadi kurva" % rep["converted"])
+				if rep["reoriented"]:
+					parts.append("arah/titik awal disamakan")
+				if parts:
+					changes.append("kontur %d: %s (bentuk tetap)" % (d["ref"], ", ".join(parts)))
+		if not changed:
+			break
 	return changes
 
 
@@ -3228,7 +3505,7 @@ class VariableStudioWindow(object):
 		t.csv = Button((-105, 6, 95, 22), "Salin CSV", callback=lambda s: self._guard(self.copy_csv))
 		t.points = List((10, 36, -10, 210), [])
 		t.check = Button((10, 254, 140, 22), "Cek glyph ini", callback=lambda s: self._guard(self.check_current))
-		t.fix = Button((156, 254, 270, 22), "Samakan urutan, arah & titik awal", callback=lambda s: self._guard(self.fix_current))
+		t.fix = Button((156, 254, 270, 22), "Samakan titik (sinkron otomatis)", callback=lambda s: self._guard(self.fix_current))
 		t.locate = Button((-170, 254, 160, 22), "Tunjukkan titik", callback=lambda s: self._guard(self.locate_issue))
 		t.line = HorizontalLine((10, 286, -10, 1))
 		t.scan = Button((10, 296, 160, 22), "Cek seluruh font", callback=lambda s: self._guard(self.scan))
@@ -3314,7 +3591,11 @@ class VariableStudioWindow(object):
 		finally:
 			glyph.endUndo()
 		self.refresh_points()
-		self.w.tabs[0].status.set("; ".join(changes) if changes else "Tidak ada yang perlu diubah.")
+		left = check_glyph(glyph, self.font)
+		self.scan_results = [(glyph.name, left)] if left else []
+		self._show_results()
+		msg = "; ".join(changes) if changes else "Tidak ada yang perlu diubah."
+		self.w.tabs[0].status.set(msg + (" — sisa %d masalah (lihat daftar)." % len(left) if left else " — semua master cocok."))
 
 	def _scan_glyphs(self):
 		font = self.font

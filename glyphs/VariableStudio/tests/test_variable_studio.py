@@ -708,8 +708,20 @@ def test_point_audit():
 	items = P.glyph_issue_items(f.glyphs["H"], f)
 	extra = [it for it in items if it["kind"] == "extra"]
 	assert len(extra) == 1 and extra[0]["nodes"] == [(0, 2)] and "0:2" in extra[0]["text"], [it["text"] for it in items]
+	# tanpa sinkron: hanya dilaporkan
+	ch = P.fix_glyph(f.glyphs["H"], f, sync=False)
+	assert any("manual" in c for c in ch), ch
+	# sinkron: Light mendapat titik pasangan di tengah sisi kanan stem, bentuk tetap
+	hl = f.glyphs["H"].layers[light.id]
+	before = [P._xy(n) for n in hl.paths[0].nodes]
 	ch = P.fix_glyph(f.glyphs["H"], f)
-	assert any("manual" in c and "0:2" in c for c in ch), ch
+	assert any("Light +1 titik" in c for c in ch), ch
+	assert P.check_glyph(f.glyphs["H"], f) == [], P.check_glyph(f.glyphs["H"], f)
+	after = [P._xy(n) for n in hl.paths[0].nodes]
+	assert len(after) == 5 and set(before) <= set(after) and (70.0, 350.0) in after, after
+	# skenario baru untuk jendela: titik lebih lagi di Bold
+	h.paths[0].nodes.insert(1, GSNode((90, 0), "line"))
+	h.paths[0].nodes[1].parent = h.paths[0]
 	# tipe beda
 	f2 = make_font()
 	l2 = f2.glyphs["H"].layers[f2.masters[1].id]
@@ -726,9 +738,14 @@ def test_point_audit():
 	rows = t.results.get()
 	t.results.selection = [next(k for k, r in enumerate(rows) if "LEBIH" in r["issue"])]
 	w.locate_issue()
-	assert h.selection == [h.paths[0].nodes[2]] and "0:2" in t.status.value, t.status.value
+	assert h.selection == [h.paths[0].nodes[1]] and "0:1" in t.status.value, t.status.value
+	# tombol Samakan titik di jendela: semua master cocok
+	t.fix.press()
+	assert "semua master cocok" in t.status.value, t.status.value
 	w.w.binds["close"](None)
-	# reporter: penanda dengan label
+	# reporter: penanda dengan label (buat lagi titik lebih di Bold)
+	h.paths[0].nodes.insert(1, GSNode((95, 0), "line"))
+	h.paths[0].nodes[1].parent = h.paths[0]
 	Glyphs.defaults.clear()
 	R.pref_set("showIDs", 0)
 	R.ReporterPlugin.texts[:] = []
@@ -809,6 +826,74 @@ def test_direction_bias():
 	t.biasReset.press()
 	assert w._weight_bias() is None
 	w.w.binds["close"](None)
+
+
+def test_sync_points():
+	"""Sinkron titik otomatis: 3 master dengan titik berbeda di kurva, garis
+	lawan kurva, arah terbalik -> semua kompatibel, bentuk tidak berubah."""
+	import math as _m
+	f = make_font()
+	light, bold = f.masters
+	black = GSFontMaster("Black")
+	f.masters.append(black)
+	black.axes = [220]
+	g = f.glyphs["o"]
+	g.layers[black.id] = g.layers[bold.id].copy()
+	lb = g.layers[black.id]
+	for p in lb.paths:
+		p.applyTransform((1.2, 0, 0, 1.1, -60, -25))
+
+	def split_first_curve(layer, ci, t):
+		path = layer.paths[ci]
+		types, pts = [n.type for n in path.nodes], [P._xy(n) for n in path.nodes]
+		O, S = P.vs_split_struct(types, pts) if hasattr(P, "vs_split_struct") else (None, None)
+		import importlib
+		V = P
+		O, S = V._to_struct(types, pts)
+		l, r = V._split_ctrl(V._seg_ctrl(O, S, 0), t)
+		O.insert(0, tuple(l[-1]))
+		S[0] = ("curve", [tuple(h) for h in r[1:-1]])
+		S.insert(0, ("curve", [tuple(h) for h in l[1:-1]]))
+		nt, np_ = V._from_struct(O, S)
+		P._write_path(path, nt, np_)
+
+	def samples(layer, n=40):
+		out = []
+		for pi, a, b, c in P.path_curves(P.layer_paths(layer)):
+			for k in range(n):
+				out.append(P._bez(c, k / float(n)))
+		return out
+
+	def hausdorff(s1, s2):
+		# s2 sangat rapat: jarak titik hasil ke bentuk lama
+		return max(min(_m.hypot(a[0] - b[0], a[1] - b[1]) for b in s2) for a in s1)
+	split_first_curve(g.layers[bold.id], 0, 0.4)       # Bold: titik lebih di kontur luar
+	split_first_curve(g.layers[black.id], 1, 0.7)      # Black: titik lebih di counter
+	g.layers[bold.id].paths[1].reverse()                # Bold: counter terbalik
+	shapes = dict((m.id, samples(g.layers[m.id], 2000)) for m in f.masters)
+	assert P.check_glyph(g, f)
+	ch = P.fix_glyph(g, f)
+	assert P.check_glyph(g, f) == [], (ch, P.check_glyph(g, f))
+	counts = [[len(p.nodes) for p in g.layers[m.id].paths] for m in f.masters]
+	assert counts[0] == counts[1] == counts[2] == [15, 15], counts
+	for m in f.masters:
+		assert hausdorff(samples(g.layers[m.id]), shapes[m.id]) < 0.25, m.name  # bentuk tetap
+	# garis lawan kurva: H Bold sisi kanan stem jadi kurva lurus-lengkung
+	h = f.glyphs["H"]
+	h.layers[black.id] = h.layers[bold.id].copy()
+	hb = h.layers[bold.id].paths[0]
+	types, pts = [n.type for n in hb.nodes], [P._xy(n) for n in hb.nodes]
+	# ganti segmen (130,0)->(130,700) jadi kurva melengkung
+	P._write_path(hb, ["line", "line", "offcurve", "offcurve", "curve", "line"][:0] or
+		["line", "line", "offcurve", "offcurve", "curve", "line"],
+		[(50, 0), (130, 0), (150, 200), (150, 500), (130, 700), (50, 700)])
+	ch = P.fix_glyph(h, f)
+	assert any("garis jadi kurva" in c for c in ch), ch
+	assert P.check_glyph(h, f) == [], P.check_glyph(h, f)
+	hl = h.layers[light.id].paths[0]
+	ln = [P._xy(n) for n in hl.nodes]
+	# garis Light tetap lurus (handle di garisnya)
+	assert all(abs(x - 70) < 1e-6 for x, y in ln if 0 < y < 700), ln
 
 
 if __name__ == "__main__":

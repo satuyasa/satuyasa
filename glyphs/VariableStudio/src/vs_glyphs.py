@@ -8,7 +8,7 @@ import json
 import math
 import uuid
 
-from GlyphsApp import Glyphs, GSAxis, GSInstance, GSCustomParameter
+from GlyphsApp import Glyphs, GSAxis, GSInstance, GSCustomParameter, GSNode
 from Foundation import NSPoint
 from vs_core import *  # BUILD:STRIP
 from vs_core import _xy  # BUILD:STRIP
@@ -385,44 +385,108 @@ def _reorder_paths(layer, order):
 	layer.shapes = [next(it) if hasattr(sh, "nodes") else sh for sh in shapes]
 
 
-def fix_glyph(glyph, font):
-	"""Samakan urutan kontur, arah, dan titik awal semua master dengan master
-	pertama. Titik lebih/kurang tidak bisa ditebak, jadi hanya dilaporkan."""
+def _write_path(path, types, pts):
+	"""Tulis ulang titik path (jumlah, tipe, posisi). Titik lama dipakai
+	ulang sebanyak mungkin; titik halus ditandai bila kedua sisinya segaris."""
+	while len(path.nodes) < len(types):
+		node = GSNode((0, 0), "line")
+		path.nodes.append(node)
+		try:
+			node.parent = path
+		except Exception:
+			pass
+	while len(path.nodes) > len(types):
+		path.nodes.remove(path.nodes[-1])
+	nodes = list(path.nodes)
+	for node, t, p in zip(nodes, types, pts):
+		node.type = t
+		node.position = NSPoint(p[0], p[1])
+	n = len(pts)
+	for i, (node, t) in enumerate(zip(nodes, types)):
+		if t == "offcurve":
+			continue
+		a = _unit(pts[i][0] - pts[(i - 1) % n][0], pts[i][1] - pts[(i - 1) % n][1])
+		b = _unit(pts[(i + 1) % n][0] - pts[i][0], pts[(i + 1) % n][1] - pts[i][1])
+		smooth = bool(a and b and (types[(i - 1) % n] == "offcurve" or types[(i + 1) % n] == "offcurve")
+			and a[0] * b[0] + a[1] * b[1] > 0.9995)
+		try:
+			node.smooth = smooth
+		except Exception:
+			pass
+
+
+def _same_data(a_types, a_pts, b_types, b_pts):
+	return list(a_types) == list(b_types) and all(
+		abs(p[0] - q[0]) < 1e-6 and abs(p[1] - q[1]) < 1e-6 for p, q in zip(a_pts, b_pts)) and len(a_pts) == len(b_pts)
+
+
+def fix_glyph(glyph, font, sync=True, passes=4):
+	"""Samakan semua master dengan master pertama: urutan kontur, arah, titik
+	awal; bila sync, juga jumlah & tipe titik (titik yang kurang disisipkan
+	dengan membelah segmen - bentuk tidak berubah; tidak ada yang dihapus)."""
 	srcs = glyph_sources(glyph, font)
 	if len(srcs) < 2:
 		return []
 	ref_name, _, ref_layer = srcs[0]
-	ref_paths = layer_paths(ref_layer)
 	changes = []
-	for name, _, layer in srcs[1:]:
-		diff = diff_paths(ref_paths, layer_paths(layer))
-		order = diff["order"]
-		if None not in order and not diff["unmatched_other"] and order != list(range(len(order))):
-			_reorder_paths(layer, order)
-			changes.append("%s: urutan kontur disamakan" % name)
+	for _ in range(passes):
+		changed = False
+		for name, _, layer in srcs[1:]:
+			ref_paths = layer_paths(ref_layer)
 			diff = diff_paths(ref_paths, layer_paths(layer))
-		for d in diff["contours"]:
-			ci = d["other"]
-			p = layer.paths[ci]
-			if not d["compatible"]:
-				left = []
-				if d["extra"]:
-					left.append("titik lebih " + ", ".join("%d:%d" % (ci, j) for j in d["extra"]))
-				if d["missing"]:
-					left.append("kurang %d titik" % len(d["missing"]))
-				changes.append("%s kontur %d: perlu diperbaiki manual (%s)" % (name, ci, "; ".join(left) or "tipe titik beda"))
-				continue
-			if d["reversed"]:
-				p.reverse()
-				changes.append("%s kontur %d: arah dibalik" % (name, ci))
-			rt, rpts = ref_paths[d["ref"]][1], ref_paths[d["ref"]][2]
-			t, pts = _types_pts(p)
-			r = best_rotation(rt, rpts, t, pts)
-			if r:
-				if _rotate_path(p, r):
-					changes.append("%s kontur %d: titik awal digeser" % (name, ci))
-				else:
-					changes.append("%s kontur %d: gagal menggeser titik awal" % (name, ci))
+			order = diff["order"]
+			if None not in order and not diff["unmatched_other"] and order != list(range(len(order))):
+				_reorder_paths(layer, order)
+				changes.append("%s: urutan kontur disamakan" % name)
+				changed = True
+				diff = diff_paths(ref_paths, layer_paths(layer))
+			for d in diff["contours"]:
+				ci = d["other"]
+				p = layer.paths[ci]
+				if d["compatible"]:
+					if d["reversed"]:
+						p.reverse()
+						changes.append("%s kontur %d: arah dibalik" % (name, ci))
+						changed = True
+					rt, rpts = ref_paths[d["ref"]][1], ref_paths[d["ref"]][2]
+					t, pts = _types_pts(p)
+					r = best_rotation(rt, rpts, t, pts)
+					if r:
+						if _rotate_path(p, r):
+							changes.append("%s kontur %d: titik awal digeser" % (name, ci))
+							changed = True
+						else:
+							changes.append("%s kontur %d: gagal menggeser titik awal" % (name, ci))
+					continue
+				if not sync:
+					changes.append("%s kontur %d: perlu diperbaiki manual" % (name, ci))
+					continue
+				closed, rt, rp = ref_paths[d["ref"]]
+				_, ot, op = layer_paths(layer)[ci]
+				res = sync_contour((rt, rp), (ot, op), closed)
+				if res is None:
+					changes.append("%s kontur %d: tidak bisa disinkronkan otomatis (perlu manual)" % (name, ci))
+					continue
+				(nrt, nrp), (nt, npts), rep = res
+				parts = []
+				if not _same_data(rt, rp, nrt, nrp):
+					_write_path(ref_layer.paths[d["ref"]], nrt, nrp)
+					changed = True
+					if rep["added_ref"]:
+						parts.append("%s +%d titik" % (ref_name, rep["added_ref"]))
+				if not _same_data(ot, op, nt, npts):
+					_write_path(p, nt, npts)
+					changed = True
+					if rep["added_other"]:
+						parts.append("%s +%d titik" % (name, rep["added_other"]))
+				if rep["converted"]:
+					parts.append("%d garis jadi kurva" % rep["converted"])
+				if rep["reoriented"]:
+					parts.append("arah/titik awal disamakan")
+				if parts:
+					changes.append("kontur %d: %s (bentuk tetap)" % (d["ref"], ", ".join(parts)))
+		if not changed:
+			break
 	return changes
 
 

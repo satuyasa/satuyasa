@@ -25,7 +25,12 @@ Dua plugin yang dipakai bersama:
   - titik **LEBIH** (`0:2 (line) di 110, 380`) / **KURANG** (posisi titik yang sepadan di master referensi)
   - tipe titik beda (`2:5 line, di Light 1:5 curve`), komponen, anchor
 - *Tunjukkan titik* (atau klik dua kali baris masalah): membuka glyph di master yang bermasalah dan **memilih titiknya** di Edit View.
-- *Samakan urutan, arah & titik awal*: memperbaiki otomatis urutan kontur, arah, dan titik awal di semua master. Titik lebih/kurang hanya dilaporkan (perlu keputusan desain).
+- *Samakan titik (sinkron otomatis)*: menyamakan semua master (dan brace layer) dengan master pertama:
+  - urutan kontur, arah, dan titik awal;
+  - **titik yang kurang disisipkan** di master yang belum punya, dengan membelah segmennya (de Casteljau) di posisi yang sebanding (proporsi panjang lintasan) dengan master lain. Bentuk tidak berubah;
+  - prinsip gabungan: titik ekstra di satu master disisipkan juga ke master lain. Tidak ada titik yang dihapus;
+  - garis lawan kurva: garis diubah jadi kurva dengan handle di 1/3 & 2/3 (tetap lurus);
+  - diulang sampai semua master cocok; sisa masalah (bila ada) langsung tampil di daftar. Bisa di-Undo.
 - Reporter (centang *Tandai titik yang tidak sama* di tab Pratinjau, bawaan aktif): lingkaran merah = titik lebih/kurang, oranye = tipe beda, biru = jadikan titik awal, label ungu = arah terbalik / urutan kontur beda. Di master referensi, titik yang tidak ada di master lain juga ditandai.
 - *Beri warna (flag)*: menandai glyph bermasalah dengan warna glyph; *Buka hasil di tab*.
 
