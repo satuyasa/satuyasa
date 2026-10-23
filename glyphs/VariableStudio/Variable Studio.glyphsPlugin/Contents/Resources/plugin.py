@@ -9,7 +9,7 @@
 
 import math
 
-VS_VERSION = "1.7.0"
+VS_VERSION = "1.7.1"
 DEFAULTS_PREFIX = "com.satuyasa.VariableStudio."
 
 # ---------------------------------------------------------------------------
@@ -693,6 +693,47 @@ def stabilize_terminals(paths, vecs, pins, max_len=40.0):
 		vecs[kb] = v
 
 
+def _apply_axis_bias(vecs, outs, bx, by, pins):
+	"""Arah kiri/kanan & bawah/atas: sisi goresan yang menghadap kiri
+	mendapat (1 - bx) bagian geseran-x, yang menghadap kanan (1 + bx)
+	(sama untuk bawah/atas dengan by). Tiap goresan punya sepasang sisi
+	berlawanan, jadi total tebal tetap. Goresan yang menempel zona
+	(titik dipegang & titik seberangnya) tidak dibagi ulang vertikal,
+	supaya tambahan tebalnya tidak hilang."""
+	targets = set(t for t in pins.values() if t is not None)
+	for key, (vx, vy) in list(vecs.items()):
+		o = outs.get(key)
+		if o is None:
+			continue
+		fx = fy = 1.0
+		if bx:
+			if o[0] > 0.05:
+				fx = 1.0 + bx
+			elif o[0] < -0.05:
+				fx = 1.0 - bx
+		if by and key not in pins and key not in targets:
+			if o[1] > 0.05:
+				fy = 1.0 + by
+			elif o[1] < -0.05:
+				fy = 1.0 - by
+		vecs[key] = (vx * fx, vy * fy)
+
+
+def _apply_io_bias_selected(paths, vecs, outs, bio):
+	"""Dalam/luar untuk titik terpilih: sisi yang menghadap ruang putih
+	tertutup (counter) x (1 - bio), sisi yang menghadap luar x (1 + bio)."""
+	lines = _flat_lines(paths)
+	for key, (vx, vy) in list(vecs.items()):
+		o = outs.get(key)
+		u = _unit(*o) if o else None
+		if u is None or (vx == 0 and vy == 0):
+			continue
+		p = paths[key[0]][2][key[1]]
+		inside = _ray_hit((p[0] + u[0] * 0.5, p[1] + u[1] * 0.5), u, lines, eps=0.5) is not None
+		f = (1.0 - bio) if inside else (1.0 + bio)
+		vecs[key] = (vx * f, vy * f)
+
+
 def _redistribute_tangential(paths, vecs):
 	"""Titik halus yang akan keluar dari rentang kedua tetangganya digeser
 	sepanjang garis singgungnya, sebanding posisinya di antara mereka. Saat counter menyempit
@@ -866,6 +907,7 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 	ons = [((pi, i), pts[i]) for pi, (closed, types, pts) in enumerate(paths) if closed
 		for i in range(len(pts)) if types[i] != "offcurve"]
 	rays = {}
+	fwd_hits = {}
 	for (pi, i), p in ons:
 		closed, types, pts = paths[pi]
 		if (pi, i) not in vecs:
@@ -883,46 +925,68 @@ def protect_space(paths, vecs, pins, clamp=3.0, gap_ratio=0.2, min_gap=8.0, min_
 		out_rays = []
 		for out in dirs:
 			start = (p[0] + out[0] * 0.5, p[1] + out[1] * 0.5)
-			gap = _ray_hit(start, out, lines, eps=0.5)
+			fwd = _ray_hit_info(start, out, lines, eps=0.5)
+			gap = fwd[0] if fwd else None
 			back = _ray_hit_info(p, (-out[0], -out[1]), lines, eps=0.5)
 			out_rays.append((out, gap, back))
+			fwd_hits[((pi, i), out)] = fwd
 		rays[(pi, i)] = out_rays
+
+	def _vec_at_hit(hit):
+		"""geseran yang DIMINTA tepi yang ditembus sinar (sebelum dibatasi;
+		interpolasi dua titik ujung segmen)"""
+		if not hit:
+			return None
+		pi_, a_, b_, t0_, t1_ = meta[hit[1]]
+		va, vb = requested.get((pi_, a_)), requested.get((pi_, b_))
+		if va is None or vb is None:
+			return None
+		t = t0_ + (t1_ - t0_) * hit[2]
+		return (va[0] * (1 - t) + vb[0] * t, va[1] * (1 - t) + vb[1] * t)
+
+	requested = dict(vecs)
 
 	# 1) arah (bias) lalu batasi tiap titik; catat kekurangan (deficit,
 	# bertanda: + = tambahan tebal yang belum terpakai, - = penipisan)
 	deficit = {}
-	bx, by, bio = bias if bias else (0.0, 0.0, 0.0)
+	bio = bias[2] if bias else 0.0
 	for key, out_rays in rays.items():
 		for out, gap, back in out_rays:
 			vx, vy = vecs[key]
 			grow = vx * out[0] + vy * out[1]  # + = menebal ke arah luar tinta
-			if (bx or by or bio) and abs(grow) > 1e-9 and back is not None:
-				red = 0.0
-				cx_, cy_ = vx * out[0], vy * out[1]  # bagian dari geseran x dan y
-				if (bx > 0 and out[0] < -0.3) or (bx < 0 and out[0] > 0.3):
-					red += abs(bx) * cx_
-				if (by > 0 and out[1] < -0.3) or (by < 0 and out[1] > 0.3):
-					red += abs(by) * cy_
+			if bio and abs(grow) > 1e-9 and back is not None:
 				inside = gap is not None
 				if (bio > 0 and inside) or (bio < 0 and not inside):
-					red += abs(bio) * (grow - red)
-				if abs(red) > abs(grow):
-					red = grow
-				if abs(red) > 1e-9:
-					vx, vy = vx - out[0] * red, vy - out[1] * red
-					vecs[key] = (vx, vy)
-					deficit.setdefault(key, []).append((out, red))
-					grow -= red
+					# penerima (sisi seberang) dipegang zona: bagian vertikal
+					# tidak bisa dipindah, jadi jangan dikurangi
+					pi_, a_, b_, _, _ = meta[back[1]]
+					held = (pi_, a_) in pins or (pi_, b_) in pins
+					if held and abs(out[1]) > 0.5:
+						pass
+					else:
+						red = abs(bio) * grow
+						vx, vy = vx - out[0] * red, vy - out[1] * red
+						vecs[key] = (vx, vy)
+						deficit.setdefault(key, []).append((out, red))
+						grow -= red
 			if not limits:
 				continue
 			if grow > 0 and gap is not None:
-				limit = max(0.0, (gap - max(min_gap, gap_ratio * gap)) / 2.0)
+				# celah dibagi sebanding gerakan sisi yang berhadapan (bukan
+				# selalu 50/50: dengan arah, sisi seberang bisa diam)
+				face = _vec_at_hit(fwd_hits.get((key, out)))
+				face_grow = max(0.0, -(face[0] * out[0] + face[1] * out[1])) if face else grow
+				share = grow / (grow + face_grow) if grow + face_grow > 1e-9 else 0.5
+				limit = max(0.0, (gap - max(min_gap, gap_ratio * gap)) * share)
 				if grow > limit:
 					ex = grow - limit
 					vecs[key] = (vx - out[0] * ex, vy - out[1] * ex)
 					deficit.setdefault(key, []).append((out, ex))
 			elif grow < 0 and back is not None:
-				limit = max(0.0, (back[0] - min_stroke) / 2.0)
+				opp = _vec_at_hit(back)
+				opp_in = max(0.0, opp[0] * out[0] + opp[1] * out[1]) if opp else -grow
+				share = -grow / (-grow + opp_in) if (-grow + opp_in) > 1e-9 else 0.5
+				limit = max(0.0, (back[0] - min_stroke) * share)
 				if -grow > limit:
 					ex = -grow - limit
 					vecs[key] = (vx + out[0] * ex, vy + out[1] * ex)
@@ -1137,6 +1201,7 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 	Hasil: list pts baru per path."""
 	polys = [list(pts) for _, _, pts in paths]
 	vecs = {}
+	outs = {}
 	for pi, (closed, types, pts) in enumerate(paths):
 		n = len(pts)
 		on = [i for i in range(n) if types[i] != "offcurve"]
@@ -1158,6 +1223,7 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 				if l > 0.5 * depth:
 					vx, vy = vx * 0.5 * depth / l, vy * 0.5 * depth / l
 			vecs[(pi, i)] = (vx, vy)
+			outs[(pi, i)] = (mx * s, my * s)
 	if pins:
 		extra = {}
 		for key, target in pins.items():
@@ -1169,8 +1235,13 @@ def offset_paths(paths, dx, dy, selected=None, clamp=3.0, weights=None, pins=Non
 				extra[target] = -vy
 		for key, ey in extra.items():
 			vecs[key] = (vecs[key][0], vecs[key][1] + ey)
-	if (protect or (bias and any(bias))) and selected is None:
-		protect_space(paths, vecs, pins or {}, clamp, bias=bias, limits=bool(protect), **(protect or {}))
+	if bias and (bias[0] or bias[1]):
+		_apply_axis_bias(vecs, outs, bias[0], bias[1], pins or {})
+	if bias and bias[2] and selected is not None:
+		_apply_io_bias_selected(paths, vecs, outs, bias[2])
+	io = (0.0, 0.0, bias[2]) if (bias and bias[2]) else None
+	if (protect or io) and selected is None:
+		protect_space(paths, vecs, pins or {}, clamp, bias=io, limits=bool(protect), **(protect or {}))
 	if terminals and selected is None:
 		stabilize_terminals(paths, vecs, pins or {}, terminals)
 	if selected is None:
@@ -1263,6 +1334,7 @@ def zone_pins(paths, zones, tolerance=25.0, measure=None):
 	ons = [((pi, i), pts[i]) for pi, (closed, types, pts) in enumerate(paths) if closed
 		for i in range(len(pts)) if types[i] != "offcurve"]
 	pins = {}
+	lines_cache = []
 	for key in cand:
 		target = None
 		sms = [x for x in m.get("near", {}).get(key, []) if not x.get("terminal")]
@@ -1279,8 +1351,47 @@ def zone_pins(paths, zones, tolerance=25.0, measure=None):
 					if d <= radius and (best is None or d < best[0]):
 						best = (d, k2)
 				target = best[1] if best else None
+		if target is None:
+			target = _pin_target_direct(paths, key, cand, ons, lines_cache)
 		pins[key] = target
 	return pins
+
+
+def _pin_target_direct(paths, key, cand, ons, lines_cache):
+	"""Cadangan untuk puncak/dasar lengkung yang halus: sinar tegak lurus
+	langsung dari titik yang dipegang (ke bawah
+	untuk zona atas, ke atas untuk zona bawah). Titik on-curve terdekat dari
+	titik tembus menjadi pasangannya, kecuali goresannya ujung (sinar jauh
+	lebih panjang dari lebar goresan, mis. dasar stem)."""
+	if not lines_cache:
+		lines_cache.append(_flat_lines(paths))
+	lines = lines_cache[0]
+	pi, i = key
+	pts = paths[pi][2]
+	tin = _neighbor_dir(pts, i, -1, True)
+	tout = _neighbor_dir(pts, i, 1, True)
+	if not tin or not tout or tin[0] * tout[0] + tin[1] * tout[1] > -0.97:
+		return None  # hanya puncak/dasar lengkung yang halus; sudut stem tidak
+	px, py = pts[i]
+	top = cand[key][1]
+	d = (0.0, -1.0) if top else (0.0, 1.0)
+	hit = _ray_hit((px, py), d, lines, eps=0.5)
+	if hit is None:
+		return None
+	hx, hy = px, py + d[1] * hit
+	mx, my = px, py + d[1] * hit / 2.0
+	w1 = _ray_hit((mx, my), (1.0, 0.0), lines, eps=0.0)
+	w2 = _ray_hit((mx, my), (-1.0, 0.0), lines, eps=0.0)
+	if w1 is not None and w2 is not None and hit > 2.5 * (w1 + w2):
+		return None  # ujung goresan: menebal = memanjang, tidak ada pasangan
+	best = None
+	for k2, q in ons:
+		if k2 == key or k2 in cand:
+			continue
+		dd = math.hypot(q[0] - hx, q[1] - hy)
+		if dd <= max(15.0, 0.6 * hit) and (best is None or dd < best[0]):
+			best = (dd, k2)
+	return best[1] if best else None
 
 
 def zone_limits(paths, pins):
@@ -1334,10 +1445,18 @@ def embolden(paths, width, add_x, add_y, keep_sidebearings=True, zones=None,
 	ox0, oy0, ox1, oy1 = ob
 	nx0, ny0, nx1, ny1 = nb
 	ow, nw = ox1 - ox0, nx1 - nx0
-	tx = (ox0 - nx0) if keep_sidebearings else 0.0
-	new_width = width + (nw - ow) if keep_sidebearings else width
+	grow_w = nw - ow
+	bxv = max(-1.0, min(1.0, float(bias[0]))) if bias else 0.0
+	if keep_sidebearings:
+		# seimbang: LSB & RSB tetap, lebar bertambah. Ke kiri: tambahan tebal
+		# memakan LSB (lebar tetap); ke kanan: memakan RSB.
+		tx = (ox0 - nx0) - grow_w * max(0.0, -bxv)
+		new_width = width + grow_w * (1.0 - abs(bxv))
+	else:
+		tx = 0.0
+		new_width = width
 	pts = [[(x + tx, y) for x, y in p] for p in new]
-	x0 = ox0 if keep_sidebearings else nx0
+	x0 = nx0 + tx
 
 	def anchor(x, y):
 		if ow > 1e-6:
@@ -3764,8 +3883,9 @@ class VariableStudioWindow(object):
 		t.addX = EditText((180, 42, 70, 22), "40", callback=lambda s: self.on_weight_target())
 		t.yLabel = TextBox((270, 44, 150, 17), "Stem datar (vertikal)")
 		t.addY = EditText((420, 42, 70, 22), "30")
-		t.keepSB = CheckBox((10, 70, 230, 20), "Pertahankan sidebearing", value=True)
-		t.keepH = CheckBox((240, 70, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
+		t.keepSB = CheckBox((10, 70, 230, 20), "Pertahankan sidebearing", value=True, callback=lambda s: self.on_bias())
+		t.keepH = CheckBox((240, 70, -10, 20), "Pertahankan baseline, x-height, cap height", value=True,
+			callback=lambda s: self.on_bias())
 		t.protect = CheckBox((10, 96, 240, 20), "Lindungi counter: sisakan ≥", value=True)
 		t.gapPct = EditText((250, 94, 45, 22), "20")
 		t.gapLabel = TextBox((300, 97, 120, 17), "%  ·  tebal min")
@@ -3847,7 +3967,13 @@ class VariableStudioWindow(object):
 
 		def split(v, a, b):
 			return "%s %d%% / %s %d%%" % (a, round(50 - v / 2.0), b, round(50 + v / 2.0))
-		t.biasInfo.set("  ·  ".join((split(x, "kiri", "kanan"), split(y, "bawah", "atas"), split(i, "dalam", "luar"))))
+		info = "  ·  ".join((split(x, "kiri", "kanan"), split(y, "bawah", "atas"), split(i, "dalam", "luar")))
+		notes = []
+		if abs(x) > 0.5 and t.keepSB.get():
+			notes.append("memakan %s" % ("LSB" if x < 0 else "RSB"))
+		if abs(y) > 0.5 and t.keepH.get():
+			notes.append("atas/bawah tidak menggeser puncak/dasar di zona")
+		t.biasInfo.set(info + (" — " + "; ".join(notes) if notes else ""))
 
 	def reset_bias(self):
 		t = self.w.tabs[6]

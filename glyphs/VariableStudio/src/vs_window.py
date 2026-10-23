@@ -796,8 +796,9 @@ class VariableStudioWindow(object):
 		t.addX = EditText((180, 42, 70, 22), "40", callback=lambda s: self.on_weight_target())
 		t.yLabel = TextBox((270, 44, 150, 17), "Stem datar (vertikal)")
 		t.addY = EditText((420, 42, 70, 22), "30")
-		t.keepSB = CheckBox((10, 70, 230, 20), "Pertahankan sidebearing", value=True)
-		t.keepH = CheckBox((240, 70, -10, 20), "Pertahankan baseline, x-height, cap height", value=True)
+		t.keepSB = CheckBox((10, 70, 230, 20), "Pertahankan sidebearing", value=True, callback=lambda s: self.on_bias())
+		t.keepH = CheckBox((240, 70, -10, 20), "Pertahankan baseline, x-height, cap height", value=True,
+			callback=lambda s: self.on_bias())
 		t.protect = CheckBox((10, 96, 240, 20), "Lindungi counter: sisakan ≥", value=True)
 		t.gapPct = EditText((250, 94, 45, 22), "20")
 		t.gapLabel = TextBox((300, 97, 120, 17), "%  ·  tebal min")
@@ -879,7 +880,13 @@ class VariableStudioWindow(object):
 
 		def split(v, a, b):
 			return "%s %d%% / %s %d%%" % (a, round(50 - v / 2.0), b, round(50 + v / 2.0))
-		t.biasInfo.set("  ·  ".join((split(x, "kiri", "kanan"), split(y, "bawah", "atas"), split(i, "dalam", "luar"))))
+		info = "  ·  ".join((split(x, "kiri", "kanan"), split(y, "bawah", "atas"), split(i, "dalam", "luar")))
+		notes = []
+		if abs(x) > 0.5 and t.keepSB.get():
+			notes.append("memakan %s" % ("LSB" if x < 0 else "RSB"))
+		if abs(y) > 0.5 and t.keepH.get():
+			notes.append("atas/bawah tidak menggeser puncak/dasar di zona")
+		t.biasInfo.set(info + (" — " + "; ".join(notes) if notes else ""))
 
 	def reset_bias(self):
 		t = self.w.tabs[6]

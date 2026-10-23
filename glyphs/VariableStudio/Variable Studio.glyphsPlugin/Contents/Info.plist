@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>BNDL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.7.0</string>
+	<string>1.7.1</string>
 	<key>CFBundleVersion</key>
-	<string>170</string>
+	<string>171</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright, satuyasa</string>
 	<key>NSPrincipalClass</key>
